@@ -3,6 +3,8 @@ import { useUIStore } from '../store/index.js';
 import Sidebar from '../components/Sidebar.jsx';
 import ChatScreen from './ChatScreen.jsx';
 import LibraryScreen from './LibraryScreen.jsx';
+import ProjectsScreen from './ProjectsScreen.jsx';
+import ContactsScreen from './ContactsScreen.jsx';
 import ProfileScreen from './ProfileScreen.jsx';
 import SettingsScreen from './SettingsScreen.jsx';
 
@@ -32,6 +34,8 @@ export default function AppShell() {
       <div className="flex-1 flex flex-col min-w-0 h-full">
         {activeView === 'chat' && <ChatScreen />}
         {activeView === 'library' && <LibraryScreen />}
+        {activeView === 'projects' && <ProjectsScreen />}
+        {activeView === 'contacts' && <ContactsScreen />}
         {activeView === 'profile' && <ProfileScreen />}
         {activeView === 'settings' && <SettingsScreen />}
       </div>

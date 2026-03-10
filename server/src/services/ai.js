@@ -56,7 +56,7 @@ Your primary job:
 1. Detect when the user wants to create a construction document
 2. Collect the required information through natural conversation (never a form, never a list of questions — ask one thing at a time, naturally)
 3. Generate the document when you have enough information
-4. Help users find and manage their existing documents
+4. Help users manage projects, contacts, and documents
 
 Document types you handle:
 - RFI (Request for Information)
@@ -75,14 +75,47 @@ Rules:
 - Format generated documents in clean, professional text
 - When generating a document, wrap it in <document type="TYPE" title="TITLE"> ... </document> tags
 - After generating, ask: "Want me to save this, or make any changes?"
-- If user asks about existing documents, tell them to check the Document Library in the sidebar`;
+- If user mentions a new project, client, GC, architect, or contact — acknowledge it and let them know you're tracking it
+- If user asks about their projects or contacts, summarize what you know from context`;
+
+const EXTRACT_PROMPT = `You are a data extraction assistant. Given a conversation message, extract any project or contact information mentioned.
+
+Return a JSON object with this structure (omit fields not mentioned, return null if nothing found):
+{
+  "project": {
+    "name": "...",
+    "client_name": "...",
+    "client_contact": "...",
+    "client_email": "...",
+    "client_phone": "...",
+    "address": "...",
+    "gc_name": "...",
+    "architect_name": "...",
+    "contract_value": 0,
+    "start_date": "...",
+    "status": "active"
+  },
+  "contacts": [
+    {
+      "name": "...",
+      "company": "...",
+      "role": "...",
+      "email": "...",
+      "phone": "..."
+    }
+  ]
+}
+
+Only extract clearly stated information. Do not infer or guess. Return null for "project" if no project info found. Return empty array for "contacts" if no contacts found. Return ONLY valid JSON.`;
 
 export async function chat(userId, userMessage, conversationHistory = []) {
   const db = getDb();
 
-  // Load compressed memory
+  // Load compressed memory, profile, and existing projects/contacts for context
   const memory = db.prepare('SELECT summary FROM chat_memory WHERE user_id = ?').get(userId);
   const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(userId);
+  const projects = db.prepare('SELECT id, name, client_name, status FROM projects WHERE user_id = ? ORDER BY created_at DESC LIMIT 10').all(userId);
+  const contacts = db.prepare('SELECT id, name, company, role FROM contacts WHERE user_id = ? ORDER BY name ASC LIMIT 20').all(userId);
 
   let systemPrompt = SYSTEM_PROMPT;
 
@@ -91,6 +124,14 @@ export async function chat(userId, userMessage, conversationHistory = []) {
     if (profile.owner_name) systemPrompt += ` | Owner: ${profile.owner_name}`;
     if (profile.license_number) systemPrompt += ` | License: ${profile.license_number}`;
     if (profile.city) systemPrompt += ` | Location: ${profile.city}, ${profile.state}`;
+  }
+
+  if (projects.length > 0) {
+    systemPrompt += `\n\nKnown projects: ${projects.map(p => `${p.name}${p.client_name ? ` (client: ${p.client_name})` : ''}`).join('; ')}`;
+  }
+
+  if (contacts.length > 0) {
+    systemPrompt += `\nKnown contacts: ${contacts.map(c => `${c.name}${c.company ? ` @ ${c.company}` : ''}${c.role ? ` (${c.role})` : ''}`).join('; ')}`;
   }
 
   if (memory?.summary) {
@@ -121,6 +162,9 @@ export async function chat(userId, userMessage, conversationHistory = []) {
     };
   }
 
+  // Auto-extract project/contact info from user message (non-blocking)
+  extractAndSave(userId, userMessage, db).catch(console.error);
+
   // Compress memory every 20 messages
   const msgCount = db.prepare('SELECT COUNT(*) as n FROM chat_messages WHERE user_id = ?').get(userId).n;
   if (msgCount > 0 && msgCount % 20 === 0) {
@@ -128,6 +172,60 @@ export async function chat(userId, userMessage, conversationHistory = []) {
   }
 
   return { message: assistantMessage, generatedDoc };
+}
+
+async function extractAndSave(userId, userMessage, db) {
+  // Only extract if message is long enough to contain real info
+  if (userMessage.trim().length < 20) return;
+
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    system: EXTRACT_PROMPT,
+    messages: [{ role: 'user', content: userMessage }],
+  });
+
+  let extracted;
+  try {
+    const text = response.content[0].text.replace(/```json\n?|\n?```/g, '').trim();
+    extracted = JSON.parse(text);
+  } catch {
+    return;
+  }
+
+  const { v4: uuidv4 } = await import('uuid');
+
+  // Save project if found and not already tracked
+  if (extracted.project?.name) {
+    const existing = db.prepare('SELECT id FROM projects WHERE user_id = ? AND name = ?')
+      .get(userId, extracted.project.name);
+    if (!existing) {
+      const p = extracted.project;
+      db.prepare(`
+        INSERT INTO projects (id, user_id, name, client_name, client_contact, client_email, client_phone, address, gc_name, architect_name, contract_value, start_date, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), userId, p.name, p.client_name || null, p.client_contact || null,
+        p.client_email || null, p.client_phone || null, p.address || null,
+        p.gc_name || null, p.architect_name || null, p.contract_value || null,
+        p.start_date || null, p.status || 'active');
+    }
+  }
+
+  // Save new contacts if found
+  if (Array.isArray(extracted.contacts)) {
+    for (const c of extracted.contacts) {
+      if (!c.name) continue;
+      const existing = db.prepare('SELECT id FROM contacts WHERE user_id = ? AND name = ?')
+        .get(userId, c.name);
+      if (!existing) {
+        db.prepare(`
+          INSERT INTO contacts (id, user_id, name, company, role, email, phone)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(uuidv4(), userId, c.name, c.company || null, c.role || null,
+          c.email || null, c.phone || null);
+      }
+    }
+  }
 }
 
 async function compressMemory(userId) {

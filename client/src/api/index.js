@@ -82,6 +82,26 @@ export const api = {
     URL.revokeObjectURL(url);
   },
 
+  // Projects
+  getProjects: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request('GET', `/projects${qs ? '?' + qs : ''}`);
+  },
+  getProject: (id) => request('GET', `/projects/${id}`),
+  createProject: (data) => request('POST', '/projects', data),
+  updateProject: (id, data) => request('PUT', `/projects/${id}`, data),
+  deleteProject: (id) => request('DELETE', `/projects/${id}`),
+
+  // Contacts
+  getContacts: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request('GET', `/contacts${qs ? '?' + qs : ''}`);
+  },
+  getContact: (id) => request('GET', `/contacts/${id}`),
+  createContact: (data) => request('POST', '/contacts', data),
+  updateContact: (id, data) => request('PUT', `/contacts/${id}`, data),
+  deleteContact: (id) => request('DELETE', `/contacts/${id}`),
+
   // Stripe
   getSubStatus: () => request('GET', '/stripe/status'),
   createCheckout: () => request('POST', '/stripe/create-checkout'),

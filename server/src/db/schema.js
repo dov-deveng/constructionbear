@@ -116,11 +116,86 @@ function initSchema(db) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    -- Projects
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      client_name TEXT,
+      client_contact TEXT,
+      client_email TEXT,
+      client_phone TEXT,
+      address TEXT,
+      city TEXT,
+      state TEXT,
+      zip TEXT,
+      gc_name TEXT,
+      gc_contact TEXT,
+      gc_email TEXT,
+      gc_phone TEXT,
+      architect_name TEXT,
+      architect_contact TEXT,
+      architect_email TEXT,
+      contract_value REAL,
+      start_date TEXT,
+      end_date TEXT,
+      status TEXT DEFAULT 'active',
+      notes TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Contacts
+    CREATE TABLE IF NOT EXISTS contacts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      company TEXT,
+      role TEXT,
+      email TEXT,
+      phone TEXT,
+      address TEXT,
+      project_id TEXT,
+      notes TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+    );
+
+    -- Add project_id to documents if not exists
+    CREATE TABLE IF NOT EXISTS documents_new (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      project_id TEXT,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      project_name TEXT,
+      status TEXT DEFAULT 'draft',
+      content_json TEXT NOT NULL,
+      template_used TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+    );
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
     CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);
     CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
+    CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+    CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_contacts_project_id ON contacts(project_id);
   `);
+
+  // Add project_id column to documents if it doesn't exist yet
+  try {
+    db.exec(`ALTER TABLE documents ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL`);
+  } catch {
+    // Column already exists, ignore
+  }
 }
