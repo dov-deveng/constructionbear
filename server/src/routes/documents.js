@@ -7,6 +7,24 @@ const router = Router();
 
 const VALID_TYPES = ['rfi', 'change_order', 'submittal', 'lien_waiver', 'pay_app', 'meeting_minutes', 'notice_to_owner', 'subcontract', 'other'];
 
+const TYPE_ALIASES = {
+  'rfi': 'rfi', 'request for information': 'rfi',
+  'change_order': 'change_order', 'change order': 'change_order', 'co': 'change_order',
+  'submittal': 'submittal',
+  'lien_waiver': 'lien_waiver', 'lien waiver': 'lien_waiver',
+  'pay_app': 'pay_app', 'pay app': 'pay_app', 'pay application': 'pay_app', 'aia': 'pay_app',
+  'meeting_minutes': 'meeting_minutes', 'meeting minutes': 'meeting_minutes', 'minutes': 'meeting_minutes',
+  'notice_to_owner': 'notice_to_owner', 'notice to owner': 'notice_to_owner', 'nto': 'notice_to_owner',
+  'subcontract': 'subcontract', 'subcontract agreement': 'subcontract',
+  'other': 'other',
+};
+
+function normalizeType(t) {
+  if (!t) return 'other';
+  const lower = t.toLowerCase().trim();
+  return TYPE_ALIASES[lower] || (VALID_TYPES.includes(lower) ? lower : 'other');
+}
+
 // GET /documents — list with filters
 router.get('/', requireAuth, (req, res) => {
   const db = getDb();
@@ -41,9 +59,9 @@ router.get('/:id', requireAuth, (req, res) => {
 
 // POST /documents — create
 router.post('/', requireAuth, (req, res) => {
-  const { type, title, project_name, content, status = 'draft' } = req.body;
-  if (!type || !title || !content) return res.status(400).json({ error: 'type, title, content required' });
-  if (!VALID_TYPES.includes(type)) return res.status(400).json({ error: 'Invalid document type' });
+  const { title, project_name, content, status = 'draft' } = req.body;
+  const type = normalizeType(req.body.type);
+  if (!title || !content) return res.status(400).json({ error: 'type, title, content required' });
 
   const db = getDb();
 
