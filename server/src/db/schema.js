@@ -1,0 +1,126 @@
+import Database from 'better-sqlite3';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+let db;
+
+export function getDb() {
+  if (!db) {
+    const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/constructionbear.db');
+    const dir = path.dirname(dbPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    initSchema(db);
+  }
+  return db;
+}
+
+function initSchema(db) {
+  db.exec(`
+    -- Users
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT,
+      google_id TEXT UNIQUE,
+      email_verified INTEGER DEFAULT 0,
+      verification_token TEXT,
+      reset_token TEXT,
+      reset_token_expires INTEGER,
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch())
+    );
+
+    -- Company profiles (one per user)
+    CREATE TABLE IF NOT EXISTS profiles (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      company_name TEXT,
+      owner_name TEXT,
+      email TEXT,
+      phone TEXT,
+      address TEXT,
+      city TEXT,
+      state TEXT,
+      zip TEXT,
+      license_number TEXT,
+      logo_path TEXT,
+      onboarding_complete INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Subscriptions
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT,
+      status TEXT DEFAULT 'free',
+      current_period_end INTEGER,
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Documents
+    CREATE TABLE IF NOT EXISTS documents (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      project_name TEXT,
+      status TEXT DEFAULT 'draft',
+      content_json TEXT NOT NULL,
+      template_used TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      updated_at INTEGER DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Document templates (generated once per user per doc type)
+    CREATE TABLE IF NOT EXISTS doc_templates (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      doc_type TEXT NOT NULL,
+      template_json TEXT NOT NULL,
+      created_at INTEGER DEFAULT (unixepoch()),
+      UNIQUE(user_id, doc_type),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Chat memory (compressed per user)
+    CREATE TABLE IF NOT EXISTS chat_memory (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      summary TEXT,
+      message_count INTEGER DEFAULT 0,
+      last_updated INTEGER DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Chat messages (full history for UI display)
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      metadata TEXT,
+      created_at INTEGER DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Indexes
+    CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
+    CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);
+    CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
+  `);
+}
