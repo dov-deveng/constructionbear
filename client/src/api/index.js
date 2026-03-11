@@ -123,6 +123,11 @@ export const api = {
   updateContact: (id, data) => request('PUT', `/contacts/${id}`, data),
   deleteContact: (id) => request('DELETE', `/contacts/${id}`),
 
+  // Markups
+  getMarkups: (docId) => request('GET', `/documents/${docId}/markups`),
+  addMarkup: (docId, data) => request('POST', `/documents/${docId}/markups`, data),
+  deleteMarkup: (docId, markupId) => request('DELETE', `/documents/${docId}/markups/${markupId}`),
+
   // Admin
   adminStats: () => request('GET', '/admin/stats'),
   adminUsers: (params = {}) => { const qs = new URLSearchParams(params).toString(); return request('GET', `/admin/users${qs ? '?' + qs : ''}`); },

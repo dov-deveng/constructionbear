@@ -254,6 +254,27 @@ function initSchema(db) {
     // Column already exists, ignore
   }
 
+  // Markups table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS markups (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        company_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'note',
+        field_ref TEXT,
+        content TEXT NOT NULL,
+        created_at INTEGER DEFAULT (unixepoch()),
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_markups_document_id ON markups(document_id);
+    `);
+  } catch {
+    // already exists
+  }
+
   // Add last_active column to users (updated on each authenticated request)
   try {
     db.exec(`ALTER TABLE users ADD COLUMN last_active INTEGER`);

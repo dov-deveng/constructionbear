@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useDocStore, useUIStore } from '../store/index.js';
+import { useDocStore, useUIStore, useAuthStore } from '../store/index.js';
 import { LibraryCard, LibraryListRow, LibraryIconItem } from '../components/DocumentCard.jsx';
 import DocumentRenderer from '../components/DocumentRenderer.jsx';
 import { api } from '../api/index.js';
@@ -242,6 +242,7 @@ const FILTERS = [
 export default function LibraryScreen() {
   const { documents, loading, filter, view, setFilter, setView, loadDocuments, removeDocument, updateDocument } = useDocStore();
   const { toggleSidebar } = useUIStore();
+  const { user } = useAuthStore();
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -409,13 +410,157 @@ export default function LibraryScreen() {
           onClose={() => setSelectedDoc(null)}
           onDelete={(id) => { removeDocument(id); setSelectedDoc(null); }}
           onUpdate={(updated) => { updateDocument(updated); setSelectedDoc(updated); }}
+          currentUserId={user?.id}
+          isAdmin={!!user?.is_admin}
         />
       )}
     </div>
   );
 }
 
-function DocViewer({ doc, onClose, onDelete, onUpdate }) {
+const MARKUP_COLORS = {
+  note: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', icon: '💬', label: 'Note' },
+  flag: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', icon: '🚩', label: 'Flag' },
+  highlight: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', icon: '✏️', label: 'Highlight' },
+};
+
+function MarkupPanel({ docId, currentUserId, isAdmin }) {
+  const [markups, setMarkups] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [addingType, setAddingType] = React.useState(null); // null | 'note' | 'flag' | 'highlight'
+  const [content, setContent] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    api.getMarkups(docId)
+      .then(r => setMarkups(r.markups))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [docId]);
+
+  async function handleAdd() {
+    if (!content.trim() || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const markup = await api.addMarkup(docId, { type: addingType, content: content.trim() });
+      setMarkups(prev => [...prev, markup]);
+      setContent('');
+      setAddingType(null);
+    } catch (e) {
+      setError(e.message || 'Failed to add markup');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(markupId) {
+    try {
+      await api.deleteMarkup(docId, markupId);
+      setMarkups(prev => prev.filter(m => m.id !== markupId));
+    } catch (e) {
+      setError(e.message || 'Failed to delete');
+    }
+  }
+
+  return (
+    <div className="mt-6 border-t border-bear-border pt-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold text-bear-muted uppercase tracking-wider">
+          Annotations {markups.length > 0 && <span className="ml-1 bg-bear-surface px-1.5 py-0.5 rounded-full text-bear-text">{markups.length}</span>}
+        </h3>
+        {!addingType && (
+          <div className="flex gap-1.5">
+            {Object.entries(MARKUP_COLORS).map(([type, c]) => (
+              <button
+                key={type}
+                onClick={() => { setAddingType(type); setContent(''); setError(''); }}
+                title={`Add ${c.label}`}
+                className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors ${c.bg} ${c.border} ${c.text} hover:opacity-80`}
+              >
+                {c.icon} {c.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add form */}
+      {addingType && (
+        <div className={`mb-4 p-3 rounded-xl border ${MARKUP_COLORS[addingType].bg} ${MARKUP_COLORS[addingType].border}`}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm">{MARKUP_COLORS[addingType].icon}</span>
+            <span className={`text-xs font-semibold ${MARKUP_COLORS[addingType].text}`}>{MARKUP_COLORS[addingType].label}</span>
+          </div>
+          <textarea
+            autoFocus
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdd(); } }}
+            placeholder="Add your annotation..."
+            rows={2}
+            className="w-full bg-transparent text-sm text-bear-text placeholder-bear-muted focus:outline-none resize-none"
+          />
+          {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+          <div className="flex gap-2 mt-2 justify-end">
+            <button onClick={() => { setAddingType(null); setError(''); }} className="text-xs text-bear-muted hover:text-bear-text px-3 py-1.5 rounded-lg hover:bg-bear-surface transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={handleAdd}
+              disabled={!content.trim() || saving}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 ${MARKUP_COLORS[addingType].bg} ${MARKUP_COLORS[addingType].text} border ${MARKUP_COLORS[addingType].border}`}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Markup list */}
+      {loading ? (
+        <div className="py-4 flex justify-center">
+          <div className="w-4 h-4 border-2 border-bear-accent/30 border-t-bear-accent rounded-full animate-spin" />
+        </div>
+      ) : markups.length === 0 && !addingType ? (
+        <p className="text-xs text-bear-muted text-center py-3">No annotations yet. Add a note, flag, or highlight above.</p>
+      ) : (
+        <div className="space-y-2">
+          {markups.map(m => {
+            const c = MARKUP_COLORS[m.type] || MARKUP_COLORS.note;
+            const canDelete = m.user_id === currentUserId || isAdmin;
+            const authorLabel = m.author_email ? m.author_email.split('@')[0] : 'Unknown';
+            const dateLabel = new Date(m.created_at * 1000).toLocaleDateString();
+            return (
+              <div key={m.id} className={`p-3 rounded-xl border ${c.bg} ${c.border}`}>
+                <div className="flex items-start gap-2">
+                  <span className="text-sm flex-shrink-0">{c.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-bear-text whitespace-pre-wrap break-words">{m.content}</p>
+                    <p className="text-xs text-bear-muted mt-1">{authorLabel} · {dateLabel}</p>
+                  </div>
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(m.id)}
+                      className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-lg text-bear-muted hover:text-red-400 hover:bg-bear-surface transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocViewer({ doc, onClose, onDelete, onUpdate, currentUserId, isAdmin }) {
   const [downloading, setDownloading] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [currentDoc, setCurrentDoc] = React.useState(doc);
@@ -473,7 +618,12 @@ function DocViewer({ doc, onClose, onDelete, onUpdate }) {
         <div className="max-w-2xl mx-auto">
           {editing
             ? <EditForm doc={currentDoc} onSaved={handleSaved} onCancel={() => setEditing(false)} />
-            : <DocumentRenderer doc={currentDoc} />
+            : (
+              <>
+                <DocumentRenderer doc={currentDoc} />
+                <MarkupPanel docId={currentDoc.id} currentUserId={currentUserId} isAdmin={isAdmin} />
+              </>
+            )
           }
         </div>
       </div>
