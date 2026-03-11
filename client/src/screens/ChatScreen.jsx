@@ -470,6 +470,28 @@ function EmptyState() {
           box-shadow: 0 0 0 1.5px #0A84FF, 0 4px 20px rgba(10,132,255,0.25);
           color: #FFFFFF;
         }
+        .doc-tile:active {
+          transform: scale(1.06);
+          background: rgba(10,132,255,0.12);
+          box-shadow: 0 0 0 1.5px #0A84FF, 0 4px 20px rgba(10,132,255,0.25);
+          color: #FFFFFF;
+        }
+        @media (max-width: 767px) {
+          .doc-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+          }
+          .doc-grid-row {
+            display: contents;
+          }
+          .doc-tile {
+            white-space: normal;
+            word-break: break-word;
+            width: 100%;
+            text-align: left;
+          }
+        }
       `}</style>
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px' }}>
         <div className="text-center mb-6">
@@ -479,9 +501,9 @@ function EmptyState() {
           <h2 className="text-xl font-bold text-bear-text">What do you need today?</h2>
           <p className="text-bear-muted text-sm mt-1">Tell me what document you need and I'll create it instantly.</p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+        <div className="doc-grid" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
           {rows.map((row, ri) => (
-            <div key={ri} style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'nowrap' }}>
+            <div key={ri} className="doc-grid-row" style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'nowrap' }}>
               {row.map(({ label, prompt }) => (
                 <button key={label} className="doc-tile" onClick={() => sendMessage(prompt)}>
                   {label}
