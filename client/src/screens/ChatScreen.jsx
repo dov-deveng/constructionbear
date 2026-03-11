@@ -77,7 +77,7 @@ function getPlaceholder(messages) {
 export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [showSubModal, setShowSubModal] = useState(false);
-  const { messages, loading, initialized, loadMessages, sendMessage, activeSession, exitSession } = useChatStore();
+  const { messages, loading, initialized, loadMessages, sendMessage, startNewChat, activeSession, exitSession } = useChatStore();
   const { toggleSidebar } = useUIStore();
   const { addDocument } = useDocStore();
   const { canCreateDoc } = useAuthStore();
@@ -89,9 +89,16 @@ export default function ChatScreen() {
   const displayMessages = activeSession ? activeSession.messages : messages;
   const placeholder = useMemo(() => getPlaceholder(messages), [messages]);
 
+  // True when the most recent assistant message has a completed, session-saved document
+  const docJustGenerated = useMemo(() => {
+    if (activeSession || !messages.length) return false;
+    const last = [...messages].reverse().find(m => m.role === 'assistant');
+    return !!(last?.metadata?.generatedDoc?.sessionId);
+  }, [messages, activeSession]);
+
   useEffect(() => { if (!initialized) loadMessages(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayMessages, loading]);
-  useEffect(() => { if (!loading && !activeSession) inputRef.current?.focus(); }, [loading, activeSession]);
+  useEffect(() => { if (!loading && !activeSession && !docJustGenerated) inputRef.current?.focus(); }, [loading, activeSession, docJustGenerated]);
 
   function autoResize() {
     const el = textareaRef.current;
@@ -218,18 +225,21 @@ export default function ChatScreen() {
         </div>
       </div>
 
-      {/* Input */}
-      {activeSession ? (
-        <div className="safe-bottom bg-bear-bg border-t border-bear-border px-4 py-3 flex-shrink-0">
-          <div className="max-w-2xl mx-auto">
+      {/* Input — three states: past session view, doc just completed, or normal */}
+      {(activeSession || docJustGenerated) ? (
+        <div className="safe-bottom bg-bear-bg border-t border-bear-border px-4 py-4 flex-shrink-0">
+          <div className="max-w-2xl mx-auto space-y-2">
+            {docJustGenerated && (
+              <p className="text-center text-xs text-bear-muted">Document saved to your library and Recent chats.</p>
+            )}
             <button
-              onClick={exitSession}
-              className="w-full flex items-center justify-center gap-2 bg-bear-surface border border-bear-border hover:border-bear-accent rounded-2xl px-4 py-3 text-sm text-bear-muted hover:text-bear-accent transition-colors"
+              onClick={activeSession ? exitSession : startNewChat}
+              className="w-full flex items-center justify-center gap-2 bg-bear-accent hover:bg-bear-accent-hover rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-colors active:scale-[0.98]"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              Start a new chat
+              Start New Chat
             </button>
           </div>
         </div>

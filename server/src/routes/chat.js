@@ -6,12 +6,12 @@ import { chat, onboardingChat } from '../services/ai.js';
 
 const router = Router();
 
-// GET /chat/messages — load full message history
+// GET /chat/messages — load current (untagged) message history
 router.get('/messages', requireAuth, (req, res) => {
   const db = getDb();
   const messages = db.prepare(`
     SELECT id, role, content, metadata, created_at
-    FROM chat_messages WHERE user_id = ?
+    FROM chat_messages WHERE user_id = ? AND session_id IS NULL
     ORDER BY created_at ASC
     LIMIT 200
   `).all(req.userId);
@@ -31,10 +31,10 @@ router.post('/message', requireAuth, async (req, res) => {
 
   const db = getDb();
 
-  // Load recent conversation for context (last 20 messages)
+  // Load recent conversation for context — only the active (untagged) session
   const recentMessages = db.prepare(`
     SELECT role, content FROM chat_messages
-    WHERE user_id = ? ORDER BY created_at DESC LIMIT 20
+    WHERE user_id = ? AND session_id IS NULL ORDER BY created_at DESC LIMIT 20
   `).all(req.userId).reverse();
 
   // Save user message

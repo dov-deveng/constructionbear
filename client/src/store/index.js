@@ -99,6 +99,9 @@ export const useChatStore = create((set, get) => ({
 
   clearMessages: () => set({ messages: [] }),
 
+  // Start a fresh chat — prior messages are already saved to a session
+  startNewChat: () => set({ messages: [], initialized: true, activeSession: null }),
+
   loadSessions: async (search) => {
     try {
       const { sessions } = await api.getSessions(search);
