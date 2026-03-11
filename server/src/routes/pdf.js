@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { requireAuth } from '../middleware/auth.js';
 import { getDb } from '../db/schema.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
@@ -346,6 +348,25 @@ class Doc {
       this.gap(2);
     }
   }
+}
+
+// Types that always use structured AIA layout — never dump raw text
+const STRUCTURED_TYPES = new Set([
+  'rfi', 'submittal', 'change_order', 'lien_waiver', 'pay_app',
+  'meeting_minutes', 'notice_to_owner', 'subcontract', 'daily_report',
+  'punch_list', 'invoice', 'transmittal', 'schedule_of_values',
+  'notice_to_proceed', 'substantial_completion', 'warranty_letter',
+  'substitution_request', 'closeout_checklist', 'certified_payroll',
+]);
+
+// Strip {{template_var}} placeholders and trim
+function stripTemplateVars(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[k] = typeof v === 'string' ? v.replace(/\{\{[^}]+\}\}/g, '').trim() : v;
+  }
+  return out;
 }
 
 function buildTitle(type) {
@@ -733,9 +754,12 @@ async function renderDoc(doc, profile) {
   const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const fonts   = { regular, bold };
 
-  const c = typeof doc.content === 'string'
-    ? { text: doc.content }
-    : (doc.content?.text !== undefined ? doc.content : doc.content || {});
+  // Parse content — handle plain string, JSON string, or object
+  let rawContent = doc.content;
+  if (typeof rawContent === 'string') {
+    try { rawContent = JSON.parse(rawContent); } catch { rawContent = { text: rawContent }; }
+  }
+  const c = stripTemplateVars((rawContent && typeof rawContent === 'object') ? rawContent : {});
 
   const d = new Doc(page, fonts);
 
@@ -752,7 +776,9 @@ async function renderDoc(doc, profile) {
   }
 
   // ── BODY by doc type ──────────────────────────────────────────────────────
-  if (c.text) {
+  // Only dump as plain text for non-structured types. Structured types always
+  // use the switch layout below even if the content has a .text field.
+  if (c.text && !STRUCTURED_TYPES.has(doc.type)) {
     d.sectionHeader('Document Content');
     for (const line of c.text.split('\n')) {
       if (d.y < BODY_BOT) break;
@@ -775,12 +801,12 @@ async function renderDoc(doc, profile) {
         y = aiaBlock(page, fonts, y, [
           {
             headers: ['Project Name', 'RFI Number', 'Date of Request'],
-            values:  [c.project_name || '', c.rfi_number || '', c.date || ''],
+            values:  [c.project_name || '', c.rfi_number || c.doc_number || '', c.date || ''],
             colWidths: c3, dataH: 24,
           },
           {
             headers: ['Project Location', 'Project ID', 'Drawing ID'],
-            values:  [c.project_location || '', c.project_id || '', c.drawing_id || ''],
+            values:  [c.project_location || c.project_address || '', c.project_id || '', c.drawing_id || c.drawing_number || ''],
             colWidths: c3, dataH: 24,
           },
         ]);
@@ -790,7 +816,7 @@ async function renderDoc(doc, profile) {
         y = aiaBlock(page, fonts, y, [
           {
             headers: ['RFI Overview', 'Section(s) Referenced'],
-            values:  [c.overview || c.subject || '', c.sections_referenced || c.spec_section || ''],
+            values:  [c.overview || c.subject || c.title || '', c.sections_referenced || c.spec_section || c.specification_section || ''],
             colWidths: c2, dataH: 50,
           },
         ]);
@@ -800,17 +826,18 @@ async function renderDoc(doc, profile) {
         y = aiaBlock(page, fonts, y, [
           {
             headers: ['Request / Clarification Required'],
-            values:  [c.question || c.description || ''],
+            values:  [c.question || c.description || c.request || c.clarification || c.text || ''],
             colWidths: c1, dataH: 80,
           },
         ]);
         y -= 10;
 
         // Row 5: requesting party signature row
+        const requestingParty = c.submitted_by || c.requesting_party || c.from_contact_name || c.from_name || c.from_company || c.contractor || '';
         y = aiaBlock(page, fonts, y, [
           {
             headers: ['Name of Requesting Party', 'Signature', 'Date of Request'],
-            values:  [c.submitted_by || c.requesting_party || '', '', c.date || ''],
+            values:  [requestingParty, '', c.date || ''],
             colWidths: c3, dataH: 28,
           },
         ]);
@@ -1173,6 +1200,47 @@ async function renderDoc(doc, profile) {
     x: (PAGE_W - ftW) / 2, y: 18,
     size: 8, font: regular, color: rgb(0.5, 0.5, 0.5),
   });
+
+  // ── ATTACHMENTS — embed uploaded images as additional pages ───────────────
+  const attachmentUrl = c.attachment_url || c.attachmentUrl;
+  if (attachmentUrl) {
+    try {
+      // attachment_url is like /uploads/filename.jpg — resolve to disk path
+      const relPath = attachmentUrl.replace(/^\/uploads\//, '');
+      const diskPath = path.join(process.cwd(), 'data', 'uploads', relPath);
+      if (fs.existsSync(diskPath)) {
+        const imgBytes = fs.readFileSync(diskPath);
+        const ext = path.extname(diskPath).toLowerCase();
+        let embeddedImage;
+        if (ext === '.png') {
+          embeddedImage = await pdfDoc.embedPng(imgBytes);
+        } else {
+          // jpg / jpeg / gif / webp — try jpg embed
+          embeddedImage = await pdfDoc.embedJpg(imgBytes);
+        }
+        const imgPage = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        const { width: iw, height: ih } = embeddedImage.scale(1);
+        const maxW = PAGE_W - MARGIN * 2;
+        const maxH = PAGE_H - MARGIN * 2;
+        const scale = Math.min(maxW / iw, maxH / ih, 1);
+        const drawW = iw * scale;
+        const drawH = ih * scale;
+        imgPage.drawImage(embeddedImage, {
+          x: (PAGE_W - drawW) / 2,
+          y: (PAGE_H - drawH) / 2,
+          width: drawW,
+          height: drawH,
+        });
+        // Label
+        imgPage.drawText(c.attachment_filename || 'Attachment', {
+          x: MARGIN, y: PAGE_H - MARGIN + 6,
+          size: 9, font: regular, color: MUTED,
+        });
+      }
+    } catch (attachErr) {
+      console.warn('Could not embed attachment:', attachErr.message);
+    }
+  }
 
   return pdfDoc.save();
 }
