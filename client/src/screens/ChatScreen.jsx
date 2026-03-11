@@ -114,15 +114,19 @@ export default function ChatScreen() {
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
+
+    // Gate: free user with 1 doc cannot start more generation
+    if (!canCreateDoc()) { setShowSubModal(true); return; }
+
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     try {
       const res = await sendMessage(text);
 
-      // If a doc was generated, offer to save it
-      if (res?.generatedDoc) {
-        // Doc card is shown inline via message metadata
+      // Server rejected save due to free plan limit
+      if (res?.paywallRequired) {
+        setShowSubModal(true);
       }
     } catch (err) {
       if (err.code === 'SUBSCRIPTION_REQUIRED') {
@@ -268,7 +272,10 @@ export default function ChatScreen() {
               <p className="text-center text-xs text-bear-muted">Document saved to your library and Recent chats.</p>
             )}
             <button
-              onClick={activeSession ? exitSession : startNewChat}
+              onClick={() => {
+                if (!activeSession && !canCreateDoc()) { setShowSubModal(true); return; }
+                activeSession ? exitSession() : startNewChat();
+              }}
               className="w-full flex items-center justify-center gap-2 bg-bear-accent hover:bg-bear-accent-hover rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-colors active:scale-[0.98]"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -337,7 +344,13 @@ export default function ChatScreen() {
         </div>
       )}
 
-      {showSubModal && <SubscriptionModal onClose={() => setShowSubModal(false)} />}
+      {showSubModal && (
+        <SubscriptionModal
+          dismissable={false}
+          plan="Free"
+          onClose={() => setShowSubModal(false)}
+        />
+      )}
     </div>
   );
 }

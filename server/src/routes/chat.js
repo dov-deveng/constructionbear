@@ -89,17 +89,40 @@ router.post('/message', requireAuth, async (req, res) => {
 
     // If structured doc generated AND all required fields present, auto-save a draft
     let savedDocId = null;
+    let paywallRequired = false;
     if (generatedDoc?.isStructured && generatedDoc?.isComplete) {
+      // Free plan: allow exactly 1 document total per company
+      const company = req.companyId ? db.prepare('SELECT plan FROM companies WHERE id = ?').get(req.companyId) : null;
+      const plan = company?.plan || 'free';
+      if (plan === 'free' && !req.isAdmin) {
+        const scopeId = req.companyId || req.userId;
+        const scopeCol = req.companyId ? 'company_id' : 'user_id';
+        const docCount = db.prepare(`SELECT COUNT(*) as n FROM documents WHERE ${scopeCol} = ?`).get(scopeId).n;
+        if (docCount >= 1) {
+          paywallRequired = true;
+        }
+      }
+
+      if (!paywallRequired) {
       savedDocId = uuidv4();
       const content = generatedDoc.content;
       const projectName = content.project_name || content.project || null;
 
-      // Auto-link project if exists in company
+      // Auto-link or auto-create project
       let projectId = null;
       if (projectName && req.companyId) {
         const proj = db.prepare('SELECT id FROM projects WHERE company_id = ? AND name = ? COLLATE NOCASE AND deleted_at IS NULL LIMIT 1')
           .get(req.companyId, projectName);
-        if (proj) projectId = proj.id;
+        if (proj) {
+          projectId = proj.id;
+        } else {
+          // Create the project automatically from chat context
+          projectId = uuidv4();
+          db.prepare(`
+            INSERT INTO projects (id, user_id, company_id, name, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'active', unixepoch(), unixepoch())
+          `).run(projectId, req.userId, req.companyId, projectName);
+        }
       }
 
       // Assign atomic document number
@@ -136,6 +159,7 @@ router.post('/message', requireAuth, async (req, res) => {
         .run(sessionId, req.userId);
 
       generatedDoc.sessionId = sessionId;
+      } // end !paywallRequired
     }
 
     // Save assistant message
@@ -148,6 +172,7 @@ router.post('/message', requireAuth, async (req, res) => {
       id: assistantMsgId,
       message: assistantMessage,
       generatedDoc: generatedDoc || null,
+      paywallRequired: paywallRequired || false,
     });
   } catch (err) {
     console.error('Chat error:', err);
