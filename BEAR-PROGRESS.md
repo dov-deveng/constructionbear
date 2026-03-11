@@ -26,3 +26,24 @@
 - **To run on Railway:** `railway run node server/scripts/clear-account.js dov@doveandbearinc.com`
 - **Note:** Local DB is empty (Railway holds production data). Script verified syntactically correct.
 - **Files:** `scripts/clear-account.js`, `server/scripts/clear-account.js`
+
+---
+
+### Task 4 — Mobile UI Optimization (commit `c234d01`)
+- **CSS:** `.input-field` → `text-base` (16px) prevents iOS auto-zoom; `.btn-*` → `min-h-[44px]`; bubble text `15px`; added `.modal-overlay` + `.modal-sheet` for full-screen mobile modals; global media query enforces 44px on nav/header buttons
+- **SubscriptionModal:** `fixed inset-0` overlay, bottom-sheet on mobile (rounded top, scrollable), non-dismissable variant unchanged
+- **ChatScreen:** textarea `font-size: 16px`, send + attach buttons `w-11 h-11` (44px), hamburger `w-11 h-11`, header subtitle `hidden sm:block`
+- **Files:** `client/src/index.css`, `client/src/components/SubscriptionModal.jsx`, `client/src/screens/ChatScreen.jsx`
+
+### Task 5 — Google OAuth Redirect Flow (commit `c234d01`)
+- **Server:** `GET /auth/google` builds OAuth URL via `google-auth-library` `OAuth2Client`, redirects to Google. `GET /auth/google/callback` exchanges code, creates/links user, issues JWT, redirects to `CLIENT_URL/?google_token=<jwt>`
+- **Client:** AuthScreen handles `?google_token=` on mount (fetches user data, navigates). Always-visible styled white Google button with logo — no dependency on `window.google` script. One Tap hidden fallback retained. `?error=` param shows inline error.
+- **Env:** `API_URL` and `GOOGLE_CLIENT_SECRET` placeholders in `.env` (fill in Railway vars)
+- **Files:** `server/src/routes/auth.js`, `client/src/screens/AuthScreen.jsx`
+
+### Task 6 — Document Grid Visual Refinement (commit `c234d01`)
+- **Mobile grid:** 2-column `1fr 1fr`, gap 8px, padding 0 16px. Tiles: `height: 48px`, `font-size: 13px`, centered, overflow ellipsis, no hover effect (touch-only active state)
+- **Active state:** `rgba(10,132,255,0.15)` bg, `#0A84FF` border, `scale(0.97)`
+- **Shortened labels:** Pay App, Daily Report, NTP, CO Log, RFP, Substantial Comp., Cert. Payroll, Substitution, Closeout
+- **Desktop:** unchanged flowing rows of 4/5
+- **Files:** `client/src/screens/ChatScreen.jsx`
