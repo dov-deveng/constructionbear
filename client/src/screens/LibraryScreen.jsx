@@ -245,27 +245,9 @@ export default function LibraryScreen() {
   const { user } = useAuthStore();
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const fileInputRef = React.useRef(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   useEffect(() => { loadDocuments(filter); }, []);
-
-  async function handleUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadError('');
-    try {
-      await api.uploadDocument(file);
-      await loadDocuments(filter);
-    } catch (err) {
-      setUploadError(err.message || 'Upload failed');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  }
 
   const filtered = search
     ? documents.filter(d =>
@@ -287,17 +269,14 @@ export default function LibraryScreen() {
           <h1 className="text-lg font-bold text-bear-text flex-1">Documents</h1>
 
           {/* Upload button */}
-          <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleUpload} />
           <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            title="Upload PDF"
-            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface text-bear-muted hover:text-bear-accent transition-colors disabled:opacity-40"
+            onClick={() => setShowUploadModal(true)}
+            title="Upload Document"
+            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface text-bear-muted hover:text-bear-accent transition-colors"
           >
-            {uploading
-              ? <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
-              : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-            }
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
           </button>
 
           {/* View toggle */}
@@ -317,13 +296,6 @@ export default function LibraryScreen() {
             ))}
           </div>
         </div>
-
-        {uploadError && (
-          <div className="mb-2 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 flex items-center justify-between">
-            {uploadError}
-            <button onClick={() => setUploadError('')} className="ml-2 text-red-400 hover:text-red-300">✕</button>
-          </div>
-        )}
 
         {/* Search */}
         <div className="relative mb-3">
@@ -414,9 +386,154 @@ export default function LibraryScreen() {
           isAdmin={!!user?.is_admin}
         />
       )}
+
+      {/* Upload modal */}
+      {showUploadModal && (
+        <UploadModal
+          onClose={() => setShowUploadModal(false)}
+          onUploaded={(doc) => {
+            loadDocuments(filter);
+            setShowUploadModal(false);
+            setSelectedDoc(doc);
+          }}
+        />
+      )}
     </div>
   );
 }
+
+// ─── Upload Modal ─────────────────────────────────────────────────────────────
+
+function UploadModal({ onClose, onUploaded }) {
+  const [file, setFile] = React.useState(null);
+  const [title, setTitle] = React.useState('');
+  const [projectId, setProjectId] = React.useState('');
+  const [projects, setProjects] = React.useState([]);
+  const [uploading, setUploading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const fileInputRef = React.useRef(null);
+  const dropRef = React.useRef(null);
+
+  React.useEffect(() => {
+    api.getProjects().then(r => setProjects(r.projects || [])).catch(() => {});
+  }, []);
+
+  function handleFileSelect(f) {
+    if (!f) return;
+    setFile(f);
+    setTitle(f.name.replace(/\.[^.]+$/, ''));
+    setError('');
+  }
+
+  function onInputChange(e) {
+    handleFileSelect(e.target.files?.[0]);
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    handleFileSelect(e.dataTransfer.files?.[0]);
+  }
+
+  async function handleUpload() {
+    if (!file || uploading) return;
+    setUploading(true);
+    setError('');
+    try {
+      const selectedProject = projects.find(p => p.id === projectId);
+      const doc = await api.uploadDocument(file, title.trim() || file.name, selectedProject?.name || '');
+      onUploaded(doc);
+    } catch (e) {
+      setError(e.message || 'Upload failed');
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full sm:max-w-md bg-bear-surface border border-bear-border rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-bear-text">Upload Document</h2>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-bear-muted hover:text-bear-text hover:bg-bear-bg transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        {/* Drop zone */}
+        <div
+          ref={dropRef}
+          onDragOver={e => e.preventDefault()}
+          onDrop={onDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors mb-4 ${file ? 'border-bear-accent/60 bg-bear-accent/5' : 'border-bear-border hover:border-bear-accent/40 hover:bg-bear-bg'}`}
+        >
+          <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={onInputChange} />
+          {file ? (
+            <div>
+              <div className="text-2xl mb-1">📄</div>
+              <p className="text-sm font-medium text-bear-text truncate">{file.name}</p>
+              <p className="text-xs text-bear-muted mt-1">{(file.size / 1024).toFixed(0)} KB · PDF</p>
+            </div>
+          ) : (
+            <div>
+              <svg className="w-8 h-8 text-bear-muted mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <p className="text-sm text-bear-text font-medium">Drop PDF here or click to browse</p>
+              <p className="text-xs text-bear-muted mt-1">PDF files only · Max 25 MB</p>
+            </div>
+          )}
+        </div>
+
+        {file && (
+          <div className="space-y-3 mb-4">
+            {/* Title */}
+            <div>
+              <label className="block text-xs font-semibold text-bear-muted uppercase tracking-wider mb-1">Document Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Enter document title..."
+                className="input-field w-full text-sm"
+              />
+            </div>
+
+            {/* Project */}
+            <div>
+              <label className="block text-xs font-semibold text-bear-muted uppercase tracking-wider mb-1">Link to Project (optional)</label>
+              <select
+                value={projectId}
+                onChange={e => setProjectId(e.target.value)}
+                className="input-field w-full text-sm appearance-none"
+              >
+                <option value="">— No project —</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="btn-secondary flex-1 text-sm">Cancel</button>
+          <button
+            onClick={handleUpload}
+            disabled={!file || uploading}
+            className="btn-primary flex-1 text-sm flex items-center justify-center gap-2 disabled:opacity-40"
+          >
+            {uploading && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            {uploading ? 'Uploading...' : 'Upload'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Markup Panel ─────────────────────────────────────────────────────────────
 
 const MARKUP_COLORS = {
   note: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', icon: '💬', label: 'Note' },
@@ -560,12 +677,27 @@ function MarkupPanel({ docId, currentUserId, isAdmin }) {
   );
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 function DocViewer({ doc, onClose, onDelete, onUpdate, currentUserId, isAdmin }) {
   const [downloading, setDownloading] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [currentDoc, setCurrentDoc] = React.useState(doc);
 
+  const isUpload = currentDoc.type === 'upload';
+  const filePath = isUpload ? currentDoc.content?.file_path : null;
+  const fileUrl = filePath ? `${API_BASE}${filePath}` : null;
+
   async function handleDownload() {
+    if (isUpload && fileUrl) {
+      // Direct file download for uploads
+      const a = document.createElement('a');
+      a.href = fileUrl;
+      a.download = currentDoc.title || 'document.pdf';
+      a.target = '_blank';
+      a.click();
+      return;
+    }
     setDownloading(true);
     try {
       await api.downloadPdf(currentDoc.id, `${currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
@@ -595,12 +727,14 @@ function DocViewer({ doc, onClose, onDelete, onUpdate, currentUserId, isAdmin })
         </h2>
         {!editing && (
           <>
-            <button onClick={() => setEditing(true)} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface text-bear-muted hover:text-bear-accent transition-colors" title="Edit">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-            <button onClick={handleDownload} disabled={downloading} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface text-bear-muted hover:text-bear-accent transition-colors disabled:opacity-40">
+            {!isUpload && (
+              <button onClick={() => setEditing(true)} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface text-bear-muted hover:text-bear-accent transition-colors" title="Edit">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+            )}
+            <button onClick={handleDownload} disabled={downloading} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface text-bear-muted hover:text-bear-accent transition-colors disabled:opacity-40" title="Download">
               {downloading
                 ? <div className="w-4 h-4 border-2 border-bear-accent/30 border-t-bear-accent rounded-full animate-spin" />
                 : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -614,18 +748,35 @@ function DocViewer({ doc, onClose, onDelete, onUpdate, currentUserId, isAdmin })
           </>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-        <div className="max-w-2xl mx-auto">
-          {editing
-            ? <EditForm doc={currentDoc} onSaved={handleSaved} onCancel={() => setEditing(false)} />
-            : (
-              <>
-                <DocumentRenderer doc={currentDoc} />
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {editing ? (
+          <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+            <div className="max-w-2xl mx-auto">
+              <EditForm doc={currentDoc} onSaved={handleSaved} onCancel={() => setEditing(false)} />
+            </div>
+          </div>
+        ) : isUpload && fileUrl ? (
+          // Inline PDF viewer for uploaded files
+          <div className="flex-1 flex flex-col min-h-0">
+            <iframe
+              src={fileUrl}
+              title={currentDoc.title}
+              className="flex-1 w-full border-0"
+            />
+            <div className="flex-shrink-0 px-4 py-3 border-t border-bear-border">
+              <div className="max-w-2xl mx-auto">
                 <MarkupPanel docId={currentDoc.id} currentUserId={currentUserId} isAdmin={isAdmin} />
-              </>
-            )
-          }
-        </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+            <div className="max-w-2xl mx-auto">
+              <DocumentRenderer doc={currentDoc} />
+              <MarkupPanel docId={currentDoc.id} currentUserId={currentUserId} isAdmin={isAdmin} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
