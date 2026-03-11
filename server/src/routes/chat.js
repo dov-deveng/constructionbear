@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { requireAuth } from '../middleware/auth.js';
 import { getDb } from '../db/schema.js';
 import { chat, onboardingChat } from '../services/ai.js';
+import { assignDocNumber } from '../services/docNumber.js';
 
 const UPLOADS_DIR = path.join(process.cwd(), 'data/uploads');
 
@@ -96,18 +97,22 @@ router.post('/message', requireAuth, async (req, res) => {
       // Auto-link project if exists in company
       let projectId = null;
       if (projectName && req.companyId) {
-        const proj = db.prepare('SELECT id FROM projects WHERE company_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
+        const proj = db.prepare('SELECT id FROM projects WHERE company_id = ? AND name = ? COLLATE NOCASE AND deleted_at IS NULL LIMIT 1')
           .get(req.companyId, projectName);
         if (proj) projectId = proj.id;
       }
 
+      // Assign atomic document number
+      const docNumber = assignDocNumber(projectId, projectName, generatedDoc.type);
+      if (docNumber) content.doc_number = docNumber;
+
       db.prepare(`
-        INSERT INTO documents (id, user_id, company_id, project_id, type, title, project_name, status, content_json, template_used)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)
+        INSERT INTO documents (id, user_id, company_id, project_id, type, title, project_name, status, content_json, template_used, doc_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)
       `).run(
         savedDocId, req.userId, req.companyId || null, projectId,
         generatedDoc.type, generatedDoc.title, projectName,
-        JSON.stringify(content), generatedDoc.templateUsed || generatedDoc.type
+        JSON.stringify(content), generatedDoc.templateUsed || generatedDoc.type, docNumber || null
       );
 
       // Embed attachment reference if one was uploaded during this chat

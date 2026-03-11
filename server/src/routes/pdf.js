@@ -1184,7 +1184,17 @@ router.get('/:id', requireAuth, async (req, res) => {
   if (!doc) return res.status(404).json({ error: 'Document not found' });
 
   const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(req.userId);
-  const parsedDoc = { ...doc, content: JSON.parse(doc.content_json) };
+  const parsedContent = JSON.parse(doc.content_json);
+  // Inject doc_number into content so it appears in type-specific number fields
+  if (doc.doc_number) {
+    const numFields = ['doc_number', 'rfi_number', 'submittal_number', 'co_number', 'invoice_number',
+      'transmittal_number', 'report_number', 'payroll_number', 'application_number', 'ccd_number',
+      'request_number', 'rfp_number', 'permit_number'];
+    for (const f of numFields) {
+      if (!(parsedContent[f])) parsedContent[f] = doc.doc_number;
+    }
+  }
+  const parsedDoc = { ...doc, content: parsedContent };
 
   try {
     const pdfBytes = await renderDoc(parsedDoc, profile);

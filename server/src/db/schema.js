@@ -321,6 +321,19 @@ function initSchema(db) {
   // Drop dead documents_new table (was never used)
   try { db.exec(`DROP TABLE IF EXISTS documents_new`); } catch {}
 
+  // Document numbering sequences — atomic per project per doc type
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS document_sequences (
+        project_id TEXT NOT NULL,
+        doc_type TEXT NOT NULL,
+        last_number INTEGER DEFAULT 0,
+        PRIMARY KEY (project_id, doc_type)
+      );
+    `);
+  } catch { /* already exists */ }
+  try { db.exec(`ALTER TABLE documents ADD COLUMN doc_number TEXT`); } catch {}
+
   // Backfill company_id on orphaned records (legacy data before multi-company migration)
   // For each user with a company_id, stamp their untagged records
   try {
