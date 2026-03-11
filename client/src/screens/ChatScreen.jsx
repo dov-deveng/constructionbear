@@ -1,9 +1,78 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useChatStore, useUIStore, useDocStore, useAuthStore } from '../store/index.js';
 import { api } from '../api/index.js';
 import DocumentCard from '../components/DocumentCard.jsx';
 import SubscriptionModal from '../components/SubscriptionModal.jsx';
 import clsx from 'clsx';
+
+// ── Context-aware placeholder rules (Task 12) ─────────────────────────────────
+// Ordered by specificity — first match wins.
+const PLACEHOLDER_RULES = [
+  { kw: ['project name', 'name of the project', 'which project', 'project are you'],  hint: 'e.g. 123 Main Street Renovation' },
+  { kw: ['rfi number', 'rfi #', 'rfi no'],                                             hint: 'e.g. RFI-003' },
+  { kw: ['change order number', 'co number', 'co #'],                                  hint: 'e.g. CO-007' },
+  { kw: ['submittal number', 'submittal #'],                                            hint: 'e.g. SUB-012' },
+  { kw: ['application number', 'pay app number', 'pay application number'],            hint: 'e.g. Pay App #5' },
+  { kw: ['invoice number', 'invoice #'],                                               hint: 'e.g. INV-2026-001' },
+  { kw: ['transmittal number'],                                                         hint: 'e.g. TRN-004' },
+  { kw: ['ccd number', 'ccd #', 'directive number'],                                   hint: 'e.g. CCD-002' },
+  { kw: ['rfp number', 'rfp #'],                                                        hint: 'e.g. RFP-001' },
+  { kw: ['subject', 'subject of the rfi', 'what is the subject'],                      hint: 'e.g. Mechanical conflict on Level 3' },
+  { kw: ['question', 'rfi question', 'what is your question', 'what is the question'], hint: 'Describe the question or clarification needed...' },
+  { kw: ['scope of work', 'scope', 'what work will'],                                  hint: 'Describe the scope of work...' },
+  { kw: ['description', 'describe the work', 'describe the change', 'what is being'],  hint: 'Describe in detail...' },
+  { kw: ['contract amount', 'contract value', 'what is the contract'],                 hint: 'e.g. $250,000.00' },
+  { kw: ['cost change', 'cost of the change', 'how much does', 'cost impact'],         hint: 'e.g. +$4,500.00 or -$1,200.00' },
+  { kw: ['amount', 'how much', 'total amount', 'lien waiver amount'],                  hint: 'e.g. $12,500.00' },
+  { kw: ['retainage', 'retainage percent'],                                             hint: 'e.g. 10%' },
+  { kw: ['spec section', 'specification section'],                                      hint: 'e.g. 15000 — Mechanical' },
+  { kw: ['supplier', 'manufacturer', 'who is the supplier'],                            hint: 'e.g. Carrier HVAC Equipment' },
+  { kw: ['subcontractor', 'who is the subcontractor', 'sub name'],                     hint: 'e.g. Elite Plumbing & Mechanical' },
+  { kw: ['general contractor', 'gc name', 'who is the gc', 'contractor name'],         hint: 'e.g. Sunrise General Contractors' },
+  { kw: ['owner name', 'who is the owner', 'property owner'],                          hint: 'e.g. Smith Family Trust' },
+  { kw: ['architect', 'who is the architect'],                                          hint: 'e.g. Design Associates LLC' },
+  { kw: ['claimant', 'who is the claimant'],                                            hint: 'e.g. XYZ Framing Inc.' },
+  { kw: ['addressed to', 'who is this addressed', 'send this to'],                     hint: 'e.g. Sarah Chen, Project Architect' },
+  { kw: ['property address', 'project address', 'address of the project'],             hint: 'e.g. 456 Ocean Dr, Miami FL 33139' },
+  { kw: ['through date', 'through-date', 'work performed through'],                    hint: `e.g. ${new Date().toISOString().split('T')[0]}` },
+  { kw: ['due date', 'when is it due', 'date needed', 'response due'],                 hint: 'e.g. 2 weeks from today' },
+  { kw: ['commencement date', 'start date', 'when does work begin'],                   hint: `e.g. ${new Date().toISOString().split('T')[0]}` },
+  { kw: ['completion date', 'when must', 'substantial completion'],                    hint: 'e.g. 90 days from commencement' },
+  { kw: ['warranty period', 'how long is the warranty'],                               hint: 'e.g. 1 year from substantial completion' },
+  { kw: ['payment terms'],                                                              hint: 'e.g. Net 30 days' },
+  { kw: ['attendees', 'who attended', 'who was present'],                              hint: 'e.g. John Smith (GC), Maria Lopez (Architect)' },
+  { kw: ['action items', 'action item'],                                               hint: 'e.g. 1. Review RFI by Friday  2. Confirm layout' },
+  { kw: ['agenda', 'agenda items', 'topics'],                                           hint: 'e.g. 1. Schedule update  2. RFI review...' },
+  { kw: ['weather', 'what was the weather'],                                            hint: 'e.g. Partly cloudy, 78°F' },
+  { kw: ['workers on site', 'how many workers', 'crew size'],                          hint: 'e.g. 8 workers — 4 framing, 4 electrical' },
+  { kw: ['work performed', 'what work was done', 'what was completed today'],          hint: 'Describe work completed today...' },
+  { kw: ['materials', 'materials delivered'],                                           hint: 'e.g. (2) pallets of drywall, (50) 2x4x8 studs' },
+  { kw: ['delays', 'any delays', 'issues today'],                                       hint: 'e.g. Rain delay 2 hours — resumed at 10am' },
+  { kw: ['punch list item', 'items', 'checklist item'],                                hint: 'e.g. Touch up paint in bedroom 2' },
+  { kw: ['lien waiver type', 'type of lien waiver', 'conditional or unconditional'],   hint: 'e.g. conditional progress / unconditional final' },
+  { kw: ['reason', 'why', 'reason for'],                                               hint: 'Explain the reason...' },
+  { kw: ['phone', 'phone number', 'contact number'],                                   hint: 'e.g. (305) 555-0100' },
+  { kw: ['email', 'email address'],                                                     hint: 'e.g. contact@company.com' },
+  { kw: ['license', 'license number'],                                                  hint: 'e.g. CGC1234567' },
+  { kw: ['location', 'where is the meeting', 'meeting location'],                      hint: 'e.g. Job trailer, 123 Main St' },
+];
+
+const DEFAULT_PLACEHOLDER = 'Ask Bear to create an RFI, Change Order, Submittal...';
+
+function getPlaceholder(messages) {
+  if (!messages?.length) return DEFAULT_PLACEHOLDER;
+  const lastBear = [...messages].reverse().find(m => m.role === 'assistant');
+  if (!lastBear) return DEFAULT_PLACEHOLDER;
+
+  const text = lastBear.content.toLowerCase();
+  // Only change placeholder when Bear is asking a question
+  if (!text.includes('?')) return DEFAULT_PLACEHOLDER;
+
+  for (const { kw, hint } of PLACEHOLDER_RULES) {
+    if (kw.some(k => text.includes(k))) return hint;
+  }
+  return DEFAULT_PLACEHOLDER;
+}
 
 export default function ChatScreen() {
   const [input, setInput] = useState('');
@@ -15,6 +84,7 @@ export default function ChatScreen() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
+  const placeholder = useMemo(() => getPlaceholder(messages), [messages]);
 
   useEffect(() => { if (!initialized) loadMessages(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
@@ -136,7 +206,7 @@ export default function ChatScreen() {
             disabled={loading}
             rows={1}
             className="flex-1 bg-bear-surface border border-bear-border rounded-2xl px-4 py-3 text-sm text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent resize-none transition-colors leading-relaxed"
-            placeholder="Ask Bear to create an RFI, Change Order, Submittal..."
+            placeholder={placeholder}
           />
           <button
             onClick={send}
