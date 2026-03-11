@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/index.js';
+import ComposeButton from '../components/ComposeButton.jsx';
 
 export default function AdminScreen() {
   const [stats, setStats] = useState(null);
@@ -115,7 +116,8 @@ export default function AdminScreen() {
         )}
 
         {/* Search */}
-        <form onSubmit={handleSearch} className="px-3 py-2 border-b border-bear-border flex gap-2">
+        <form onSubmit={handleSearch} className="px-3 py-2 border-b border-bear-border flex gap-2 items-center">
+          <ComposeButton />
           <input
             type="text"
             placeholder="Search email or company..."

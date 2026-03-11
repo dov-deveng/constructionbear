@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/index.js';
+import ComposeButton from '../components/ComposeButton.jsx';
 
 export default function ProjectsScreen() {
   const [projects, setProjects] = useState([]);
@@ -191,11 +192,12 @@ export default function ProjectsScreen() {
   return (
     <div className="h-full flex flex-col bg-bear-bg">
       <div className="px-4 py-3 border-b border-bear-border bg-bear-surface">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-lg font-bold text-bear-text">Projects</h1>
+        <div className="flex items-center gap-2 mb-3">
+          <h1 className="text-lg font-bold text-bear-text flex-1">Projects</h1>
           <button onClick={openNew} className="flex items-center gap-1.5 text-sm font-medium text-white bg-bear-accent hover:bg-bear-accent-hover px-3 py-1.5 rounded-lg transition-colors">
             <PlusIcon className="w-4 h-4" /> New Project
           </button>
+          <ComposeButton />
         </div>
         <input
           type="text"

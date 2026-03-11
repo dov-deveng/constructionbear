@@ -4,6 +4,7 @@ import { LibraryCard, LibraryListRow, LibraryIconItem } from '../components/Docu
 import DocumentRenderer from '../components/DocumentRenderer.jsx';
 import { api } from '../api/index.js';
 import clsx from 'clsx';
+import ComposeButton from '../components/ComposeButton.jsx';
 
 // Field definitions per doc type (mirrors server DOC_SCHEMAS)
 const DOC_FIELDS = {
@@ -296,6 +297,7 @@ export default function LibraryScreen() {
               </button>
             ))}
           </div>
+          <ComposeButton />
         </div>
 
         {/* Search */}

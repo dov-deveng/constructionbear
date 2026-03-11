@@ -6,6 +6,7 @@ import SubscriptionModal from '../components/SubscriptionModal.jsx';
 import ChatFileViewer from '../components/ChatFileViewer.jsx';
 import AttachmentsPanel from '../components/AttachmentsPanel.jsx';
 import ImageUploadSheet from '../components/ImageUploadSheet.jsx';
+import ComposeButton from '../components/ComposeButton.jsx';
 import clsx from 'clsx';
 
 // ── Context-aware placeholder rules (Task 12) ─────────────────────────────────
@@ -240,15 +241,6 @@ export default function ChatScreen() {
                 {activeSession.session.project_name ? `${activeSession.session.project_name} · ` : ''}Past session
               </p>
             </div>
-            <button
-              onClick={exitSession}
-              className="flex-shrink-0 flex items-center gap-1.5 text-xs text-bear-accent hover:text-bear-accent-hover font-medium px-3 py-1.5 rounded-lg bg-bear-accent/10 hover:bg-bear-accent/20 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              New Chat
-            </button>
           </div>
         ) : (
           <div className="flex items-center gap-2 flex-1">
@@ -261,6 +253,7 @@ export default function ChatScreen() {
             </div>
           </div>
         )}
+        <ComposeButton />
       </div>
 
       {/* Messages */}

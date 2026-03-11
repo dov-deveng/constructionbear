@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore, useUIStore } from '../store/index.js';
 import { api } from '../api/index.js';
+import ComposeButton from '../components/ComposeButton.jsx';
 
 export default function SettingsScreen() {
   const { user, company: storeCompany, subscription, logout, setCompany } = useAuthStore();
@@ -65,7 +66,8 @@ export default function SettingsScreen() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <h1 className="text-lg font-bold text-bear-text">Settings</h1>
+        <h1 className="text-lg font-bold text-bear-text flex-1">Settings</h1>
+        <ComposeButton />
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
