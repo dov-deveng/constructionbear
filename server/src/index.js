@@ -29,6 +29,8 @@ const ALLOWED_ORIGINS = [
   process.env.CLIENT_URL || 'http://localhost:5173',
   'https://app.doveandbearinc.com',
   'https://constructionbear.vercel.app',
+  'https://constructionbear.dev',
+  'https://www.constructionbear.dev',
 ];
 app.use(cors({
   origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin)),
