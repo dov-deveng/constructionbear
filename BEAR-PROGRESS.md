@@ -41,6 +41,13 @@
 - **Env:** `API_URL` and `GOOGLE_CLIENT_SECRET` placeholders in `.env` (fill in Railway vars)
 - **Files:** `server/src/routes/auth.js`, `client/src/screens/AuthScreen.jsx`
 
+### Task 11 — Persistent In-Progress Chats (commit `2d4c4bc`)
+- **DB:** `status` column on `chat_sessions` ('in_progress'|'completed', default 'completed'). `partial_doc_type` for type hint before doc generated.
+- **Server:** `POST /chat/sessions/checkpoint` — saves untagged messages as in_progress session. `DELETE /chat/sessions/:id` (in_progress only). `GET /chat/sessions` returns `{ sessions, inProgressSessions }`. `POST /chat/message` accepts `session_id` to resume — loads context from session, saves messages there, updates session on doc completion.
+- **Store:** `inProgressSessions`, `resumedSession` state. `startNewChat()` checkpoints before clearing. `openSession()`: in_progress → `resumedSession` (input allowed), completed → `activeSession` (read-only). `deleteSession()`.
+- **Sidebar:** Amber "In Progress" section above Recent. Shows doc type badge, project name, "Resume · time". Delete icon with inline confirm/cancel.
+- **ChatScreen:** `resumedSession` header shows "Resuming chat" in amber. Normal input area active during resume.
+
 ### Task 10 — Compose Icon + Recent Chats (commit `82ca7df`)
 - **ComposeButton.jsx:** Icon-only compose button using exact provided SVG. Transparent bg, hover/active opacity-70. Calls `startNewChat()` + `setView('chat')`.
 - **All 7 screens updated:** ChatScreen (replaces text "New Chat" in activeSession header, always visible), LibraryScreen, ProjectsScreen, ContactsScreen, ProfileScreen, SettingsScreen, AdminScreen.
