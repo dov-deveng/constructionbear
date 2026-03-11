@@ -207,7 +207,6 @@ export default function OnboardingScreen() {
         setDone(true);
         const profile = await api.getProfile();
         setProfile(profile);
-        setTimeout(() => navigate('/', { replace: true }), 2000);
       }
     } catch {
       setMessages(prev => [...prev, {
@@ -276,9 +275,15 @@ export default function OnboardingScreen() {
         )}
 
         {done && (
-          <div className="text-center py-4 animate-fade-in">
-            <div className="text-2xl mb-2">✓</div>
-            <p className="text-bear-muted text-sm">Profile saved. Taking you to the app...</p>
+          <div className="text-center py-6 animate-fade-in space-y-4">
+            <div className="text-3xl">✓</div>
+            <p className="text-bear-muted text-sm">Profile saved. You're all set.</p>
+            <button
+              onClick={() => navigate('/', { replace: true })}
+              className="btn-primary px-8"
+            >
+              Go to Dashboard
+            </button>
           </div>
         )}
 
