@@ -200,8 +200,8 @@ class Doc {
   sectionHeader(label) {
     if (this.y < BODY_BOT + 30) return;
     this.gap(6);
-    this._rect(MARGIN, this.y - 2, CONTENT_W, 16, { fill: ACCENT_DARK });
-    this._text(label.toUpperCase(), MARGIN + 6, this.y + 3, 7.5, this.fonts.bold, WHITE);
+    this._rect(MARGIN, this.y - 2, CONTENT_W, 16, { fill: rgb(0.93, 0.94, 0.95), border: rgb(0.82, 0.84, 0.87), borderW: 0.5 });
+    this._text(label.toUpperCase(), MARGIN + 6, this.y + 3, 7.5, this.fonts.bold, rgb(0.18, 0.18, 0.18));
     this.y -= 22;
   }
 
@@ -299,10 +299,10 @@ class Doc {
     const rowH = 18;
     const totalW = colWidths.reduce((a, b) => a + b, 0);
     if (this.y < BODY_BOT + rowH * 2) return;
-    this._rect(MARGIN, this.y - rowH, totalW, rowH, { fill: ACCENT_DARK });
+    this._rect(MARGIN, this.y - rowH, totalW, rowH, { fill: rgb(0.93, 0.94, 0.95), border: rgb(0.82, 0.84, 0.87), borderW: 0.5 });
     let hx = MARGIN;
     headers.forEach((h, i) => {
-      this._text(h.toUpperCase(), hx + 4, this.y - 12, 7, f.bold, WHITE);
+      this._text(h.toUpperCase(), hx + 4, this.y - 12, 7, f.bold, rgb(0.18, 0.18, 0.18));
       hx += colWidths[i];
     });
     this.y -= rowH;
@@ -739,39 +739,11 @@ async function renderDoc(doc, profile) {
 
   const d = new Doc(page, fonts);
 
-  // AIA types skip the Bear OS header band and use their own header/footer
-  const isAIAType = ['rfi', 'submittal', 'invoice'].includes(doc.type);
+  // All types use clean AIA-style header — no dark bands on paper
+  const isAIAType = true;
 
-  if (!isAIAType) {
-    // ── HEADER BAND ──────────────────────────────────────────────────────────
-    const HEADER_H = 64;
-    d._rect(0, PAGE_H - HEADER_H, PAGE_W, HEADER_H, { fill: ACCENT_DARK });
-
-    const company = profile?.company_name || 'Your Company';
-    d._text(company, MARGIN, PAGE_H - 22, 13, bold, WHITE);
-    const addrParts = [profile?.address, profile?.city, profile?.state, profile?.zip].filter(Boolean);
-    if (addrParts.length) d._text(addrParts.join(', '), MARGIN, PAGE_H - 35, 7.5, regular, rgb(0.75, 0.78, 0.85));
-    const contactParts = [profile?.phone, profile?.email].filter(Boolean);
-    if (contactParts.length) d._text(contactParts.join('   |   '), MARGIN, PAGE_H - 46, 7.5, regular, rgb(0.75, 0.78, 0.85));
-    if (profile?.license_number) d._text(`License: ${profile.license_number}`, MARGIN, PAGE_H - 57, 7, regular, rgb(0.65, 0.68, 0.75));
-
-    const typeTitle = buildTitle(doc.type);
-    const ttW = bold.widthOfTextAtSize(typeTitle, 9);
-    d._rect(PAGE_W - MARGIN - ttW - 20, PAGE_H - HEADER_H + 10, ttW + 20, 20, { fill: ACCENT });
-    d._text(typeTitle, PAGE_W - MARGIN - ttW - 10, PAGE_H - HEADER_H + 18, 9, bold, WHITE);
-
-    d.y = PAGE_H - HEADER_H - 10;
-
-    // ── DOCUMENT TITLE ROW ────────────────────────────────────────────────────
-    d._text(doc.title.slice(0, 70), MARGIN, d.y, 14, bold, BLACK);
-    d.y -= 16;
-    const projectName = doc.project_name || c.project_name;
-    if (projectName) {
-      d._text(`Project: ${projectName}`, MARGIN, d.y, 8.5, regular, MUTED);
-      d.y -= 12;
-    }
-    d._line(MARGIN, d.y, PAGE_W - MARGIN, d.y, 1.5, ACCENT);
-    d.y -= 12;
+  if (!['rfi', 'submittal', 'invoice'].includes(doc.type)) {
+    d.y = aiaDocHeader(page, fonts, profile, buildTitle(doc.type), 18, true) - 8;
   }
 
   // ── AIA header for invoice ───────────────────────────────────────────────
@@ -973,7 +945,7 @@ async function renderDoc(doc, profile) {
           conditional_final:      'CONDITIONAL WAIVER AND RELEASE ON FINAL PAYMENT',
           unconditional_final:    'UNCONDITIONAL WAIVER AND RELEASE ON FINAL PAYMENT',
         }[c.type] || 'LIEN WAIVER';
-        d._text(lwLabel, MARGIN, d.y, 8, bold, ACCENT_DARK);
+        d._text(lwLabel, MARGIN, d.y, 8.5, bold, BLACK);
         d.y -= 14;
         d.rule(BORDER, 0.5);
         d.cells2([['Claimant (Company / Individual)', c.claimant], ['Owner', c.owner]]);
@@ -1194,23 +1166,13 @@ async function renderDoc(doc, profile) {
     }
   }
 
-  // ── FOOTER ────────────────────────────────────────────────────────────────
-  if (isAIAType) {
-    // Clean AIA footer — centered text, no band
-    const footerText = 'Powered by Dove & Bear Inc.';
-    const ftW = regular.widthOfTextAtSize(footerText, 8);
-    page.drawText(footerText, {
-      x: (PAGE_W - ftW) / 2, y: 18,
-      size: 8, font: regular, color: rgb(0.5, 0.5, 0.5),
-    });
-  } else {
-    // Bear OS dark footer band
-    const fy = FOOTER_H - 10;
-    d._rect(0, 0, PAGE_W, FOOTER_H, { fill: ACCENT_DARK });
-    d._text('ConstructionBear.AI', MARGIN, fy, 7.5, bold, rgb(0.65, 0.68, 0.75));
-    d._text(`Generated: ${new Date().toLocaleDateString()}`, MARGIN + 120, fy, 7.5, regular, rgb(0.55, 0.58, 0.65));
-    d._text(`${buildTitle(doc.type)}  |  ${doc.title}`, PAGE_W - MARGIN - 200, fy, 7, regular, rgb(0.55, 0.58, 0.65));
-  }
+  // ── FOOTER — clean for all doc types ─────────────────────────────────────
+  const footerText = 'Powered by Dove & Bear Inc.';
+  const ftW = regular.widthOfTextAtSize(footerText, 8);
+  page.drawText(footerText, {
+    x: (PAGE_W - ftW) / 2, y: 18,
+    size: 8, font: regular, color: rgb(0.5, 0.5, 0.5),
+  });
 
   return pdfDoc.save();
 }
