@@ -250,9 +250,12 @@ function initSchema(db) {
   // Add is_admin column to users if it doesn't exist yet
   try {
     db.exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`);
-  } catch {
-    // Column already exists, ignore
-  }
+  } catch { /* already exists */ }
+
+  // Add plan column to subscriptions (free | pro | business)
+  try {
+    db.exec(`ALTER TABLE subscriptions ADD COLUMN plan TEXT DEFAULT 'free'`);
+  } catch { /* already exists */ }
 
   // Markups table
   try {
