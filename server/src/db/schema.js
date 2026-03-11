@@ -318,6 +318,29 @@ function initSchema(db) {
     // column already exists
   }
 
+  // Drop dead documents_new table (was never used)
+  try { db.exec(`DROP TABLE IF EXISTS documents_new`); } catch {}
+
+  // Backfill company_id on orphaned records (legacy data before multi-company migration)
+  // For each user with a company_id, stamp their untagged records
+  try {
+    db.exec(`
+      UPDATE projects SET company_id = (SELECT company_id FROM users WHERE users.id = projects.user_id)
+      WHERE company_id IS NULL AND user_id IN (SELECT id FROM users WHERE company_id IS NOT NULL);
+
+      UPDATE contacts SET company_id = (SELECT company_id FROM users WHERE users.id = contacts.user_id)
+      WHERE company_id IS NULL AND user_id IN (SELECT id FROM users WHERE company_id IS NOT NULL);
+
+      UPDATE documents SET company_id = (SELECT company_id FROM users WHERE users.id = documents.user_id)
+      WHERE company_id IS NULL AND user_id IN (SELECT id FROM users WHERE company_id IS NOT NULL);
+
+      UPDATE doc_templates SET company_id = (SELECT company_id FROM users WHERE users.id = doc_templates.user_id)
+      WHERE company_id IS NULL AND user_id IN (SELECT id FROM users WHERE company_id IS NOT NULL);
+    `);
+  } catch (err) {
+    console.error('[schema] backfill error:', err.message);
+  }
+
   // Promote ADMIN_EMAIL to admin if set
   if (process.env.ADMIN_EMAIL) {
     db.prepare(`UPDATE users SET is_admin = 1 WHERE email = ? COLLATE NOCASE`).run(process.env.ADMIN_EMAIL);

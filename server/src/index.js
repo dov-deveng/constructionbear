@@ -4,6 +4,8 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
+import cron from 'node-cron';
+import { runBackup } from './services/backup.js';
 
 import authRouter from './routes/auth.js';
 import profileRouter from './routes/profile.js';
@@ -69,4 +71,9 @@ app.get('/health', (req, res) => res.json({ status: 'ok', service: 'Construction
 
 app.listen(PORT, () => {
   console.log(`ConstructionBear API running on port ${PORT}`);
+});
+
+// Daily backup at 2:00 AM
+cron.schedule('0 2 * * *', () => {
+  runBackup();
 });
