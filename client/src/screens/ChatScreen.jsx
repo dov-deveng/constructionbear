@@ -50,9 +50,14 @@ export default function ChatScreen() {
   async function saveDocument(docData) {
     try {
       if (!canCreateDoc()) { setShowSubModal(true); return; }
+      // Extract project_name from content if present
+      const project_name = docData.project_name ||
+        (typeof docData.content === 'object' ? docData.content?.project_name : null) ||
+        null;
       const doc = await api.createDocument({
         type: docData.type,
         title: docData.title,
+        project_name,
         content: { text: docData.content },
         status: 'draft',
       });

@@ -67,6 +67,22 @@ export const api = {
   updateDocument: (id, data) => request('PUT', `/documents/${id}`, data),
   deleteDocument: (id) => request('DELETE', `/documents/${id}`),
   getDocStats: () => request('GET', '/documents/stats/summary'),
+  uploadDocument: (file, title, projectName) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (title) form.append('title', title);
+    if (projectName) form.append('project_name', projectName);
+    const token = getToken();
+    return fetch(`${BASE}/documents/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    }).then(async r => {
+      const data = await r.json();
+      if (!r.ok) { const err = new Error(data.error || 'Upload failed'); err.code = data.code; err.status = r.status; throw err; }
+      return data;
+    });
+  },
 
   // PDF
   downloadPdf: async (id, filename) => {
@@ -101,6 +117,14 @@ export const api = {
   createContact: (data) => request('POST', '/contacts', data),
   updateContact: (id, data) => request('PUT', `/contacts/${id}`, data),
   deleteContact: (id) => request('DELETE', `/contacts/${id}`),
+
+  // Admin
+  adminStats: () => request('GET', '/admin/stats'),
+  adminUsers: (params = {}) => { const qs = new URLSearchParams(params).toString(); return request('GET', `/admin/users${qs ? '?' + qs : ''}`); },
+  adminUser: (id) => request('GET', `/admin/users/${id}`),
+  adminGrantSub: (id, months) => request('POST', `/admin/users/${id}/grant-subscription`, { months }),
+  adminGrantAdmin: (id) => request('POST', `/admin/users/${id}/grant-admin`),
+  adminRevokeAdmin: (id) => request('POST', `/admin/users/${id}/revoke-admin`),
 
   // Stripe
   getSubStatus: () => request('GET', '/stripe/status'),

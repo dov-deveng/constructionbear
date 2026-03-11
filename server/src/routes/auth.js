@@ -171,9 +171,9 @@ router.get('/me', (req, res) => {
   try {
     const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
     const db = getDb();
-    const user = db.prepare('SELECT id, email, email_verified FROM users WHERE id = ?').get(payload.userId);
+    const user = db.prepare('SELECT id, email, email_verified, is_admin FROM users WHERE id = ?').get(payload.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    res.json({ ...user, is_admin: !!user.is_admin });
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }

@@ -7,6 +7,7 @@ import ProjectsScreen from './ProjectsScreen.jsx';
 import ContactsScreen from './ContactsScreen.jsx';
 import ProfileScreen from './ProfileScreen.jsx';
 import SettingsScreen from './SettingsScreen.jsx';
+import AdminScreen from './AdminScreen.jsx';
 
 export default function AppShell() {
   const { sidebarOpen, activeView, closeSidebar } = useUIStore();
@@ -38,6 +39,7 @@ export default function AppShell() {
         {activeView === 'contacts' && <ContactsScreen />}
         {activeView === 'profile' && <ProfileScreen />}
         {activeView === 'settings' && <SettingsScreen />}
+        {activeView === 'admin' && <AdminScreen />}
       </div>
     </div>
   );

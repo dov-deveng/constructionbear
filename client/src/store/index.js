@@ -115,6 +115,10 @@ export const useDocStore = create((set, get) => ({
 
   addDocument: (doc) => set(s => ({ documents: [doc, ...s.documents], total: s.total + 1 })),
 
+  updateDocument: (updated) => set(s => ({
+    documents: s.documents.map(d => d.id === updated.id ? updated : d),
+  })),
+
   removeDocument: async (id) => {
     await api.deleteDocument(id);
     set(s => ({ documents: s.documents.filter(d => d.id !== id), total: s.total - 1 }));

@@ -1,11 +1,46 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { requireAuth } from '../middleware/auth.js';
 import { getDb } from '../db/schema.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UPLOADS_DIR = path.join(process.cwd(), 'data/uploads');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const userDir = path.join(UPLOADS_DIR, req.userId);
+    fs.mkdirSync(userDir, { recursive: true });
+    cb(null, userDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.pdf';
+    cb(null, `${uuidv4()}${ext}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') cb(null, true);
+    else cb(new Error('Only PDF files are accepted'));
+  },
+});
+
 const router = Router();
 
-const VALID_TYPES = ['rfi', 'change_order', 'submittal', 'lien_waiver', 'pay_app', 'meeting_minutes', 'notice_to_owner', 'subcontract', 'other'];
+const VALID_TYPES = [
+  'rfi', 'change_order', 'submittal', 'lien_waiver', 'pay_app',
+  'meeting_minutes', 'notice_to_owner', 'subcontract',
+  'daily_report', 'punch_list', 'invoice',
+  'transmittal', 'schedule_of_values', 'notice_to_proceed',
+  'substantial_completion', 'warranty_letter', 'substitution_request',
+  'closeout_checklist', 'certified_payroll',
+  'upload', 'other',
+];
 
 const TYPE_ALIASES = {
   'rfi': 'rfi', 'request for information': 'rfi',
@@ -16,6 +51,17 @@ const TYPE_ALIASES = {
   'meeting_minutes': 'meeting_minutes', 'meeting minutes': 'meeting_minutes', 'minutes': 'meeting_minutes',
   'notice_to_owner': 'notice_to_owner', 'notice to owner': 'notice_to_owner', 'nto': 'notice_to_owner',
   'subcontract': 'subcontract', 'subcontract agreement': 'subcontract',
+  'daily_report': 'daily_report', 'daily report': 'daily_report', 'field report': 'daily_report', 'daily field report': 'daily_report',
+  'punch_list': 'punch_list', 'punch list': 'punch_list', 'punchlist': 'punch_list',
+  'invoice': 'invoice', 'bill': 'invoice',
+  'transmittal': 'transmittal',
+  'schedule_of_values': 'schedule_of_values', 'schedule of values': 'schedule_of_values', 'sov': 'schedule_of_values',
+  'notice_to_proceed': 'notice_to_proceed', 'notice to proceed': 'notice_to_proceed', 'ntp': 'notice_to_proceed',
+  'substantial_completion': 'substantial_completion', 'substantial completion': 'substantial_completion',
+  'warranty_letter': 'warranty_letter', 'warranty letter': 'warranty_letter', 'warranty': 'warranty_letter',
+  'substitution_request': 'substitution_request', 'substitution request': 'substitution_request',
+  'closeout_checklist': 'closeout_checklist', 'closeout checklist': 'closeout_checklist', 'close-out checklist': 'closeout_checklist',
+  'certified_payroll': 'certified_payroll', 'certified payroll': 'certified_payroll', 'davis-bacon': 'certified_payroll',
   'other': 'other',
 };
 
@@ -49,6 +95,74 @@ router.get('/', requireAuth, (req, res) => {
   res.json({ documents: parsed, total: count });
 });
 
+// GET /documents/stats/summary — must be before /:id
+router.get('/stats/summary', requireAuth, (req, res) => {
+  const db = getDb();
+  const byType = db.prepare(`
+    SELECT type, COUNT(*) as count FROM documents WHERE user_id = ? GROUP BY type
+  `).all(req.userId);
+  const total = db.prepare('SELECT COUNT(*) as n FROM documents WHERE user_id = ?').get(req.userId).n;
+  const recent = db.prepare('SELECT * FROM documents WHERE user_id = ? ORDER BY created_at DESC LIMIT 5').all(req.userId);
+
+  res.json({
+    total,
+    by_type: byType,
+    recent: recent.map(d => ({ ...d, content: JSON.parse(d.content_json), content_json: undefined })),
+  });
+});
+
+// POST /documents/upload — PDF file upload
+router.post('/upload', requireAuth, (req, res) => {
+  upload.single('file')(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const db = getDb();
+    const { title, project_name, project_id: bodyProjectId } = req.body;
+
+    // Subscription check — skip for admin
+    if (!req.isAdmin) {
+      const sub = db.prepare('SELECT status FROM subscriptions WHERE user_id = ?').get(req.userId);
+      const docCount = db.prepare('SELECT COUNT(*) as n FROM documents WHERE user_id = ?').get(req.userId).n;
+      if (docCount >= 1 && (!sub || sub.status !== 'active')) {
+        fs.unlink(req.file.path, () => {});
+        return res.status(402).json({
+          error: 'Subscription required',
+          code: 'SUBSCRIPTION_REQUIRED',
+          message: 'Your first document is free. Subscribe for $19.99/month for unlimited documents.',
+        });
+      }
+    }
+
+    // Auto-link project
+    let project_id = bodyProjectId || null;
+    if (!project_id && project_name) {
+      const proj = db.prepare('SELECT id FROM projects WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
+        .get(req.userId, project_name);
+      if (proj) project_id = proj.id;
+    }
+
+    const id = uuidv4();
+    const filePath = `/uploads/${req.userId}/${req.file.filename}`;
+    const docTitle = title || req.file.originalname.replace(/\.pdf$/i, '');
+
+    const content = {
+      file_path: filePath,
+      original_name: req.file.originalname,
+      mime_type: req.file.mimetype,
+      size: req.file.size,
+    };
+
+    db.prepare(`
+      INSERT INTO documents (id, user_id, project_id, type, title, project_name, status, content_json)
+      VALUES (?, ?, ?, 'upload', ?, ?, 'final', ?)
+    `).run(id, req.userId, project_id, docTitle, project_name || null, JSON.stringify(content));
+
+    const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
+    res.status(201).json({ ...doc, content: JSON.parse(doc.content_json), content_json: undefined });
+  });
+});
+
 // GET /documents/:id
 router.get('/:id', requireAuth, (req, res) => {
   const db = getDb();
@@ -65,23 +179,32 @@ router.post('/', requireAuth, (req, res) => {
 
   const db = getDb();
 
-  // Check free tier limit (1 doc free, subscription required after)
-  const sub = db.prepare('SELECT status FROM subscriptions WHERE user_id = ?').get(req.userId);
-  const docCount = db.prepare('SELECT COUNT(*) as n FROM documents WHERE user_id = ?').get(req.userId).n;
+  // Check free tier limit — skip for admin
+  if (!req.isAdmin) {
+    const sub = db.prepare('SELECT status FROM subscriptions WHERE user_id = ?').get(req.userId);
+    const docCount = db.prepare('SELECT COUNT(*) as n FROM documents WHERE user_id = ?').get(req.userId).n;
+    if (docCount >= 1 && (!sub || sub.status !== 'active')) {
+      return res.status(402).json({
+        error: 'Subscription required',
+        code: 'SUBSCRIPTION_REQUIRED',
+        message: 'Your first document is free. Subscribe for $19.99/month for unlimited documents.',
+      });
+    }
+  }
 
-  if (docCount >= 1 && (!sub || sub.status !== 'active')) {
-    return res.status(402).json({
-      error: 'Subscription required',
-      code: 'SUBSCRIPTION_REQUIRED',
-      message: 'Your first document is free. Subscribe for $19.99/month for unlimited documents.',
-    });
+  // Auto-link project_id if a matching project exists by name
+  let project_id = req.body.project_id || null;
+  if (!project_id && project_name) {
+    const proj = db.prepare('SELECT id FROM projects WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
+      .get(req.userId, project_name);
+    if (proj) project_id = proj.id;
   }
 
   const id = uuidv4();
   db.prepare(`
-    INSERT INTO documents (id, user_id, type, title, project_name, status, content_json)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, req.userId, type, title, project_name || null, status, JSON.stringify(content));
+    INSERT INTO documents (id, user_id, project_id, type, title, project_name, status, content_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, req.userId, project_id, type, title, project_name || null, status, JSON.stringify(content));
 
   const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
   res.status(201).json({ ...doc, content: JSON.parse(doc.content_json), content_json: undefined });
@@ -117,22 +240,6 @@ router.delete('/:id', requireAuth, (req, res) => {
   if (!doc) return res.status(404).json({ error: 'Document not found' });
   db.prepare('DELETE FROM documents WHERE id = ?').run(req.params.id);
   res.json({ success: true });
-});
-
-// GET /documents/stats/summary
-router.get('/stats/summary', requireAuth, (req, res) => {
-  const db = getDb();
-  const byType = db.prepare(`
-    SELECT type, COUNT(*) as count FROM documents WHERE user_id = ? GROUP BY type
-  `).all(req.userId);
-  const total = db.prepare('SELECT COUNT(*) as n FROM documents WHERE user_id = ?').get(req.userId).n;
-  const recent = db.prepare('SELECT * FROM documents WHERE user_id = ? ORDER BY created_at DESC LIMIT 5').all(req.userId);
-
-  res.json({
-    total,
-    by_type: byType,
-    recent: recent.map(d => ({ ...d, content: JSON.parse(d.content_json), content_json: undefined })),
-  });
 });
 
 export default router;

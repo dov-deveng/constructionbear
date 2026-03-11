@@ -36,6 +36,9 @@ export default function ContactsScreen() {
     (c.role || '').toLowerCase().includes(search.toLowerCase())
   );
 
+  // Build project lookup map
+  const projectMap = projects.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {});
+
   // Group alphabetically
   const grouped = filtered.reduce((acc, c) => {
     const letter = c.name[0].toUpperCase();
@@ -115,6 +118,11 @@ export default function ContactsScreen() {
                     {c.company && <p className="text-xs text-bear-muted truncate">{c.company}{c.role ? ` · ${c.role}` : ''}</p>}
                     {c.email && <p className="text-xs text-bear-muted truncate">{c.email}</p>}
                     {c.phone && <p className="text-xs text-bear-muted">{c.phone}</p>}
+                    {c.project_id && projectMap[c.project_id] && (
+                      <span className="inline-flex items-center gap-1 mt-0.5 text-xs text-bear-accent bg-bear-accent/10 px-1.5 py-0.5 rounded-md">
+                        <FolderIcon className="w-3 h-3" />{projectMap[c.project_id]}
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -219,4 +227,7 @@ function TrashIcon({ className }) {
 }
 function CloseIcon({ className }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>;
+}
+function FolderIcon({ className }) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>;
 }

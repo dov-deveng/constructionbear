@@ -14,6 +14,7 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const { user, profile, subscription, logout } = useAuthStore();
   const { activeView, setView } = useUIStore();
+  const isAdmin = user?.is_admin;
 
   return (
     <div className="h-full bg-bear-surface border-r border-bear-border flex flex-col safe-top">
@@ -47,6 +48,22 @@ export default function Sidebar() {
             {label}
           </button>
         ))}
+
+        {/* Admin link — only visible to admin users */}
+        {isAdmin && (
+          <button
+            onClick={() => setView('admin')}
+            className={clsx(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors mt-1',
+              activeView === 'admin'
+                ? 'bg-purple-500/15 text-purple-400'
+                : 'text-bear-muted hover:text-purple-400 hover:bg-purple-500/10'
+            )}
+          >
+            <AdminIcon className="w-5 h-5 flex-shrink-0" />
+            Admin
+          </button>
+        )}
       </nav>
 
       {/* Subscription status */}
@@ -144,6 +161,14 @@ function ContactsIcon({ className }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
+function AdminIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   );
 }

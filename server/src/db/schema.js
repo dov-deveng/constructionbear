@@ -198,4 +198,23 @@ function initSchema(db) {
   } catch {
     // Column already exists, ignore
   }
+
+  // Add is_admin column to users if it doesn't exist yet
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`);
+  } catch {
+    // Column already exists, ignore
+  }
+
+  // Add last_active column to users (updated on each authenticated request)
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN last_active INTEGER`);
+  } catch {
+    // Column already exists, ignore
+  }
+
+  // Promote ADMIN_EMAIL to admin if set
+  if (process.env.ADMIN_EMAIL) {
+    db.prepare(`UPDATE users SET is_admin = 1 WHERE email = ? COLLATE NOCASE`).run(process.env.ADMIN_EMAIL);
+  }
 }

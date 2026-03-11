@@ -13,6 +13,7 @@ import contactsRouter from './routes/contacts.js';
 import chatRouter from './routes/chat.js';
 import stripeRouter from './routes/stripe.js';
 import pdfRouter from './routes/pdf.js';
+import adminRouter from './routes/admin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -39,8 +40,9 @@ const chatLimiter = rateLimit({ windowMs: 60 * 1000, max: 30 });
 app.use(limiter);
 app.use('/chat', chatLimiter);
 
-// Static files (logos)
+// Static files
 app.use('/logos', express.static(path.join(process.cwd(), 'data/logos')));
+app.use('/uploads', express.static(path.join(process.cwd(), 'data/uploads')));
 
 // Routes
 app.use('/auth', authRouter);
@@ -51,6 +53,7 @@ app.use('/contacts', contactsRouter);
 app.use('/chat', chatRouter);
 app.use('/stripe', stripeRouter);
 app.use('/pdf', pdfRouter);
+app.use('/admin', adminRouter);
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'ConstructionBear API' }));

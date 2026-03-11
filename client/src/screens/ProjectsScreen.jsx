@@ -10,6 +10,9 @@ export default function ProjectsScreen() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [contactForm, setContactForm] = useState({});
+  const [savingContact, setSavingContact] = useState(false);
 
   useEffect(() => { loadProjects(); }, []);
 
@@ -74,6 +77,30 @@ export default function ProjectsScreen() {
     setShowForm(true);
   }
 
+  function openContactForm(projectId) {
+    setContactForm({ project_id: projectId });
+    setShowContactForm(true);
+  }
+
+  async function handleSaveContact(e) {
+    e.preventDefault();
+    setSavingContact(true);
+    try {
+      await api.createContact(contactForm);
+      setShowContactForm(false);
+      setContactForm({});
+      // Reload project detail to show new contact
+      if (selected) {
+        const data = await api.getProject(selected.id);
+        setSelected(data);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingContact(false);
+    }
+  }
+
   if (selected) {
     return (
       <div className="h-full flex flex-col bg-bear-bg">
@@ -117,17 +144,21 @@ export default function ProjectsScreen() {
             </InfoCard>
           )}
 
-          {selected.contacts?.length > 0 && (
-            <InfoCard title={`Contacts (${selected.contacts.length})`}>
-              {selected.contacts.map(c => (
-                <div key={c.id} className="py-1.5">
-                  <p className="text-sm font-medium text-bear-text">{c.name}</p>
-                  {c.company && <p className="text-xs text-bear-muted">{c.company}{c.role ? ` · ${c.role}` : ''}</p>}
-                  {c.email && <p className="text-xs text-bear-muted">{c.email}</p>}
-                </div>
-              ))}
-            </InfoCard>
-          )}
+          <InfoCard
+            title={`Contacts (${selected.contacts?.length || 0})`}
+            action={<button onClick={() => openContactForm(selected.id)} className="text-xs text-bear-accent font-medium hover:underline flex items-center gap-1"><PlusIcon className="w-3 h-3" />Add</button>}
+          >
+            {selected.contacts?.length > 0 ? selected.contacts.map(c => (
+              <div key={c.id} className="py-1.5">
+                <p className="text-sm font-medium text-bear-text">{c.name}</p>
+                {c.company && <p className="text-xs text-bear-muted">{c.company}{c.role ? ` · ${c.role}` : ''}</p>}
+                {c.email && <p className="text-xs text-bear-muted">{c.email}</p>}
+                {c.phone && <p className="text-xs text-bear-muted">{c.phone}</p>}
+              </div>
+            )) : (
+              <p className="text-xs text-bear-muted py-1.5">No contacts yet</p>
+            )}
+          </InfoCard>
 
           {selected.documents?.length > 0 && (
             <InfoCard title={`Documents (${selected.documents.length})`}>
@@ -201,6 +232,35 @@ export default function ProjectsScreen() {
         )}
       </div>
 
+      {showContactForm && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+          <form onSubmit={handleSaveContact} className="bg-bear-surface rounded-2xl w-full max-w-md">
+            <div className="px-4 py-3 border-b border-bear-border flex items-center justify-between">
+              <h3 className="font-semibold text-bear-text">Add Contact to Project</h3>
+              <button type="button" onClick={() => { setShowContactForm(false); setContactForm({}); }} className="text-bear-muted hover:text-bear-text">
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <FormField label="Full Name *" name="name" value={contactForm.name || ''} onChange={setContactForm} required />
+              <FormField label="Company" name="company" value={contactForm.company || ''} onChange={setContactForm} />
+              <FormField label="Role / Title" name="role" value={contactForm.role || ''} onChange={setContactForm} />
+              <FormField label="Email" name="email" value={contactForm.email || ''} onChange={setContactForm} type="email" />
+              <FormField label="Phone" name="phone" value={contactForm.phone || ''} onChange={setContactForm} type="tel" />
+            </div>
+            <div className="px-4 py-3 border-t border-bear-border">
+              <button
+                type="submit"
+                disabled={savingContact}
+                className="w-full py-2.5 bg-bear-accent hover:bg-bear-accent-hover text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+              >
+                {savingContact ? 'Adding...' : 'Add Contact'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {showForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
           <form onSubmit={handleSave} className="bg-bear-surface rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
@@ -269,11 +329,12 @@ export default function ProjectsScreen() {
   );
 }
 
-function InfoCard({ title, children }) {
+function InfoCard({ title, children, action }) {
   return (
     <div className="bg-bear-surface border border-bear-border rounded-xl overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-bear-border">
+      <div className="px-4 py-2.5 border-b border-bear-border flex items-center justify-between">
         <p className="text-xs font-semibold text-bear-muted uppercase tracking-wide">{title}</p>
+        {action}
       </div>
       <div className="px-4 py-3 divide-y divide-bear-border/50">{children}</div>
     </div>

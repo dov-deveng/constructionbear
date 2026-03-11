@@ -46,6 +46,61 @@ export const DOC_SCHEMAS = {
     fields: ['project_name', 'general_contractor', 'subcontractor', 'scope_of_work', 'contract_value', 'start_date', 'completion_date', 'payment_terms', 'insurance_requirements'],
     required: ['project_name', 'general_contractor', 'subcontractor', 'scope_of_work', 'contract_value'],
   },
+  daily_report: {
+    label: 'Daily Field Report',
+    fields: ['project_name', 'date', 'report_number', 'superintendent', 'weather', 'temperature', 'workers_on_site', 'work_performed', 'materials_delivered', 'equipment_on_site', 'visitors', 'delays', 'safety_incidents', 'notes'],
+    required: ['project_name', 'date', 'work_performed'],
+  },
+  punch_list: {
+    label: 'Punch List',
+    fields: ['project_name', 'date', 'prepared_by', 'contractor', 'location', 'items'],
+    required: ['project_name', 'date', 'items'],
+  },
+  invoice: {
+    label: 'Invoice',
+    fields: ['invoice_number', 'date', 'due_date', 'project_name', 'bill_to_name', 'bill_to_address', 'from_name', 'from_address', 'line_items', 'subtotal', 'tax_rate', 'tax_amount', 'total', 'payment_terms', 'notes'],
+    required: ['invoice_number', 'date', 'project_name', 'bill_to_name', 'line_items', 'total'],
+  },
+  transmittal: {
+    label: 'Transmittal',
+    fields: ['project_name', 'transmittal_number', 'date', 'to_name', 'to_company', 'from_name', 'subject', 'items', 'action_required', 'notes'],
+    required: ['project_name', 'date', 'to_name', 'subject', 'items'],
+  },
+  schedule_of_values: {
+    label: 'Schedule of Values',
+    fields: ['project_name', 'contractor', 'owner', 'architect', 'contract_number', 'date', 'line_items', 'contract_amount'],
+    required: ['project_name', 'contractor', 'line_items', 'contract_amount'],
+  },
+  notice_to_proceed: {
+    label: 'Notice to Proceed',
+    fields: ['project_name', 'date', 'contractor_name', 'contractor_address', 'owner_name', 'commencement_date', 'completion_date', 'contract_amount', 'project_address'],
+    required: ['project_name', 'date', 'contractor_name', 'commencement_date'],
+  },
+  substantial_completion: {
+    label: 'Certificate of Substantial Completion',
+    fields: ['project_name', 'project_address', 'contractor', 'owner', 'architect', 'date_of_issuance', 'date_of_substantial_completion', 'list_of_items', 'warranty_start_date'],
+    required: ['project_name', 'contractor', 'owner', 'date_of_substantial_completion'],
+  },
+  warranty_letter: {
+    label: 'Warranty Letter',
+    fields: ['project_name', 'date', 'contractor_name', 'contractor_address', 'owner_name', 'owner_address', 'work_description', 'warranty_period', 'warranty_start_date', 'warranty_end_date', 'exclusions'],
+    required: ['project_name', 'contractor_name', 'owner_name', 'work_description', 'warranty_period'],
+  },
+  substitution_request: {
+    label: 'Substitution Request',
+    fields: ['project_name', 'date', 'request_number', 'submitted_by', 'specified_item', 'specified_manufacturer', 'proposed_item', 'proposed_manufacturer', 'reason', 'cost_difference', 'schedule_impact', 'attachments'],
+    required: ['project_name', 'specified_item', 'proposed_item', 'reason'],
+  },
+  closeout_checklist: {
+    label: 'Project Close-Out Checklist',
+    fields: ['project_name', 'date', 'contractor', 'owner', 'project_manager', 'items'],
+    required: ['project_name', 'contractor', 'items'],
+  },
+  certified_payroll: {
+    label: 'Certified Payroll Report',
+    fields: ['project_name', 'contractor', 'week_ending', 'project_number', 'payroll_number', 'employees', 'contractor_signature', 'title', 'date'],
+    required: ['project_name', 'contractor', 'week_ending', 'employees'],
+  },
 };
 
 const SYSTEM_PROMPT = `You are Bear, the AI assistant for ConstructionBear.AI — a platform that helps construction contractors create professional documents instantly.
@@ -67,6 +122,17 @@ Document types you handle:
 - Meeting Minutes
 - Notice to Owner
 - Subcontract Agreement
+- Daily Field Report
+- Punch List
+- Invoice
+- Transmittal
+- Schedule of Values (SOV)
+- Notice to Proceed (NTP)
+- Certificate of Substantial Completion
+- Warranty Letter
+- Substitution Request
+- Project Close-Out Checklist
+- Certified Payroll Report
 
 Rules:
 - Ask only ONE question at a time
@@ -195,33 +261,43 @@ async function extractAndSave(userId, userMessage, db) {
 
   const { v4: uuidv4 } = await import('uuid');
 
-  // Save project if found and not already tracked
+  // Save project if found and not already tracked — capture its ID for contact linking
+  let linkedProjectId = null;
   if (extracted.project?.name) {
-    const existing = db.prepare('SELECT id FROM projects WHERE user_id = ? AND name = ?')
+    const existing = db.prepare('SELECT id FROM projects WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
       .get(userId, extracted.project.name);
-    if (!existing) {
+    if (existing) {
+      linkedProjectId = existing.id;
+    } else {
       const p = extracted.project;
+      const newId = uuidv4();
       db.prepare(`
         INSERT INTO projects (id, user_id, name, client_name, client_contact, client_email, client_phone, address, gc_name, architect_name, contract_value, start_date, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(uuidv4(), userId, p.name, p.client_name || null, p.client_contact || null,
+      `).run(newId, userId, p.name, p.client_name || null, p.client_contact || null,
         p.client_email || null, p.client_phone || null, p.address || null,
         p.gc_name || null, p.architect_name || null, p.contract_value || null,
         p.start_date || null, p.status || 'active');
+      linkedProjectId = newId;
     }
   }
 
-  // Save new contacts if found
+  // Save new contacts; link to project if project was mentioned in same message
   if (Array.isArray(extracted.contacts)) {
     for (const c of extracted.contacts) {
       if (!c.name) continue;
-      const existing = db.prepare('SELECT id FROM contacts WHERE user_id = ? AND name = ?')
+      const existing = db.prepare('SELECT id, project_id FROM contacts WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
         .get(userId, c.name);
-      if (!existing) {
+      if (existing) {
+        // Update project link if we have one and contact isn't already linked
+        if (linkedProjectId && !existing.project_id) {
+          db.prepare('UPDATE contacts SET project_id = ? WHERE id = ?').run(linkedProjectId, existing.id);
+        }
+      } else {
         db.prepare(`
-          INSERT INTO contacts (id, user_id, name, company, role, email, phone)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(uuidv4(), userId, c.name, c.company || null, c.role || null,
+          INSERT INTO contacts (id, user_id, project_id, name, company, role, email, phone)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(uuidv4(), userId, linkedProjectId, c.name, c.company || null, c.role || null,
           c.email || null, c.phone || null);
       }
     }
