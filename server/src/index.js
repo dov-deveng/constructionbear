@@ -18,6 +18,7 @@ import pdfRouter from './routes/pdf.js';
 import adminRouter from './routes/admin.js';
 import templatesRouter from './routes/templates.js';
 import markupsRouter from './routes/markups.js';
+import attachmentsRouter from './routes/attachments.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -65,6 +66,7 @@ app.use('/pdf', pdfRouter);
 app.use('/admin', adminRouter);
 app.use('/templates', templatesRouter);
 app.use('/documents/:docId/markups', markupsRouter);
+app.use('/documents/:docId/attachments', attachmentsRouter);
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'ConstructionBear API' }));

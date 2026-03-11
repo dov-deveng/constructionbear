@@ -1202,40 +1202,51 @@ async function renderDoc(doc, profile) {
   });
 
   // ── ATTACHMENTS — embed uploaded images as additional pages ───────────────
-  const attachmentUrl = c.attachment_url || c.attachmentUrl;
-  if (attachmentUrl) {
+  // Build a unified list: DB attachments first, then legacy single content.attachment_url
+  const attachItems = Array.isArray(doc.attachments) ? doc.attachments : [];
+  const legacyUrl = c.attachment_url || c.attachmentUrl;
+  if (legacyUrl && !attachItems.length) {
+    attachItems.push({ file_path: legacyUrl, caption_label: c.attachment_filename || '', doc_number: doc.doc_number, date: c.date });
+  }
+
+  for (const att of attachItems) {
     try {
-      // attachment_url is like /uploads/filename.jpg — resolve to disk path
-      const relPath = attachmentUrl.replace(/^\/uploads\//, '');
+      const relPath = att.file_path.replace(/^\/uploads\//, '');
       const diskPath = path.join(process.cwd(), 'data', 'uploads', relPath);
-      if (fs.existsSync(diskPath)) {
-        const imgBytes = fs.readFileSync(diskPath);
-        const ext = path.extname(diskPath).toLowerCase();
-        let embeddedImage;
-        if (ext === '.png') {
-          embeddedImage = await pdfDoc.embedPng(imgBytes);
-        } else {
-          // jpg / jpeg / gif / webp — try jpg embed
-          embeddedImage = await pdfDoc.embedJpg(imgBytes);
-        }
-        const imgPage = pdfDoc.addPage([PAGE_W, PAGE_H]);
-        const { width: iw, height: ih } = embeddedImage.scale(1);
-        const maxW = PAGE_W - MARGIN * 2;
-        const maxH = PAGE_H - MARGIN * 2;
-        const scale = Math.min(maxW / iw, maxH / ih, 1);
-        const drawW = iw * scale;
-        const drawH = ih * scale;
-        imgPage.drawImage(embeddedImage, {
-          x: (PAGE_W - drawW) / 2,
-          y: (PAGE_H - drawH) / 2,
-          width: drawW,
-          height: drawH,
-        });
-        // Label
-        imgPage.drawText(c.attachment_filename || 'Attachment', {
-          x: MARGIN, y: PAGE_H - MARGIN + 6,
-          size: 9, font: regular, color: MUTED,
-        });
+      if (!fs.existsSync(diskPath)) continue;
+      const imgBytes = fs.readFileSync(diskPath);
+      const ext = path.extname(diskPath).toLowerCase();
+      let embeddedImage;
+      try {
+        embeddedImage = ext === '.png' ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
+      } catch {
+        // Try the other format if first fails
+        try { embeddedImage = ext === '.png' ? await pdfDoc.embedJpg(imgBytes) : await pdfDoc.embedPng(imgBytes); } catch { continue; }
+      }
+
+      const imgPage = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      const { width: iw, height: ih } = embeddedImage.scale(1);
+      const CAPTION_H = 32;
+      const maxW = PAGE_W - MARGIN * 2;
+      const maxH = PAGE_H - MARGIN * 2 - CAPTION_H;
+      const scale = Math.min(maxW / iw, maxH / ih, 1);
+      const drawW = iw * scale;
+      const drawH = ih * scale;
+      imgPage.drawImage(embeddedImage, {
+        x: (PAGE_W - drawW) / 2,
+        y: MARGIN + CAPTION_H + (maxH - drawH) / 2,
+        width: drawW,
+        height: drawH,
+      });
+
+      // Caption bar at bottom
+      imgPage.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: MARGIN + CAPTION_H, color: rgb(0.95, 0.95, 0.96) });
+      const docNum = att.doc_number || doc.doc_number || '';
+      const dateStr = att.date || c.date || '';
+      const label = att.caption_label || '';
+      const captionParts = [docNum, dateStr, label].filter(Boolean).join('  ·  ');
+      if (captionParts) {
+        imgPage.drawText(captionParts.slice(0, 120), { x: MARGIN, y: MARGIN + 10, size: 8, font: regular, color: DARK });
       }
     } catch (attachErr) {
       console.warn('Could not embed attachment:', attachErr.message);
@@ -1262,7 +1273,10 @@ router.get('/:id', requireAuth, async (req, res) => {
       if (!(parsedContent[f])) parsedContent[f] = doc.doc_number;
     }
   }
-  const parsedDoc = { ...doc, content: parsedContent };
+  const dbAttachments = db.prepare(
+    'SELECT * FROM document_attachments WHERE document_id = ? ORDER BY page_order ASC, created_at ASC'
+  ).all(doc.id);
+  const parsedDoc = { ...doc, content: parsedContent, attachments: dbAttachments };
 
   try {
     const pdfBytes = await renderDoc(parsedDoc, profile);

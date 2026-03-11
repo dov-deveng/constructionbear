@@ -396,4 +396,24 @@ function initSchema(db) {
   if (process.env.ADMIN_EMAIL) {
     db.prepare(`UPDATE users SET is_admin = 1 WHERE email = ? COLLATE NOCASE`).run(process.env.ADMIN_EMAIL);
   }
+
+  // Document attachments — images appended as PDF pages
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS document_attachments (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        company_id TEXT,
+        file_path TEXT NOT NULL,
+        original_filename TEXT,
+        caption_label TEXT,
+        page_order INTEGER DEFAULT 0,
+        created_at INTEGER DEFAULT (unixepoch()),
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_doc_attachments_doc ON document_attachments(document_id);
+    `);
+  } catch { /* already exists */ }
 }

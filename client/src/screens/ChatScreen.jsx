@@ -4,6 +4,7 @@ import { api } from '../api/index.js';
 import DocumentCard from '../components/DocumentCard.jsx';
 import SubscriptionModal from '../components/SubscriptionModal.jsx';
 import ChatFileViewer from '../components/ChatFileViewer.jsx';
+import AttachmentsPanel from '../components/AttachmentsPanel.jsx';
 import clsx from 'clsx';
 
 // ── Context-aware placeholder rules (Task 12) ─────────────────────────────────
@@ -99,6 +100,13 @@ export default function ChatScreen() {
     const last = [...messages].reverse().find(m => m.role === 'assistant');
     return !!(last?.metadata?.generatedDoc?.sessionId);
   }, [messages, activeSession]);
+
+  // The savedDocId of the most recently generated document (for AttachmentsPanel)
+  const generatedDocId = useMemo(() => {
+    if (!docJustGenerated) return null;
+    const last = [...messages].reverse().find(m => m.role === 'assistant');
+    return last?.metadata?.generatedDoc?.savedDocId || null;
+  }, [messages, docJustGenerated]);
 
   useEffect(() => { if (!initialized) loadMessages(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayMessages, loading]);
@@ -266,7 +274,11 @@ export default function ChatScreen() {
 
       {/* Input — three states: past session view, doc just completed, or normal */}
       {(activeSession || docJustGenerated) ? (
-        <div className="safe-bottom bg-bear-bg border-t border-bear-border px-4 py-4 flex-shrink-0">
+        <div className="safe-bottom bg-bear-bg border-t border-bear-border flex-shrink-0">
+          {docJustGenerated && generatedDocId && (
+            <AttachmentsPanel docId={generatedDocId} />
+          )}
+          <div className="px-4 py-4">
           <div className="max-w-2xl mx-auto space-y-2">
             {docJustGenerated && (
               <p className="text-center text-xs text-bear-muted">Document saved to your library and Recent chats.</p>
@@ -283,6 +295,7 @@ export default function ChatScreen() {
               </svg>
               Start New Chat
             </button>
+          </div>
           </div>
         </div>
       ) : (

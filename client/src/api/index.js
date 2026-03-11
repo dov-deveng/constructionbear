@@ -143,6 +143,26 @@ export const api = {
   updateContact: (id, data) => request('PUT', `/contacts/${id}`, data),
   deleteContact: (id) => request('DELETE', `/contacts/${id}`),
 
+  // Document Attachments
+  getDocAttachments: (docId) => request('GET', `/documents/${docId}/attachments`),
+  addDocAttachments: (docId, files, captions = []) => {
+    const form = new FormData();
+    files.forEach(f => form.append('images', f));
+    captions.forEach(c => form.append('captions[]', c));
+    const token = getToken();
+    return fetch(`${BASE}/documents/${docId}/attachments`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    }).then(async r => {
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Upload failed');
+      return data;
+    });
+  },
+  updateDocAttachment: (docId, attId, data) => request('PATCH', `/documents/${docId}/attachments/${attId}`, data),
+  deleteDocAttachment: (docId, attId) => request('DELETE', `/documents/${docId}/attachments/${attId}`),
+
   // Markups
   getMarkups: (docId) => request('GET', `/documents/${docId}/markups`),
   addMarkup: (docId, data) => request('POST', `/documents/${docId}/markups`, data),
