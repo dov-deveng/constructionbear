@@ -66,23 +66,67 @@ router.get('/messages', requireAuth, (req, res) => {
   });
 });
 
+// POST /chat/sessions/checkpoint — save current untagged messages as an in_progress session
+// Called by client before startNewChat() when there are untagged messages in the current chat
+router.post('/sessions/checkpoint', requireAuth, (req, res) => {
+  const db = getDb();
+  const { partial_doc_type } = req.body;
+
+  // Check if there are untagged messages to checkpoint
+  const untagged = db.prepare(`
+    SELECT COUNT(*) as n FROM chat_messages WHERE user_id = ? AND session_id IS NULL
+  `).get(req.userId);
+
+  if (!untagged.n) return res.json({ saved: false });
+
+  // Don't create a duplicate if there's already an in_progress session with no messages
+  const sessionId = uuidv4();
+  db.prepare(`
+    INSERT INTO chat_sessions (id, user_id, company_id, status, partial_doc_type, title)
+    VALUES (?, ?, ?, 'in_progress', ?, 'In Progress')
+  `).run(sessionId, req.userId, req.companyId || null, partial_doc_type || null);
+
+  db.prepare(`UPDATE chat_messages SET session_id = ? WHERE user_id = ? AND session_id IS NULL`)
+    .run(sessionId, req.userId);
+
+  res.json({ saved: true, sessionId });
+});
+
+// DELETE /chat/sessions/:id — delete an in_progress session and its messages
+router.delete('/sessions/:id', requireAuth, (req, res) => {
+  const db = getDb();
+  const session = db.prepare('SELECT * FROM chat_sessions WHERE id = ? AND user_id = ?')
+    .get(req.params.id, req.userId);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (session.status === 'completed') return res.status(400).json({ error: 'Cannot delete completed sessions' });
+
+  db.prepare('DELETE FROM chat_messages WHERE session_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM chat_sessions WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 // POST /chat/message — send a message, get Bear's response
 router.post('/message', requireAuth, async (req, res) => {
-  const { message, attachmentUrl, attachmentFilename } = req.body;
+  const { message, attachmentUrl, attachmentFilename, session_id: resumedSessionId } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
 
   const db = getDb();
 
-  // Load recent conversation for context — only the active (untagged) session
-  const recentMessages = db.prepare(`
-    SELECT role, content FROM chat_messages
-    WHERE user_id = ? AND session_id IS NULL ORDER BY created_at DESC LIMIT 20
-  `).all(req.userId).reverse();
+  // Load recent conversation context
+  // If resuming an in_progress session, load from that session; otherwise load untagged
+  const recentMessages = resumedSessionId
+    ? db.prepare(`SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY created_at DESC LIMIT 20`).all(resumedSessionId).reverse()
+    : db.prepare(`SELECT role, content FROM chat_messages WHERE user_id = ? AND session_id IS NULL ORDER BY created_at DESC LIMIT 20`).all(req.userId).reverse();
 
-  // Save user message
+  // Save user message (tagged to resumed session or untagged)
   const userMsgId = uuidv4();
-  db.prepare('INSERT INTO chat_messages (id, user_id, role, content) VALUES (?, ?, ?, ?)')
-    .run(userMsgId, req.userId, 'user', message);
+  if (resumedSessionId) {
+    db.prepare('INSERT INTO chat_messages (id, user_id, role, content, session_id) VALUES (?, ?, ?, ?, ?)')
+      .run(userMsgId, req.userId, 'user', message, resumedSessionId);
+  } else {
+    db.prepare('INSERT INTO chat_messages (id, user_id, role, content) VALUES (?, ?, ?, ?)')
+      .run(userMsgId, req.userId, 'user', message);
+  }
 
   try {
     const { message: assistantMessage, generatedDoc } = await chat(req.userId, message, recentMessages, req.companyId);
@@ -146,27 +190,45 @@ router.post('/message', requireAuth, async (req, res) => {
 
       generatedDoc.savedDocId = savedDocId;
 
-      // Create a chat session linked to this document
-      const sessionId = uuidv4();
-      db.prepare(`
-        INSERT INTO chat_sessions (id, user_id, company_id, project_id, document_id, document_type, title, project_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(sessionId, req.userId, req.companyId || null, projectId, savedDocId,
-             generatedDoc.type, generatedDoc.title, projectName);
+      // Create or update a chat session linked to this document
+      let sessionId;
+      if (resumedSessionId) {
+        // Update the existing in_progress session to completed
+        sessionId = resumedSessionId;
+        db.prepare(`
+          UPDATE chat_sessions SET status = 'completed', document_id = ?, document_type = ?,
+            title = ?, project_name = ?, project_id = ?, updated_at = unixepoch()
+          WHERE id = ?
+        `).run(savedDocId, generatedDoc.type, generatedDoc.title, projectName, projectId, sessionId);
+      } else {
+        sessionId = uuidv4();
+        db.prepare(`
+          INSERT INTO chat_sessions (id, user_id, company_id, project_id, document_id, document_type, title, project_name, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed')
+        `).run(sessionId, req.userId, req.companyId || null, projectId, savedDocId,
+               generatedDoc.type, generatedDoc.title, projectName);
 
-      // Tag all untagged messages for this user as belonging to this session
-      db.prepare(`UPDATE chat_messages SET session_id = ? WHERE user_id = ? AND session_id IS NULL`)
-        .run(sessionId, req.userId);
+        // Tag all untagged messages for this user as belonging to this session
+        db.prepare(`UPDATE chat_messages SET session_id = ? WHERE user_id = ? AND session_id IS NULL`)
+          .run(sessionId, req.userId);
+      }
 
       generatedDoc.sessionId = sessionId;
       } // end !paywallRequired
     }
 
-    // Save assistant message
+    // Save assistant message (tagged to resumed session or untagged)
     const assistantMsgId = uuidv4();
     const metadata = generatedDoc ? JSON.stringify({ generatedDoc }) : null;
-    db.prepare('INSERT INTO chat_messages (id, user_id, role, content, metadata) VALUES (?, ?, ?, ?, ?)')
-      .run(assistantMsgId, req.userId, 'assistant', assistantMessage, metadata);
+    if (resumedSessionId) {
+      db.prepare('INSERT INTO chat_messages (id, user_id, role, content, metadata, session_id) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(assistantMsgId, req.userId, 'assistant', assistantMessage, metadata, resumedSessionId);
+      // Touch updated_at on the session
+      db.prepare('UPDATE chat_sessions SET updated_at = unixepoch() WHERE id = ?').run(resumedSessionId);
+    } else {
+      db.prepare('INSERT INTO chat_messages (id, user_id, role, content, metadata) VALUES (?, ?, ?, ?, ?)')
+        .run(assistantMsgId, req.userId, 'assistant', assistantMessage, metadata);
+    }
 
     res.json({
       id: assistantMsgId,
@@ -222,29 +284,38 @@ router.post('/onboarding', requireAuth, async (req, res) => {
   }
 });
 
-// GET /chat/sessions — recent 10 sessions, or search all
+// GET /chat/sessions — returns { inProgressSessions, sessions }
+// inProgressSessions: all in_progress for this user (most recent first)
+// sessions: recent 10 completed, or search all completed
 router.get('/sessions', requireAuth, (req, res) => {
   const db = getDb();
   const { search } = req.query;
   const scopeId = req.companyId || req.userId;
   const scopeCol = req.companyId ? 'company_id' : 'user_id';
 
+  // Always load all in_progress sessions (no limit)
+  const inProgressSessions = db.prepare(`
+    SELECT * FROM chat_sessions WHERE ${scopeCol} = ? AND (status = 'in_progress' OR status IS NULL AND document_id IS NULL)
+    ORDER BY updated_at DESC
+  `).all(scopeId);
+
   let sessions;
   if (search?.trim()) {
     const q = `%${search.trim()}%`;
     sessions = db.prepare(`
       SELECT * FROM chat_sessions
-      WHERE ${scopeCol} = ? AND (title LIKE ? OR project_name LIKE ? OR document_type LIKE ?)
+      WHERE ${scopeCol} = ? AND status = 'completed'
+        AND (title LIKE ? OR project_name LIKE ? OR document_type LIKE ?)
       ORDER BY updated_at DESC LIMIT 50
     `).all(scopeId, q, q, q);
   } else {
     sessions = db.prepare(`
-      SELECT * FROM chat_sessions WHERE ${scopeCol} = ?
+      SELECT * FROM chat_sessions WHERE ${scopeCol} = ? AND status = 'completed'
       ORDER BY updated_at DESC LIMIT 10
     `).all(scopeId);
   }
 
-  res.json({ sessions });
+  res.json({ sessions, inProgressSessions });
 });
 
 // GET /chat/sessions/:id — single session with its messages

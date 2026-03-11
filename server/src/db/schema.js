@@ -416,4 +416,10 @@ function initSchema(db) {
       CREATE INDEX IF NOT EXISTS idx_doc_attachments_doc ON document_attachments(document_id);
     `);
   } catch { /* already exists */ }
+
+  // In-progress session tracking
+  try { db.exec(`ALTER TABLE chat_sessions ADD COLUMN status TEXT DEFAULT 'completed'`); } catch {}
+  try { db.exec(`ALTER TABLE chat_sessions ADD COLUMN partial_doc_type TEXT`); } catch {}
+  // Existing sessions are all completed
+  try { db.exec(`UPDATE chat_sessions SET status = 'completed' WHERE status IS NULL`); } catch {}
 }

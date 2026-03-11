@@ -46,9 +46,10 @@ const BOTTOM_NAV = [
 export default function Sidebar() {
   const { user, profile, subscription, logout } = useAuthStore();
   const { activeView, setView } = useUIStore();
-  const { sessions, activeSession, loadSessions, openSession, exitSession } = useChatStore();
+  const { sessions, inProgressSessions, activeSession, resumedSession, loadSessions, openSession, exitSession, deleteSession } = useChatStore();
   const isAdmin = user?.is_admin;
   const [search, setSearch] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => { loadSessions(); }, []);
 
@@ -112,8 +113,72 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Recent Chats */}
+      {/* Session Sections */}
       <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin">
+
+        {/* In Progress section */}
+        {!search.trim() && inProgressSessions.length > 0 && (
+          <>
+            <p className="px-3 pt-3 pb-1 text-xs font-semibold text-amber-400 uppercase tracking-wide">In Progress</p>
+            <div className="space-y-0.5 mb-1">
+              {inProgressSessions.map(s => {
+                const isActive = resumedSession?.session?.id === s.id;
+                const docType = s.partial_doc_type || s.document_type;
+                const short = docType ? (DOC_TYPE_SHORT[docType] || docType.toUpperCase().slice(0, 4)) : '···';
+                return (
+                  <div key={s.id} className="group relative flex items-start">
+                    <button
+                      onClick={() => handleOpenSession(s.id)}
+                      className={clsx(
+                        'flex-1 flex items-start gap-2.5 px-3 py-2 rounded-xl text-left transition-colors min-w-0',
+                        isActive
+                          ? 'bg-amber-400/15 text-amber-400'
+                          : 'text-bear-muted hover:text-bear-text hover:bg-bear-border/50'
+                      )}
+                    >
+                      <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 bg-amber-400/20 text-amber-400">
+                        {short}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-bear-text truncate leading-tight">
+                          {s.project_name || s.title || 'Untitled chat'}
+                        </p>
+                        <p className="text-[11px] text-amber-400/70 truncate leading-tight mt-0.5">
+                          Resume · {timeAgo(s.updated_at)}
+                        </p>
+                      </div>
+                    </button>
+                    {/* Delete button */}
+                    {confirmDeleteId === s.id ? (
+                      <div className="absolute right-1 top-1 flex gap-1 bg-bear-surface border border-bear-border rounded-lg p-1 z-10">
+                        <button
+                          onClick={() => { deleteSession(s.id); setConfirmDeleteId(null); }}
+                          className="text-[10px] text-red-400 font-semibold px-2 py-0.5 rounded hover:bg-red-400/10"
+                        >Delete</button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-[10px] text-bear-muted px-2 py-0.5 rounded hover:bg-bear-border/50"
+                        >Cancel</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(s.id)}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-6 h-6 mt-2 mr-1 flex items-center justify-center text-bear-muted hover:text-red-400 rounded transition-all"
+                        title="Delete"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Recent / Search results */}
         <p className="px-3 pt-3 pb-1 text-xs font-semibold text-bear-muted uppercase tracking-wide">
           {search.trim() ? 'Results' : 'Recent'}
         </p>
@@ -121,7 +186,7 @@ export default function Sidebar() {
         {sessions.length > 0 ? (
           <div className="space-y-0.5">
             {sessions.map(s => {
-              const short = DOC_TYPE_SHORT[s.document_type] || s.document_type.toUpperCase().slice(0, 4);
+              const short = DOC_TYPE_SHORT[s.document_type] || s.document_type?.toUpperCase().slice(0, 4) || '···';
               const isActive = activeSession?.session?.id === s.id;
               return (
                 <button
@@ -134,7 +199,7 @@ export default function Sidebar() {
                       : 'text-bear-muted hover:text-bear-text hover:bg-bear-border/50'
                   )}
                 >
-                  <span className={clsx('flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5', typeColor(s.document_type))}>
+                  <span className={clsx('flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5', typeColor(s.document_type || 'rfi'))}>
                     {short}
                   </span>
                   <div className="flex-1 min-w-0">

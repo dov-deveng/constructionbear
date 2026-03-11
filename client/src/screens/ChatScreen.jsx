@@ -82,7 +82,7 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [showSubModal, setShowSubModal] = useState(false);
   const { messages, loading, initialized, loadMessages, sendMessage, startNewChat,
-          activeSession, exitSession, pendingAttachment, setPendingAttachment } = useChatStore();
+          activeSession, resumedSession, exitSession, pendingAttachment, setPendingAttachment } = useChatStore();
   const { toggleSidebar } = useUIStore();
   const { addDocument } = useDocStore();
   const { canCreateDoc } = useAuthStore();
@@ -92,7 +92,7 @@ export default function ChatScreen() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [showUploadSheet, setShowUploadSheet] = useState(false);
 
-  // When viewing a past session, show its messages instead
+  // When viewing a past (read-only) session, show its messages instead
   const displayMessages = activeSession ? activeSession.messages : messages;
   const placeholder = useMemo(() => getPlaceholder(messages), [messages]);
 
@@ -102,6 +102,9 @@ export default function ChatScreen() {
     const last = [...messages].reverse().find(m => m.role === 'assistant');
     return !!(last?.metadata?.generatedDoc?.sessionId);
   }, [messages, activeSession]);
+
+  // resumedSession banner: shown at top of chat when user is continuing an in-progress session
+  const isResumed = !!resumedSession && !activeSession;
 
   // The savedDocId of the most recently generated document (for AttachmentsPanel)
   const generatedDocId = useMemo(() => {
@@ -240,6 +243,15 @@ export default function ChatScreen() {
               <p className="text-xs text-bear-muted truncate">
                 {activeSession.session.project_name ? `${activeSession.session.project_name} · ` : ''}Past session
               </p>
+            </div>
+          </div>
+        ) : isResumed ? (
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-bear-text truncate">
+                {resumedSession.session.project_name || 'In Progress'}
+              </p>
+              <p className="text-xs text-amber-400 truncate">Resuming chat</p>
             </div>
           </div>
         ) : (

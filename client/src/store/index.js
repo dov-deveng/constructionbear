@@ -51,7 +51,9 @@ export const useChatStore = create((set, get) => ({
   loading: false,
   initialized: false,
   sessions: [],
-  activeSession: null, // { session, messages } when viewing a past session
+  inProgressSessions: [],
+  activeSession: null,      // { session, messages } — read-only completed session
+  resumedSession: null,     // { session, messages } — in_progress session being continued
   pendingAttachment: null, // { url, filename, mimetype } — uploaded file for current chat
 
   loadMessages: async () => {
@@ -75,8 +77,9 @@ export const useChatStore = create((set, get) => ({
     set(s => ({ messages: [...s.messages, userMsg], loading: true }));
 
     try {
-      const { pendingAttachment } = get();
-      const res = await api.sendMessage(text, pendingAttachment?.url, pendingAttachment?.filename);
+      const { pendingAttachment, resumedSession } = get();
+      const sessionId = resumedSession?.session?.id || undefined;
+      const res = await api.sendMessage(text, pendingAttachment?.url, pendingAttachment?.filename, sessionId);
       const assistantMsg = {
         id: res.id,
         role: 'assistant',
@@ -85,8 +88,8 @@ export const useChatStore = create((set, get) => ({
         created_at: Math.floor(Date.now() / 1000),
       };
       set(s => ({ messages: [...s.messages, assistantMsg], loading: false }));
-      // Refresh session list when a doc is generated
-      if (res.generatedDoc?.sessionId) {
+      // Refresh session list when a doc is generated or on every message in a resumed session
+      if (res.generatedDoc?.sessionId || sessionId) {
         get().loadSessions();
       }
       return res;
@@ -103,24 +106,46 @@ export const useChatStore = create((set, get) => ({
 
   setPendingAttachment: (att) => set({ pendingAttachment: att }),
 
-  // Start a fresh chat — prior messages are already saved to a session
-  startNewChat: () => set({ messages: [], initialized: true, activeSession: null, pendingAttachment: null }),
+  // Start a fresh chat — checkpoint any in-progress untagged messages first
+  startNewChat: async () => {
+    const { messages } = get();
+    if (messages.length > 0) {
+      // Save current untagged messages as in_progress session before clearing
+      await api.checkpointSession().catch(() => {});
+    }
+    set({ messages: [], initialized: true, activeSession: null, resumedSession: null, pendingAttachment: null });
+    get().loadSessions();
+  },
 
   loadSessions: async (search) => {
     try {
-      const { sessions } = await api.getSessions(search);
-      set({ sessions });
+      const { sessions, inProgressSessions } = await api.getSessions(search);
+      set({ sessions, inProgressSessions: inProgressSessions || [] });
     } catch {}
   },
 
   openSession: async (id) => {
     try {
       const { session, messages } = await api.getSession(id);
-      set({ activeSession: { session, messages } });
+      if (session.status === 'in_progress') {
+        // Resume: load messages into active state, allow sending
+        set({ messages, initialized: true, activeSession: null, resumedSession: { session, messages }, pendingAttachment: null });
+      } else {
+        // View only
+        set({ activeSession: { session, messages }, resumedSession: null });
+      }
     } catch {}
   },
 
-  exitSession: () => set({ activeSession: null }),
+  exitSession: () => set({ activeSession: null, resumedSession: null }),
+
+  deleteSession: async (id) => {
+    try {
+      await api.deleteSession(id);
+      get().loadSessions();
+      return true;
+    } catch { return false; }
+  },
 }));
 
 export const useDocStore = create((set, get) => ({

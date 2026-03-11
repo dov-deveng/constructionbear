@@ -58,8 +58,6 @@ export const api = {
 
   // Chat
   getMessages: () => request('GET', '/chat/messages'),
-  sendMessage: (message, attachmentUrl, attachmentFilename) =>
-    request('POST', '/chat/message', { message, attachmentUrl, attachmentFilename }),
   onboardingChat: (messages) => request('POST', '/chat/onboarding', { messages }),
   clearHistory: () => request('DELETE', '/chat/history'),
   chatUpload: (file) => {
@@ -81,6 +79,10 @@ export const api = {
     return request('GET', `/chat/sessions${qs}`);
   },
   getSession: (id) => request('GET', `/chat/sessions/${id}`),
+  checkpointSession: (partial_doc_type) => request('POST', '/chat/sessions/checkpoint', { partial_doc_type }),
+  deleteSession: (id) => request('DELETE', `/chat/sessions/${id}`),
+  sendMessage: (message, attachmentUrl, attachmentFilename, session_id) =>
+    request('POST', '/chat/message', { message, attachmentUrl, attachmentFilename, session_id }),
 
   // Documents
   getDocuments: (params = {}) => {
