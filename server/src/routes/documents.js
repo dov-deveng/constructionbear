@@ -229,12 +229,13 @@ router.put('/:id', requireAuth, (req, res) => {
   const doc = db.prepare('SELECT id FROM documents WHERE id = ? AND company_id = ?').get(req.params.id, req.companyId);
   if (!doc) return res.status(404).json({ error: 'Document not found' });
 
-  const { title, project_name, content, status } = req.body;
+  const { title, project_name, content, status, project_id } = req.body;
   const updates = {};
   if (title !== undefined) updates.title = title;
   if (project_name !== undefined) updates.project_name = project_name;
   if (content !== undefined) updates.content_json = JSON.stringify(content);
   if (status !== undefined) updates.status = status;
+  if (project_id !== undefined) updates.project_id = project_id || null;
 
   if (Object.keys(updates).length === 0) return res.json({ success: true });
 

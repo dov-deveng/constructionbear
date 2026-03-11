@@ -13,6 +13,7 @@ export default function ProjectsScreen() {
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactForm, setContactForm] = useState({});
   const [savingContact, setSavingContact] = useState(false);
+  const [confirmId, setConfirmId] = useState(null);
 
   useEffect(() => { loadProjects(); }, []);
 
@@ -42,6 +43,8 @@ export default function ProjectsScreen() {
 
   async function handleSave(e) {
     e.preventDefault();
+    if (!form.address?.trim()) { setError('Project address is required'); return; }
+    if (!form.client_name?.trim()) { setError('Client name is required'); return; }
     setSaving(true);
     setError('');
     try {
@@ -60,9 +63,10 @@ export default function ProjectsScreen() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this project?')) return;
-    await api.deleteProject(id);
+  async function confirmDelete() {
+    if (!confirmId) return;
+    await api.deleteProject(confirmId);
+    setConfirmId(null);
     setSelected(null);
     await loadProjects();
   }
@@ -113,7 +117,7 @@ export default function ProjectsScreen() {
             {selected.client_name && <p className="text-xs text-bear-muted">Client: {selected.client_name}</p>}
           </div>
           <button onClick={() => openEdit(selected)} className="text-xs text-bear-accent font-medium px-3 py-1.5 rounded-lg bg-bear-accent/10">Edit</button>
-          <button onClick={() => handleDelete(selected.id)} className="text-xs text-red-400 font-medium px-3 py-1.5 rounded-lg bg-red-400/10">Delete</button>
+          <button onClick={() => setConfirmId(selected.id)} className="text-xs text-red-400 font-medium px-3 py-1.5 rounded-lg bg-red-400/10">Delete</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -261,6 +265,15 @@ export default function ProjectsScreen() {
         </div>
       )}
 
+      {confirmId && (
+        <ConfirmModal
+          title="Delete Project"
+          message="This project and all associated data will be permanently removed. This cannot be undone."
+          onConfirm={confirmDelete}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
+
       {showForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
           <form onSubmit={handleSave} className="bg-bear-surface rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
@@ -271,17 +284,17 @@ export default function ProjectsScreen() {
               </button>
             </div>
             <div className="p-4 space-y-3">
-              {error && <p className="text-red-400 text-sm">{error}</p>}
+              {error && <p className="text-red-400 text-sm bg-red-400/10 px-3 py-2 rounded-xl">{error}</p>}
               <FormField label="Project Name *" name="name" value={form.name || ''} onChange={setForm} required />
-              <FormField label="Client Name" name="client_name" value={form.client_name || ''} onChange={setForm} />
-              <FormField label="Client Contact" name="client_contact" value={form.client_contact || ''} onChange={setForm} />
-              <FormField label="Client Email" name="client_email" value={form.client_email || ''} onChange={setForm} type="email" />
-              <FormField label="Client Phone" name="client_phone" value={form.client_phone || ''} onChange={setForm} type="tel" />
-              <FormField label="Project Address" name="address" value={form.address || ''} onChange={setForm} />
+              <FormField label="Project Address *" name="address" value={form.address || ''} onChange={setForm} />
               <div className="grid grid-cols-2 gap-2">
                 <FormField label="City" name="city" value={form.city || ''} onChange={setForm} />
                 <FormField label="State" name="state" value={form.state || ''} onChange={setForm} />
               </div>
+              <FormField label="Client Name *" name="client_name" value={form.client_name || ''} onChange={setForm} />
+              <FormField label="Client Contact" name="client_contact" value={form.client_contact || ''} onChange={setForm} />
+              <FormField label="Client Email" name="client_email" value={form.client_email || ''} onChange={setForm} type="email" />
+              <FormField label="Client Phone" name="client_phone" value={form.client_phone || ''} onChange={setForm} type="tel" />
               <FormField label="General Contractor" name="gc_name" value={form.gc_name || ''} onChange={setForm} />
               <FormField label="GC Email" name="gc_email" value={form.gc_email || ''} onChange={setForm} type="email" />
               <FormField label="Architect" name="architect_name" value={form.architect_name || ''} onChange={setForm} />
@@ -325,6 +338,25 @@ export default function ProjectsScreen() {
           </form>
         </div>
       )}
+    </div>
+  );
+}
+
+function ConfirmModal({ title, message, onConfirm, onCancel, confirmLabel = 'Delete' }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-bear-surface border border-bear-border rounded-2xl w-full max-w-sm p-5 shadow-2xl">
+        <h3 className="font-semibold text-bear-text mb-2">{title}</h3>
+        <p className="text-sm text-bear-muted mb-5">{message}</p>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 py-2.5 text-sm font-medium text-bear-muted border border-bear-border rounded-xl hover:bg-bear-bg transition-colors">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors">
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

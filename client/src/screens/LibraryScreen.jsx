@@ -246,6 +246,7 @@ export default function LibraryScreen() {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => { loadDocuments(filter); }, []);
 
@@ -380,10 +381,24 @@ export default function LibraryScreen() {
         <DocViewer
           doc={selectedDoc}
           onClose={() => setSelectedDoc(null)}
-          onDelete={(id) => { removeDocument(id); setSelectedDoc(null); }}
+          onDelete={(id) => setConfirmDeleteId(id)}
           onUpdate={(updated) => { updateDocument(updated); setSelectedDoc(updated); }}
           currentUserId={user?.id}
           isAdmin={!!user?.is_admin}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {confirmDeleteId && (
+        <ConfirmModal
+          title="Delete Document"
+          message="This document will be permanently removed along with all its annotations. This cannot be undone."
+          onConfirm={() => {
+            removeDocument(confirmDeleteId);
+            setConfirmDeleteId(null);
+            setSelectedDoc(null);
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
         />
       )}
 
@@ -398,6 +413,27 @@ export default function LibraryScreen() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Confirm Modal ────────────────────────────────────────────────────────────
+
+function ConfirmModal({ title, message, onConfirm, onCancel }) {
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-bear-surface border border-bear-border rounded-2xl w-full max-w-sm mx-4 p-5 shadow-2xl">
+        <h3 className="font-semibold text-bear-text mb-2">{title}</h3>
+        <p className="text-sm text-bear-muted mb-5">{message}</p>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 py-2.5 text-sm font-medium text-bear-muted border border-bear-border rounded-xl hover:bg-bear-bg transition-colors">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors">
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -791,8 +827,14 @@ function EditForm({ doc, onSaved, onCancel }) {
 
   const [title, setTitle] = useState(doc.title);
   const [fields, setFields] = useState(initialContent);
+  const [projectId, setProjectId] = useState(doc.project_id || '');
+  const [projects, setProjects] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  React.useEffect(() => {
+    api.getProjects({ limit: 100 }).then(r => setProjects(r.projects || [])).catch(() => {});
+  }, []);
 
   const fieldDefs = DOC_FIELDS[doc.type] || [];
 
@@ -808,6 +850,7 @@ function EditForm({ doc, onSaved, onCancel }) {
       const updated = await api.updateDocument(doc.id, {
         title: title.trim(),
         content: fields,
+        project_id: projectId || null,
       });
       onSaved({ ...updated, content: updated.content || fields });
     } catch (e) {
@@ -828,6 +871,21 @@ function EditForm({ doc, onSaved, onCancel }) {
           className="input-field w-full"
         />
       </div>
+
+      {/* Project link */}
+      {projects.length > 0 && (
+        <div>
+          <label className="block text-xs font-semibold text-bear-muted uppercase tracking-wider mb-1">Project</label>
+          <select
+            value={projectId}
+            onChange={e => setProjectId(e.target.value)}
+            className="input-field w-full"
+          >
+            <option value="">— No project —</option>
+            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+      )}
 
       {isPlainText ? (
         <div>

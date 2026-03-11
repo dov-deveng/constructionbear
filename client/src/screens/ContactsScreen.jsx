@@ -10,6 +10,7 @@ export default function ContactsScreen() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmId, setConfirmId] = useState(null);
 
   useEffect(() => {
     loadContacts();
@@ -36,10 +37,8 @@ export default function ContactsScreen() {
     (c.role || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  // Build project lookup map
   const projectMap = projects.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {});
 
-  // Group alphabetically
   const grouped = filtered.reduce((acc, c) => {
     const letter = c.name[0].toUpperCase();
     if (!acc[letter]) acc[letter] = [];
@@ -49,6 +48,8 @@ export default function ContactsScreen() {
 
   async function handleSave(e) {
     e.preventDefault();
+    if (!form.role?.trim()) { setError('Role / Title is required'); return; }
+    if (!form.project_id) { setError('Project link is required — every contact must be linked to a project'); return; }
     setSaving(true);
     setError('');
     try {
@@ -67,9 +68,10 @@ export default function ContactsScreen() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this contact?')) return;
-    await api.deleteContact(id);
+  async function confirmDelete() {
+    if (!confirmId) return;
+    await api.deleteContact(confirmId);
+    setConfirmId(null);
     await loadContacts();
   }
 
@@ -79,7 +81,7 @@ export default function ContactsScreen() {
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold text-bear-text">Contacts</h1>
           <button
-            onClick={() => { setForm({}); setShowForm(true); }}
+            onClick={() => { setForm({}); setError(''); setShowForm(true); }}
             className="flex items-center gap-1.5 text-sm font-medium text-white bg-bear-accent hover:bg-bear-accent-hover px-3 py-1.5 rounded-lg transition-colors"
           >
             <PlusIcon className="w-4 h-4" /> Add Contact
@@ -116,6 +118,7 @@ export default function ContactsScreen() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-bear-text">{c.name}</p>
                     {c.company && <p className="text-xs text-bear-muted truncate">{c.company}{c.role ? ` · ${c.role}` : ''}</p>}
+                    {!c.company && c.role && <p className="text-xs text-bear-muted truncate">{c.role}</p>}
                     {c.email && <p className="text-xs text-bear-muted truncate">{c.email}</p>}
                     {c.phone && <p className="text-xs text-bear-muted">{c.phone}</p>}
                     {c.project_id && projectMap[c.project_id] && (
@@ -126,13 +129,13 @@ export default function ContactsScreen() {
                   </div>
                   <div className="flex gap-1">
                     <button
-                      onClick={() => { setForm({ ...c }); setShowForm(true); }}
+                      onClick={() => { setForm({ ...c }); setError(''); setShowForm(true); }}
                       className="p-1.5 text-bear-muted hover:text-bear-accent rounded-lg hover:bg-bear-accent/10 transition-colors"
                     >
                       <EditIcon className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(c.id)}
+                      onClick={() => setConfirmId(c.id)}
                       className="p-1.5 text-bear-muted hover:text-red-400 rounded-lg hover:bg-red-400/10 transition-colors"
                     >
                       <TrashIcon className="w-4 h-4" />
@@ -145,6 +148,7 @@ export default function ContactsScreen() {
         )}
       </div>
 
+      {/* Contact form */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
           <form onSubmit={handleSave} className="bg-bear-surface rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto">
@@ -155,26 +159,28 @@ export default function ContactsScreen() {
               </button>
             </div>
             <div className="p-4 space-y-3">
-              {error && <p className="text-red-400 text-sm">{error}</p>}
+              {error && <p className="text-red-400 text-sm bg-red-400/10 px-3 py-2 rounded-xl">{error}</p>}
               <Field label="Full Name *" name="name" value={form.name || ''} onChange={setForm} required />
               <Field label="Company" name="company" value={form.company || ''} onChange={setForm} />
-              <Field label="Role / Title" name="role" value={form.role || ''} onChange={setForm} />
-              <Field label="Email" name="email" value={form.email || ''} onChange={setForm} type="email" />
-              <Field label="Phone" name="phone" value={form.phone || ''} onChange={setForm} type="tel" />
-              <Field label="Address" name="address" value={form.address || ''} onChange={setForm} />
-              {projects.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-bear-muted mb-1">Link to Project</label>
+              <Field label="Role / Title *" name="role" value={form.role || ''} onChange={setForm} />
+              <div>
+                <label className="block text-xs font-medium text-bear-muted mb-1">Project *</label>
+                {projects.length === 0 ? (
+                  <p className="text-xs text-bear-muted italic px-2 py-1.5">No projects yet — create a project first, then add contacts to it.</p>
+                ) : (
                   <select
                     value={form.project_id || ''}
                     onChange={e => setForm(f => ({ ...f, project_id: e.target.value || null }))}
                     className="w-full bg-bear-border/30 border border-bear-border rounded-xl px-3 py-2 text-sm text-bear-text focus:outline-none focus:border-bear-accent"
                   >
-                    <option value="">No project</option>
+                    <option value="">— Select a project —</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
-                </div>
-              )}
+                )}
+              </div>
+              <Field label="Email" name="email" value={form.email || ''} onChange={setForm} type="email" />
+              <Field label="Phone" name="phone" value={form.phone || ''} onChange={setForm} type="tel" />
+              <Field label="Address" name="address" value={form.address || ''} onChange={setForm} />
               <div>
                 <label className="block text-xs font-medium text-bear-muted mb-1">Notes</label>
                 <textarea
@@ -197,6 +203,41 @@ export default function ContactsScreen() {
           </form>
         </div>
       )}
+
+      {/* Delete confirmation */}
+      {confirmId && (
+        <ConfirmModal
+          title="Delete Contact"
+          message="This contact will be permanently removed. This cannot be undone."
+          onConfirm={confirmDelete}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConfirmModal({ title, message, onConfirm, onCancel, confirmLabel = 'Delete', danger = true }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-bear-surface border border-bear-border rounded-2xl w-full max-w-sm p-5 shadow-2xl">
+        <h3 className="font-semibold text-bear-text mb-2">{title}</h3>
+        <p className="text-sm text-bear-muted mb-5">{message}</p>
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2.5 text-sm font-medium text-bear-muted border border-bear-border rounded-xl hover:bg-bear-bg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors ${danger ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-bear-accent hover:bg-bear-accent-hover text-white'}`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
