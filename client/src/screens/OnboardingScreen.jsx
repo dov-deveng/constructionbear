@@ -3,10 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/index.js';
 import { api } from '../api/index.js';
 
-const INITIAL_MESSAGE = {
-  role: 'assistant',
-  content: "Great — your company is set up. Now let me get a few more details about your business. This takes about 2 minutes and only happens once.\n\nWhat's your full company name as it should appear on documents?",
-};
+function getInitialMessage(companyName) {
+  if (companyName) {
+    return {
+      role: 'assistant',
+      content: `Great — ${companyName} is set up. Now let me get a few more details. This takes about 2 minutes and only happens once.\n\nWhat's your full name (as it should appear on documents)?`,
+    };
+  }
+  return {
+    role: 'assistant',
+    content: "Great — your company is set up. Now let me get a few more details about your business. This takes about 2 minutes and only happens once.\n\nWhat's your full company name as it should appear on documents?",
+  };
+}
 
 // ── Company Setup Step ─────────────────────────────────────────────────────────
 function CompanySetupStep({ onComplete }) {
@@ -160,15 +168,15 @@ function CompanySetupStep({ onComplete }) {
 
 // ── Chat Onboarding Step ───────────────────────────────────────────────────────
 export default function OnboardingScreen() {
-  const [companyReady, setCompanyReady] = useState(false);
-  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
+  const { company, setProfile, setCompany } = useAuthStore();
+  const [companyReady, setCompanyReady] = useState(() => !!company);
+  const [messages, setMessages] = useState(() => [getInitialMessage(company?.name)]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
-  const { company, setProfile, setCompany } = useAuthStore();
 
   // If user already has a company, skip company step
   useEffect(() => {
@@ -185,6 +193,7 @@ export default function OnboardingScreen() {
 
   function handleCompanyComplete(companyData) {
     setCompany(companyData);
+    setMessages([getInitialMessage(companyData?.name)]);
     setCompanyReady(true);
   }
 
