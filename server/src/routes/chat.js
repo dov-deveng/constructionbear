@@ -45,9 +45,9 @@ router.post('/message', requireAuth, async (req, res) => {
   try {
     const { message: assistantMessage, generatedDoc } = await chat(req.userId, message, recentMessages, req.companyId);
 
-    // If structured doc generated, auto-save a draft to documents table
+    // If structured doc generated AND all required fields present, auto-save a draft
     let savedDocId = null;
-    if (generatedDoc?.isStructured) {
+    if (generatedDoc?.isStructured && generatedDoc?.isComplete) {
       savedDocId = uuidv4();
       const content = generatedDoc.content;
       const projectName = content.project_name || content.project || null;

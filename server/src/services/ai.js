@@ -301,7 +301,19 @@ function detectCollectionSession(conversationHistory) {
   return null;
 }
 
-// Build a realignment injection to append to the system prompt when drift detected
+// Inject required fields checklist for any active collection session (Task 10)
+function buildRequiredFieldsInjection(session) {
+  if (!session) return '';
+  const schema = DOC_SCHEMAS[session.type];
+  if (!schema) return '';
+  return `
+
+ACTIVE COLLECTION SESSION — ${session.label.toUpperCase()}:
+Required fields you MUST collect before generating: ${schema.required.join(', ')}
+Confirm you have a non-empty value for EVERY field above before outputting <document>. If any are missing, ask for the next missing one before generating.`;
+}
+
+// Build a realignment injection when the session has drifted (Task 9)
 function buildRealignmentInjection(session) {
   if (!session || session.exchangesSince < 2) return '';
   return `
@@ -312,6 +324,20 @@ You are currently collecting information for a ${session.label}. This session ha
 Use this exact approach: acknowledge their message briefly in one sentence, then immediately redirect: "Before we get to that — I still need [specific missing field] to complete your ${session.label}. Can you give me that first?"
 
 Do not answer off-topic questions, provide general advice, or discuss anything else until the required fields are collected or the user explicitly asks to cancel the document.`;
+}
+
+// Post-generation validation: check all required fields are populated
+function validateGeneratedDoc(generatedDoc) {
+  if (!generatedDoc?.isStructured) return generatedDoc;
+  const schema = DOC_SCHEMAS[generatedDoc.type];
+  if (!schema) return generatedDoc;
+
+  const missing = schema.required.filter(field => {
+    const val = generatedDoc.content[field];
+    return val === undefined || val === null || (typeof val === 'string' && !val.trim());
+  });
+
+  return { ...generatedDoc, missingFields: missing, isComplete: missing.length === 0 };
 }
 
 export async function chat(userId, userMessage, conversationHistory = [], companyId = null) {
@@ -346,8 +372,14 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
     systemPrompt += `\n\nContext from previous conversations:\n${memory.summary}`;
   }
 
-  // Context realignment — detect drift from active collection session
+  // Task 10: inject required fields checklist for any active collection session
   const collectionSession = detectCollectionSession(conversationHistory);
+  const requiredFieldsInjection = buildRequiredFieldsInjection(collectionSession);
+  if (requiredFieldsInjection) {
+    systemPrompt += requiredFieldsInjection;
+  }
+
+  // Task 9: inject realignment directive if session has drifted
   const realignmentInjection = buildRealignmentInjection(collectionSession);
   if (realignmentInjection) {
     systemPrompt += realignmentInjection;
@@ -395,6 +427,15 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
     } else {
       // Legacy raw text format fallback
       generatedDoc = { type: docType, title: docTitle, content: docBody, isStructured: false };
+    }
+  }
+
+  // Task 10: validate required fields — discard incomplete structured docs
+  if (generatedDoc) {
+    generatedDoc = validateGeneratedDoc(generatedDoc);
+    if (generatedDoc.isStructured && !generatedDoc.isComplete) {
+      // Don't auto-save — return as incomplete so chat.js skips saving
+      generatedDoc.savedDocId = null;
     }
   }
 
