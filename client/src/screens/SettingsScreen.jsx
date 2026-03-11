@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore, useUIStore } from '../store/index.js';
 import { api } from '../api/index.js';
 
 export default function SettingsScreen() {
-  const { user, company, subscription, logout } = useAuthStore();
+  const { user, company: storeCompany, subscription, logout, setCompany } = useAuthStore();
   const { toggleSidebar, setView } = useUIStore();
   const [codeCopied, setCodeCopied] = useState(false);
+  const [company, setLocalCompany] = useState(storeCompany);
+
+  // Always fetch fresh company data when Settings opens
+  useEffect(() => {
+    api.getCompany().then(data => {
+      setLocalCompany(data);
+      setCompany(data);
+    }).catch(() => {});
+  }, []);
 
   function copyCode() {
     if (!company?.code) return;
@@ -14,6 +23,7 @@ export default function SettingsScreen() {
       setTimeout(() => setCodeCopied(false), 2000);
     });
   }
+
   const [portalLoading, setPortalLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
@@ -130,28 +140,32 @@ export default function SettingsScreen() {
               </svg>
             </button>
 
-            {/* Team invite code */}
-            {company?.code && (
-              <div className="border-t border-bear-border pt-3">
-                <p className="text-xs font-semibold text-bear-muted uppercase tracking-wide mb-2">Team Invite Code</p>
-                <div className="flex items-center gap-3">
-                  <span className="flex-1 font-mono text-2xl font-bold tracking-[0.2em] text-bear-text bg-bear-surface rounded-xl px-4 py-3 text-center select-all">
-                    {company.code}
-                  </span>
-                  <button
-                    onClick={copyCode}
-                    className={`flex-shrink-0 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                      codeCopied
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-bear-accent/10 text-bear-accent hover:bg-bear-accent/20'
-                    }`}
-                  >
-                    {codeCopied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-                <p className="text-xs text-bear-muted mt-2">Share this code with your team to collaborate on this account.</p>
-              </div>
-            )}
+            {/* Team invite code — always shown, fetched fresh on mount */}
+            <div className="border-t border-bear-border pt-3">
+              <p className="text-xs font-semibold text-bear-muted uppercase tracking-wide mb-2">Team Invite Code</p>
+              {company?.code ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span className="flex-1 font-mono text-2xl font-bold tracking-[0.2em] text-bear-text bg-bear-surface rounded-xl px-4 py-3 text-center select-all">
+                      {company.code}
+                    </span>
+                    <button
+                      onClick={copyCode}
+                      className={`flex-shrink-0 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                        codeCopied
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-bear-accent/10 text-bear-accent hover:bg-bear-accent/20'
+                      }`}
+                    >
+                      {codeCopied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-bear-muted mt-2">Share this code with your team to collaborate on this account.</p>
+                </>
+              ) : (
+                <p className="text-xs text-bear-muted">Loading...</p>
+              )}
+            </div>
           </div>
 
           {/* Subscription */}
@@ -199,7 +213,7 @@ export default function SettingsScreen() {
             )}
           </div>
 
-          {/* Danger zone */}
+          {/* Account Actions */}
           <div className="card p-4 border-red-500/20">
             <h2 className="text-sm font-semibold text-red-400 mb-3">Account Actions</h2>
             <button
