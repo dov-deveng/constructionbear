@@ -120,6 +120,78 @@ router.post('/google', async (req, res) => {
   }
 });
 
+// GET /auth/google — redirect-based OAuth flow (for environments where One Tap is unavailable)
+router.get('/google', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    return res.redirect(`${process.env.CLIENT_URL || 'https://app.constructionbear.ai'}/?error=google_not_configured`);
+  }
+
+  const redirectUri = `${process.env.API_URL || 'https://api.constructionbear.dev'}/auth/google/callback`;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'openid email profile',
+    access_type: 'online',
+    prompt: 'select_account',
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+// GET /auth/google/callback — exchange code for tokens, issue JWT, redirect to frontend
+router.get('/google/callback', async (req, res) => {
+  const { code, error: oauthError } = req.query;
+  const clientUrl = process.env.CLIENT_URL || 'https://app.constructionbear.ai';
+
+  if (oauthError || !code) {
+    return res.redirect(`${clientUrl}/?error=google_denied`);
+  }
+
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = `${process.env.API_URL || 'https://api.constructionbear.dev'}/auth/google/callback`;
+
+    // Exchange authorization code for tokens
+    const oauthClient = new OAuth2Client(clientId, clientSecret, redirectUri);
+    const { tokens } = await oauthClient.getToken(code);
+    oauthClient.setCredentials(tokens);
+
+    // Verify and decode the ID token
+    const ticket = await oauthClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: clientId,
+    });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name } = payload;
+
+    const db = getDb();
+    let user = db.prepare('SELECT * FROM users WHERE google_id = ? OR email = ?').get(googleId, email.toLowerCase());
+
+    if (!user) {
+      const id = uuidv4();
+      db.prepare('INSERT INTO users (id, email, google_id, email_verified) VALUES (?, ?, ?, 1)')
+        .run(id, email.toLowerCase(), googleId);
+      ensureProfile(db, id);
+      if (name) db.prepare('UPDATE profiles SET owner_name = ? WHERE user_id = ?').run(name, id);
+      // Ensure company
+      ensureUserCompany(db, id, email);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    } else if (!user.google_id) {
+      db.prepare('UPDATE users SET google_id = ?, email_verified = 1 WHERE id = ?').run(googleId, user.id);
+    }
+
+    const token = signToken(user.id, user.email);
+    // Redirect to frontend with token — client picks it up from URL
+    res.redirect(`${clientUrl}/?google_token=${encodeURIComponent(token)}`);
+  } catch (err) {
+    console.error('Google OAuth callback error:', err);
+    res.redirect(`${clientUrl}/?error=google_failed`);
+  }
+});
+
 // POST /auth/verify-email
 router.post('/verify-email', (req, res) => {
   const { token } = req.body;

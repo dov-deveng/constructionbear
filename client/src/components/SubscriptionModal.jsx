@@ -24,11 +24,11 @@ export default function SubscriptionModal({ onClose, dismissable = true, plan = 
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-4"
+      className="modal-overlay p-0 sm:p-4"
       onClick={handleBackdrop}
     >
       <div
-        className="card p-6 w-full max-w-sm animate-slide-up space-y-4"
+        className="modal-sheet card p-6 animate-slide-up space-y-4 rounded-b-none sm:rounded-2xl max-h-[92vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="text-center">

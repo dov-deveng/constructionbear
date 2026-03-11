@@ -22,20 +22,22 @@
 }
 
 @layer components {
+  /* Buttons — min 44px height for mobile tap targets */
   .btn-primary {
-    @apply bg-bear-accent hover:bg-bear-accent-hover text-white font-semibold px-4 py-3 rounded-xl transition-colors duration-150 active:scale-95;
+    @apply bg-bear-accent hover:bg-bear-accent-hover text-white font-semibold px-4 py-3 rounded-xl transition-colors duration-150 active:scale-95 min-h-[44px];
   }
 
   .btn-secondary {
-    @apply bg-bear-surface border border-bear-border text-bear-text font-medium px-4 py-3 rounded-xl transition-colors duration-150 hover:bg-bear-border active:scale-95;
+    @apply bg-bear-surface border border-bear-border text-bear-text font-medium px-4 py-3 rounded-xl transition-colors duration-150 hover:bg-bear-border active:scale-95 min-h-[44px];
   }
 
   .btn-ghost {
-    @apply text-bear-muted hover:text-bear-text font-medium px-3 py-2 rounded-lg transition-colors duration-150;
+    @apply text-bear-muted hover:text-bear-text font-medium px-3 py-2.5 rounded-lg transition-colors duration-150 min-h-[44px] flex items-center;
   }
 
+  /* Input fields — 16px font prevents iOS auto-zoom on focus */
   .input-field {
-    @apply w-full bg-bear-surface border border-bear-border rounded-xl px-4 py-3 text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent transition-colors;
+    @apply w-full bg-bear-surface border border-bear-border rounded-xl px-4 py-3 text-base text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent transition-colors min-h-[44px];
   }
 
   .card {
@@ -47,22 +49,56 @@
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
   .scrollbar-thin::-webkit-scrollbar-thumb { @apply bg-bear-border rounded-full; }
 
-  /* Message bubble */
+  /* Message bubble — 15px min body text */
   .bubble-user {
-    @apply bg-bear-accent text-white rounded-2xl rounded-br-sm px-4 py-3 max-w-xs ml-auto;
+    @apply bg-bear-accent text-white rounded-2xl rounded-br-sm px-4 py-3 max-w-xs ml-auto text-[15px] leading-relaxed;
   }
 
   .bubble-bear {
-    @apply bg-bear-surface border border-bear-border text-bear-text rounded-2xl rounded-bl-sm px-4 py-3 max-w-sm;
+    @apply bg-bear-surface border border-bear-border text-bear-text rounded-2xl rounded-bl-sm px-4 py-3 max-w-sm text-[15px] leading-relaxed;
   }
 
   /* Doc type badge */
   .doc-badge {
     @apply text-xs font-semibold px-2 py-0.5 rounded-full;
   }
+
+  /* Mobile-full modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center;
+  }
+
+  .modal-sheet {
+    @apply w-full sm:max-w-sm sm:mx-4;
+  }
 }
 
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Tap target helper — 44px without changing visual size */
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Global mobile fixes */
+@media (max-width: 767px) {
+  /* Prevent horizontal overflow on any screen */
+  .h-full, .flex-1 {
+    max-width: 100vw;
+  }
+
+  /* Sidebar nav items: ensure 44px tap height */
+  nav button, .safe-bottom button {
+    min-height: 44px;
+  }
+
+  /* All header icon buttons */
+  header button, [class*="border-b"] button {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

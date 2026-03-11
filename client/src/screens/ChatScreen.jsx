@@ -214,7 +214,7 @@ export default function ChatScreen() {
     <div className="h-full flex flex-col bg-bear-bg">
       {/* Header */}
       <div className="safe-top bg-bear-bg border-b border-bear-border px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <button onClick={toggleSidebar} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface transition-colors">
+        <button onClick={toggleSidebar} className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-bear-surface transition-colors flex-shrink-0">
           <svg className="w-5 h-5 text-bear-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
@@ -243,8 +243,8 @@ export default function ChatScreen() {
               <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-bear-text">Bear</p>
-              <p className="text-xs text-bear-muted">Construction Documents AI</p>
+              <p className="text-sm font-semibold text-bear-text">ConstructionBear.AI</p>
+              <p className="text-xs text-bear-muted hidden sm:block">Construction Documents AI</p>
             </div>
           </div>
         )}
@@ -311,7 +311,7 @@ export default function ChatScreen() {
               onClick={() => fileInputRef.current?.click()}
               disabled={loading || uploadLoading}
               title="Attach a file"
-              className="w-10 h-10 flex items-center justify-center rounded-xl text-bear-muted hover:text-bear-text hover:bg-bear-surface transition-colors flex-shrink-0 disabled:opacity-40"
+              className="w-11 h-11 flex items-center justify-center rounded-xl text-bear-muted hover:text-bear-text hover:bg-bear-surface transition-colors flex-shrink-0 disabled:opacity-40"
             >
               {uploadLoading ? (
                 <span className="w-4 h-4 border-2 border-bear-muted/30 border-t-bear-muted rounded-full animate-spin" />
@@ -328,13 +328,14 @@ export default function ChatScreen() {
               onKeyDown={handleKey}
               disabled={loading}
               rows={1}
-              className="flex-1 bg-bear-surface border border-bear-border rounded-2xl px-4 py-3 text-sm text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent resize-none transition-colors leading-relaxed"
+              className="flex-1 bg-bear-surface border border-bear-border rounded-2xl px-4 py-3 text-base text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent resize-none transition-colors leading-relaxed min-h-[44px]"
+              style={{ fontSize: 16 }}
               placeholder={placeholder}
             />
             <button
               onClick={send}
               disabled={!input.trim() || loading}
-              className="w-10 h-10 bg-bear-accent rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all"
+              className="w-11 h-11 bg-bear-accent rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all"
             >
               <svg className="w-4 h-4 text-white rotate-90" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
@@ -425,33 +426,35 @@ function TypingIndicator() {
 function EmptyState() {
   const { sendMessage } = useChatStore();
 
+  // Mobile labels are shortened; desktop uses full label
   const ALL_DOCS = [
-    { label: 'RFI',                    prompt: 'I need to create an RFI' },
-    { label: 'Change Order',           prompt: 'I need a change order' },
-    { label: 'Submittal',              prompt: 'I need to create a submittal' },
-    { label: 'Lien Waiver',            prompt: 'I need a lien waiver' },
-    { label: 'Invoice',                prompt: 'I need to create an invoice' },
-    { label: 'AIA Pay App',            prompt: 'I need an AIA pay application' },
-    { label: 'Daily Field Report',     prompt: 'I need a daily field report' },
-    { label: 'Meeting Minutes',        prompt: 'I need meeting minutes' },
-    { label: 'Punch List',             prompt: 'I need a punch list' },
-    { label: 'Transmittal',            prompt: 'I need a transmittal' },
-    { label: 'Notice to Proceed',      prompt: 'I need a notice to proceed' },
-    { label: 'Subcontract',            prompt: 'I need a subcontract agreement' },
-    { label: 'Change Order Log',       prompt: 'I need a change order log' },
-    { label: 'Submittal Log',          prompt: 'I need a submittal log' },
-    { label: 'Request for Proposal',   prompt: 'I need a request for proposal' },
-    { label: 'Change Directive',       prompt: 'I need a construction change directive' },
-    { label: 'Substantial Completion', prompt: 'I need a certificate of substantial completion' },
-    { label: 'Notice to Owner',        prompt: 'I need a notice to owner' },
-    { label: 'Site Observation',       prompt: 'I need a site observation report' },
-    { label: 'Weekly Report',          prompt: 'I need a weekly report' },
-    { label: 'Certified Payroll',      prompt: 'I need a certified payroll report' },
-    { label: 'Warranty Letter',        prompt: 'I need a warranty letter' },
-    { label: 'Substitution Request',   prompt: 'I need a substitution request' },
-    { label: 'Closeout Checklist',     prompt: 'I need a closeout checklist' },
+    { label: 'RFI',                mLabel: 'RFI',               prompt: 'I need to create an RFI' },
+    { label: 'Change Order',       mLabel: 'Change Order',       prompt: 'I need a change order' },
+    { label: 'Submittal',          mLabel: 'Submittal',          prompt: 'I need to create a submittal' },
+    { label: 'Lien Waiver',        mLabel: 'Lien Waiver',        prompt: 'I need a lien waiver' },
+    { label: 'Invoice',            mLabel: 'Invoice',            prompt: 'I need to create an invoice' },
+    { label: 'AIA Pay App',        mLabel: 'Pay App',            prompt: 'I need an AIA pay application' },
+    { label: 'Daily Field Report', mLabel: 'Daily Report',       prompt: 'I need a daily field report' },
+    { label: 'Meeting Minutes',    mLabel: 'Meeting Minutes',    prompt: 'I need meeting minutes' },
+    { label: 'Punch List',         mLabel: 'Punch List',         prompt: 'I need a punch list' },
+    { label: 'Transmittal',        mLabel: 'Transmittal',        prompt: 'I need a transmittal' },
+    { label: 'Notice to Proceed',  mLabel: 'NTP',                prompt: 'I need a notice to proceed' },
+    { label: 'Subcontract',        mLabel: 'Subcontract',        prompt: 'I need a subcontract agreement' },
+    { label: 'Change Order Log',   mLabel: 'CO Log',             prompt: 'I need a change order log' },
+    { label: 'Submittal Log',      mLabel: 'Submittal Log',      prompt: 'I need a submittal log' },
+    { label: 'Request for Proposal', mLabel: 'RFP',              prompt: 'I need a request for proposal' },
+    { label: 'Change Directive',   mLabel: 'Change Directive',   prompt: 'I need a construction change directive' },
+    { label: 'Substantial Comp.', mLabel: 'Substantial Comp.',  prompt: 'I need a certificate of substantial completion' },
+    { label: 'Notice to Owner',    mLabel: 'Notice to Owner',    prompt: 'I need a notice to owner' },
+    { label: 'Site Observation',   mLabel: 'Site Observation',   prompt: 'I need a site observation report' },
+    { label: 'Weekly Report',      mLabel: 'Weekly Report',      prompt: 'I need a weekly report' },
+    { label: 'Certified Payroll',  mLabel: 'Cert. Payroll',      prompt: 'I need a certified payroll report' },
+    { label: 'Warranty Letter',    mLabel: 'Warranty Letter',    prompt: 'I need a warranty letter' },
+    { label: 'Substitution Req.',  mLabel: 'Substitution',       prompt: 'I need a substitution request' },
+    { label: 'Closeout Checklist', mLabel: 'Closeout',           prompt: 'I need a closeout checklist' },
   ];
 
+  // Desktop: flowing rows of 4 or 5
   const rows = [];
   let i = 0, rowNum = 0;
   while (i < ALL_DOCS.length) {
@@ -463,49 +466,80 @@ function EmptyState() {
   return (
     <div className="h-full overflow-y-auto scrollbar-thin">
       <style>{`
+        /* ── Desktop tile ── */
         .doc-tile {
           flex: 0 0 auto;
           background: #1C1C1E;
           border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 12px;
+          border-radius: 10px;
           font-family: -apple-system, BlinkMacSystemFont, sans-serif;
           font-weight: 500;
-          font-size: 14px;
+          font-size: 13px;
           color: rgba(255,255,255,0.85);
-          padding: 14px 20px;
+          padding: 12px 18px;
           white-space: nowrap;
           cursor: pointer;
-          transition: all 180ms ease;
+          transition: background 150ms ease, border-color 150ms ease, transform 120ms ease;
+          user-select: none;
+          -webkit-tap-highlight-color: transparent;
         }
-        .doc-tile:hover {
-          transform: scale(1.06);
-          background: rgba(10,132,255,0.12);
-          box-shadow: 0 0 0 1.5px #0A84FF, 0 4px 20px rgba(10,132,255,0.25);
-          color: #FFFFFF;
+        @media (hover: hover) {
+          .doc-tile:hover {
+            background: rgba(10,132,255,0.12);
+            border-color: #0A84FF;
+            color: #FFFFFF;
+          }
         }
         .doc-tile:active {
-          transform: scale(1.06);
-          background: rgba(10,132,255,0.12);
-          box-shadow: 0 0 0 1.5px #0A84FF, 0 4px 20px rgba(10,132,255,0.25);
+          transform: scale(0.97);
+          background: rgba(10,132,255,0.15);
+          border-color: #0A84FF;
           color: #FFFFFF;
         }
+
+        /* ── Mobile: 2-column grid ── */
         @media (max-width: 767px) {
-          .doc-grid {
-            display: grid !important;
+          .doc-grid-desktop { display: none !important; }
+          .doc-grid-mobile {
+            display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 8px;
+            padding: 0;
           }
-          .doc-grid-row {
-            display: contents;
+          .doc-tile-mobile {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 48px;
+            background: #1C1C1E;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            color: rgba(255,255,255,0.85);
+            text-align: center;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 10px;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            transition: background 150ms ease, border-color 150ms ease, transform 120ms ease;
           }
-          .doc-tile {
-            white-space: normal;
-            word-break: break-word;
-            width: 100%;
-            text-align: left;
+          .doc-tile-mobile:active {
+            transform: scale(0.97);
+            background: rgba(10,132,255,0.15);
+            border-color: #0A84FF;
+            color: #FFFFFF;
           }
         }
+        @media (min-width: 768px) {
+          .doc-grid-mobile { display: none !important; }
+        }
       `}</style>
+
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px' }}>
         <div className="text-center mb-6">
           <div className="w-14 h-14 bg-bear-accent/15 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -514,15 +548,26 @@ function EmptyState() {
           <h2 className="text-xl font-bold text-bear-text">What do you need today?</h2>
           <p className="text-bear-muted text-sm mt-1">Tell me what document you need and I'll create it instantly.</p>
         </div>
-        <div className="doc-grid" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+
+        {/* Desktop: flowing rows */}
+        <div className="doc-grid-desktop" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
           {rows.map((row, ri) => (
-            <div key={ri} className="doc-grid-row" style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'nowrap' }}>
+            <div key={ri} style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               {row.map(({ label, prompt }) => (
                 <button key={label} className="doc-tile" onClick={() => sendMessage(prompt)}>
                   {label}
                 </button>
               ))}
             </div>
+          ))}
+        </div>
+
+        {/* Mobile: 2-column grid with shortened labels */}
+        <div className="doc-grid-mobile">
+          {ALL_DOCS.map(({ mLabel, prompt }) => (
+            <button key={mLabel} className="doc-tile-mobile" onClick={() => sendMessage(prompt)}>
+              {mLabel}
+            </button>
           ))}
         </div>
       </div>
