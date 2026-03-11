@@ -3,6 +3,7 @@ import { useChatStore, useUIStore, useDocStore, useAuthStore } from '../store/in
 import { api } from '../api/index.js';
 import DocumentCard from '../components/DocumentCard.jsx';
 import SubscriptionModal from '../components/SubscriptionModal.jsx';
+import ChatFileViewer from '../components/ChatFileViewer.jsx';
 import clsx from 'clsx';
 
 // ── Context-aware placeholder rules (Task 12) ─────────────────────────────────
@@ -77,13 +78,16 @@ function getPlaceholder(messages) {
 export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [showSubModal, setShowSubModal] = useState(false);
-  const { messages, loading, initialized, loadMessages, sendMessage, startNewChat, activeSession, exitSession } = useChatStore();
+  const { messages, loading, initialized, loadMessages, sendMessage, startNewChat,
+          activeSession, exitSession, pendingAttachment, setPendingAttachment } = useChatStore();
   const { toggleSidebar } = useUIStore();
   const { addDocument } = useDocStore();
   const { canCreateDoc } = useAuthStore();
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
 
   // When viewing a past session, show its messages instead
   const displayMessages = activeSession ? activeSession.messages : messages;
@@ -162,6 +166,37 @@ export default function ChatScreen() {
       });
     } catch (err) {
       if (err.code === 'SUBSCRIPTION_REQUIRED') setShowSubModal(true);
+    }
+  }
+
+  async function handleFileSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadLoading(true);
+    try {
+      const result = await api.chatUpload(file);
+      // Store as pending attachment so it's passed with future messages
+      setPendingAttachment({ url: result.url, filename: result.filename, mimetype: result.mimetype });
+      // Add inline viewer as a local user message
+      useChatStore.getState().addMessage({
+        id: `upload-${Date.now()}`,
+        role: 'user',
+        content: '',
+        metadata: { uploadedFile: result },
+        created_at: Math.floor(Date.now() / 1000),
+      });
+      // Auto-send acknowledgement to Bear so it knows about the upload
+      await sendMessage(`I've uploaded "${result.filename}" — please use it as the base document.`);
+    } catch {
+      useChatStore.getState().addMessage({
+        id: `err-${Date.now()}`,
+        role: 'assistant',
+        content: 'Sorry, the file upload failed. Please try again.',
+        created_at: Math.floor(Date.now() / 1000),
+      });
+    } finally {
+      setUploadLoading(false);
     }
   }
 
@@ -245,7 +280,40 @@ export default function ChatScreen() {
         </div>
       ) : (
         <div className="safe-bottom bg-bear-bg border-t border-bear-border px-4 py-3 flex-shrink-0">
+          {/* Attachment indicator */}
+          {pendingAttachment && (
+            <div className="max-w-2xl mx-auto mb-2 flex items-center gap-2 px-3 py-1.5 bg-bear-accent/10 border border-bear-accent/20 rounded-xl">
+              <svg className="w-3.5 h-3.5 text-bear-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+              <span className="text-xs text-bear-accent flex-1 truncate">{pendingAttachment.filename}</span>
+              <button onClick={() => setPendingAttachment(null)} className="text-bear-muted hover:text-bear-text text-xs">×</button>
+            </div>
+          )}
           <div className="max-w-2xl mx-auto flex gap-2 items-end">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,image/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            {/* Paperclip upload button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || uploadLoading}
+              title="Attach a file"
+              className="w-10 h-10 flex items-center justify-center rounded-xl text-bear-muted hover:text-bear-text hover:bg-bear-surface transition-colors flex-shrink-0 disabled:opacity-40"
+            >
+              {uploadLoading ? (
+                <span className="w-4 h-4 border-2 border-bear-muted/30 border-t-bear-muted rounded-full animate-spin" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              )}
+            </button>
             <textarea
               ref={el => { textareaRef.current = el; inputRef.current = el; }}
               value={input}
@@ -274,14 +342,32 @@ export default function ChatScreen() {
   );
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 function MessageBubble({ message, onSaveDoc }) {
   const isUser = message.role === 'user';
-  const doc = message.metadata?.generatedDoc;
+  const doc        = message.metadata?.generatedDoc;
+  const uploadedFile = message.metadata?.uploadedFile;
 
-  // Strip XML doc tags from display text
+  // Strip XML doc tags from display text; also hide the auto-upload message text
   const displayText = message.content
     .replace(/<document[^>]*>[\s\S]*?<\/document>/g, '')
     .trim();
+
+  // Upload messages show the inline viewer, no bubble needed
+  if (uploadedFile) {
+    return (
+      <div className="flex gap-2 animate-fade-in justify-end">
+        <div className="w-full max-w-sm">
+          <ChatFileViewer
+            url={`${API_BASE}${uploadedFile.url}`}
+            filename={uploadedFile.filename}
+            mimetype={uploadedFile.mimetype}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={clsx('flex gap-2 animate-fade-in', isUser ? 'justify-end' : 'justify-start')}>

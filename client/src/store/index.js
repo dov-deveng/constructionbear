@@ -52,6 +52,7 @@ export const useChatStore = create((set, get) => ({
   initialized: false,
   sessions: [],
   activeSession: null, // { session, messages } when viewing a past session
+  pendingAttachment: null, // { url, filename, mimetype } — uploaded file for current chat
 
   loadMessages: async () => {
     try {
@@ -74,7 +75,8 @@ export const useChatStore = create((set, get) => ({
     set(s => ({ messages: [...s.messages, userMsg], loading: true }));
 
     try {
-      const res = await api.sendMessage(text);
+      const { pendingAttachment } = get();
+      const res = await api.sendMessage(text, pendingAttachment?.url, pendingAttachment?.filename);
       const assistantMsg = {
         id: res.id,
         role: 'assistant',
@@ -99,8 +101,10 @@ export const useChatStore = create((set, get) => ({
 
   clearMessages: () => set({ messages: [] }),
 
+  setPendingAttachment: (att) => set({ pendingAttachment: att }),
+
   // Start a fresh chat — prior messages are already saved to a session
-  startNewChat: () => set({ messages: [], initialized: true, activeSession: null }),
+  startNewChat: () => set({ messages: [], initialized: true, activeSession: null, pendingAttachment: null }),
 
   loadSessions: async (search) => {
     try {

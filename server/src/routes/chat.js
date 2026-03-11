@@ -1,10 +1,51 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { requireAuth } from '../middleware/auth.js';
 import { getDb } from '../db/schema.js';
 import { chat, onboardingChat } from '../services/ai.js';
 
+const UPLOADS_DIR = path.join(process.cwd(), 'data/uploads');
+
+const chatStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(UPLOADS_DIR, req.userId);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.pdf';
+    cb(null, `${uuidv4()}${ext}`);
+  },
+});
+const chatUpload = multer({
+  storage: chatStorage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = ['application/pdf', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg', 'image/png', 'image/webp'];
+    if (ok.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only PDF, Word, and image files are accepted'));
+  },
+});
+
 const router = Router();
+
+// POST /chat/upload — upload a file to use as a document base in chat
+router.post('/upload', requireAuth, chatUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const fileUrl = `/uploads/${req.userId}/${req.file.filename}`;
+  res.json({
+    url: fileUrl,
+    filename: req.file.originalname,
+    mimetype: req.file.mimetype,
+    size: req.file.size,
+  });
+});
 
 // GET /chat/messages — load current (untagged) message history
 router.get('/messages', requireAuth, (req, res) => {
@@ -26,7 +67,7 @@ router.get('/messages', requireAuth, (req, res) => {
 
 // POST /chat/message — send a message, get Bear's response
 router.post('/message', requireAuth, async (req, res) => {
-  const { message } = req.body;
+  const { message, attachmentUrl, attachmentFilename } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
 
   const db = getDb();
@@ -68,6 +109,12 @@ router.post('/message', requireAuth, async (req, res) => {
         generatedDoc.type, generatedDoc.title, projectName,
         JSON.stringify(content), generatedDoc.templateUsed || generatedDoc.type
       );
+
+      // Embed attachment reference if one was uploaded during this chat
+      if (attachmentUrl) {
+        generatedDoc.content.attachment_url = attachmentUrl;
+        if (attachmentFilename) generatedDoc.content.attachment_filename = attachmentFilename;
+      }
 
       generatedDoc.savedDocId = savedDocId;
 

@@ -58,9 +58,24 @@ export const api = {
 
   // Chat
   getMessages: () => request('GET', '/chat/messages'),
-  sendMessage: (message) => request('POST', '/chat/message', { message }),
+  sendMessage: (message, attachmentUrl, attachmentFilename) =>
+    request('POST', '/chat/message', { message, attachmentUrl, attachmentFilename }),
   onboardingChat: (messages) => request('POST', '/chat/onboarding', { messages }),
   clearHistory: () => request('DELETE', '/chat/history'),
+  chatUpload: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    const token = localStorage.getItem('cb_token');
+    return fetch(`${BASE}/chat/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    }).then(async r => {
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Upload failed');
+      return data;
+    });
+  },
   getSessions: (search) => {
     const qs = search ? `?search=${encodeURIComponent(search)}` : '';
     return request('GET', `/chat/sessions${qs}`);
