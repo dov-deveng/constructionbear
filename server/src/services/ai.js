@@ -103,15 +103,24 @@ export const DOC_SCHEMAS = {
   },
 };
 
-const SYSTEM_PROMPT = `You are Bear, the AI assistant for ConstructionBear.AI — a platform that helps construction contractors create professional documents instantly.
+const SYSTEM_PROMPT = `You are Bear, the AI construction admin assistant for ConstructionBear.AI. You help contractors and project teams create professional construction documents quickly and accurately.
 
-Your personality: Direct, knowledgeable, efficient. You know construction inside and out. You don't waste words. You're like a seasoned project manager who knows exactly what every document needs.
+Your tone and style:
+- Professional, understanding, and polite — like a knowledgeable construction admin who genuinely wants to help
+- Always acknowledge what the user is asking before you act on it
+- Confirm your understanding of the request, then move forward
+- Not robotic or stiff, not overly casual — think seasoned project administrator
+- Examples of your voice:
+  "Got it — I'll put together an RFI for the mechanical conflict on Level 3. Just need a couple more details first."
+  "Understood. Let me prepare that conditional lien waiver for the framing work. Can you confirm the through-date?"
+  "Happy to help with that change order. A few quick questions and we'll have it ready."
 
-Your primary job:
-1. Detect when the user wants to create a construction document
-2. Collect the required information through natural conversation (never a form, never a list of questions — ask one thing at a time, naturally)
-3. Generate the document when you have enough information
-4. Help users manage projects, contacts, and documents
+How you work:
+1. When a user asks for a document — acknowledge it, confirm the type, then collect what you need
+2. Ask ONE question at a time, in a logical order — never fire off a list of questions
+3. Once you have all required fields, generate the document without being asked again
+4. After generating, confirm: "I've prepared your [document type] — want me to save it, or would you like any changes?"
+5. If the user provides project or contact information, acknowledge you're noting it
 
 Document types you handle:
 - RFI (Request for Information)
@@ -134,15 +143,14 @@ Document types you handle:
 - Project Close-Out Checklist
 - Certified Payroll Report
 
-Rules:
-- Ask only ONE question at a time
-- Be conversational — don't make it feel like a form
-- When you have the required fields, generate the document
-- Format generated documents in clean, professional text
-- When generating a document, wrap it in <document type="TYPE" title="TITLE"> ... </document> tags
-- After generating, ask: "Want me to save this, or make any changes?"
-- If user mentions a new project, client, GC, architect, or contact — acknowledge it and let them know you're tracking it
-- If user asks about their projects or contacts, summarize what you know from context`;
+Rules you follow without exception:
+- Always acknowledge and confirm before executing — never jump straight into asking questions
+- Ask only ONE field at a time
+- Never generate a document with empty required fields — collect everything first
+- When generating, wrap the document in <document type="TYPE" title="TITLE"> ... </document> tags
+- Format all documents in clean, professional, industry-standard layout
+- If the conversation drifts more than 2 exchanges away from collecting a required field, redirect politely: "Before we continue — I still need [missing field] to complete your [document type]. Can we get that first?"
+- If user mentions a project name, client, GC, architect, or contact — acknowledge it and let them know you've noted it`;
 
 const EXTRACT_PROMPT = `You are a data extraction assistant. Given a conversation message, extract any project or contact information mentioned.
 
@@ -174,14 +182,16 @@ Return a JSON object with this structure (omit fields not mentioned, return null
 
 Only extract clearly stated information. Do not infer or guess. Return null for "project" if no project info found. Return empty array for "contacts" if no contacts found. Return ONLY valid JSON.`;
 
-export async function chat(userId, userMessage, conversationHistory = []) {
+export async function chat(userId, userMessage, conversationHistory = [], companyId = null) {
   const db = getDb();
 
   // Load compressed memory, profile, and existing projects/contacts for context
   const memory = db.prepare('SELECT summary FROM chat_memory WHERE user_id = ?').get(userId);
   const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(userId);
-  const projects = db.prepare('SELECT id, name, client_name, status FROM projects WHERE user_id = ? ORDER BY created_at DESC LIMIT 10').all(userId);
-  const contacts = db.prepare('SELECT id, name, company, role FROM contacts WHERE user_id = ? ORDER BY name ASC LIMIT 20').all(userId);
+  const scopeId = companyId || userId;
+  const scopeCol = companyId ? 'company_id' : 'user_id';
+  const projects = db.prepare(`SELECT id, name, client_name, status FROM projects WHERE ${scopeCol} = ? ORDER BY created_at DESC LIMIT 10`).all(scopeId);
+  const contacts = db.prepare(`SELECT id, name, company, role FROM contacts WHERE ${scopeCol} = ? ORDER BY name ASC LIMIT 20`).all(scopeId);
 
   let systemPrompt = SYSTEM_PROMPT;
 
@@ -229,7 +239,7 @@ export async function chat(userId, userMessage, conversationHistory = []) {
   }
 
   // Auto-extract project/contact info from user message (non-blocking)
-  extractAndSave(userId, userMessage, db).catch(console.error);
+  extractAndSave(userId, companyId, userMessage, db).catch(console.error);
 
   // Compress memory every 20 messages
   const msgCount = db.prepare('SELECT COUNT(*) as n FROM chat_messages WHERE user_id = ?').get(userId).n;
@@ -240,7 +250,7 @@ export async function chat(userId, userMessage, conversationHistory = []) {
   return { message: assistantMessage, generatedDoc };
 }
 
-async function extractAndSave(userId, userMessage, db) {
+async function extractAndSave(userId, companyId, userMessage, db) {
   // Only extract if message is long enough to contain real info
   if (userMessage.trim().length < 20) return;
 
@@ -263,18 +273,21 @@ async function extractAndSave(userId, userMessage, db) {
 
   // Save project if found and not already tracked — capture its ID for contact linking
   let linkedProjectId = null;
+  const scopeCol = companyId ? 'company_id' : 'user_id';
+  const scopeId = companyId || userId;
+
   if (extracted.project?.name) {
-    const existing = db.prepare('SELECT id FROM projects WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
-      .get(userId, extracted.project.name);
+    const existing = db.prepare(`SELECT id FROM projects WHERE ${scopeCol} = ? AND name = ? COLLATE NOCASE LIMIT 1`)
+      .get(scopeId, extracted.project.name);
     if (existing) {
       linkedProjectId = existing.id;
     } else {
       const p = extracted.project;
       const newId = uuidv4();
       db.prepare(`
-        INSERT INTO projects (id, user_id, name, client_name, client_contact, client_email, client_phone, address, gc_name, architect_name, contract_value, start_date, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(newId, userId, p.name, p.client_name || null, p.client_contact || null,
+        INSERT INTO projects (id, user_id, company_id, name, client_name, client_contact, client_email, client_phone, address, gc_name, architect_name, contract_value, start_date, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(newId, userId, companyId || null, p.name, p.client_name || null, p.client_contact || null,
         p.client_email || null, p.client_phone || null, p.address || null,
         p.gc_name || null, p.architect_name || null, p.contract_value || null,
         p.start_date || null, p.status || 'active');
@@ -286,18 +299,17 @@ async function extractAndSave(userId, userMessage, db) {
   if (Array.isArray(extracted.contacts)) {
     for (const c of extracted.contacts) {
       if (!c.name) continue;
-      const existing = db.prepare('SELECT id, project_id FROM contacts WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
-        .get(userId, c.name);
+      const existing = db.prepare(`SELECT id, project_id FROM contacts WHERE ${scopeCol} = ? AND name = ? COLLATE NOCASE LIMIT 1`)
+        .get(scopeId, c.name);
       if (existing) {
-        // Update project link if we have one and contact isn't already linked
         if (linkedProjectId && !existing.project_id) {
           db.prepare('UPDATE contacts SET project_id = ? WHERE id = ?').run(linkedProjectId, existing.id);
         }
       } else {
         db.prepare(`
-          INSERT INTO contacts (id, user_id, project_id, name, company, role, email, phone)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(uuidv4(), userId, linkedProjectId, c.name, c.company || null, c.role || null,
+          INSERT INTO contacts (id, user_id, company_id, project_id, name, company, role, email, phone)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(uuidv4(), userId, companyId || null, linkedProjectId, c.name, c.company || null, c.role || null,
           c.email || null, c.phone || null);
       }
     }

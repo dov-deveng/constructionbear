@@ -43,7 +43,7 @@ router.post('/message', requireAuth, async (req, res) => {
     .run(userMsgId, req.userId, 'user', message);
 
   try {
-    const { message: assistantMessage, generatedDoc } = await chat(req.userId, message, recentMessages);
+    const { message: assistantMessage, generatedDoc } = await chat(req.userId, message, recentMessages, req.companyId);
 
     // Save assistant message
     const assistantMsgId = uuidv4();
