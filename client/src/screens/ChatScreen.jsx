@@ -413,41 +413,65 @@ function EmptyState() {
   const { sendMessage } = useChatStore();
 
   const ALL_DOCS = [
-    { label: 'RFI',                              prompt: 'I need to create an RFI' },
-    { label: 'Change Order',                     prompt: 'I need a change order' },
-    { label: 'Submittal',                        prompt: 'I need to create a submittal' },
-    { label: 'Lien Waiver',                      prompt: 'I need a lien waiver' },
-    { label: 'Invoice',                          prompt: 'I need to create an invoice' },
-    { label: 'AIA Pay App (G702/G703)',           prompt: 'I need an AIA pay application' },
-    { label: 'Daily Field Report',               prompt: 'I need a daily field report' },
-    { label: 'Meeting Minutes',                  prompt: 'I need meeting minutes' },
-    { label: 'Punch List',                       prompt: 'I need a punch list' },
-    { label: 'Transmittal',                      prompt: 'I need a transmittal' },
-    { label: 'Notice to Proceed',                prompt: 'I need a notice to proceed' },
-    { label: 'Subcontract Agreement',            prompt: 'I need a subcontract agreement' },
-    { label: 'Change Order Log',                 prompt: 'I need a change order log' },
-    { label: 'Submittal Log',                    prompt: 'I need a submittal log' },
-    { label: 'Request for Proposal',             prompt: 'I need a request for proposal' },
-    { label: 'Const. Change Directive',          prompt: 'I need a construction change directive' },
-    { label: 'Substantial Completion',           prompt: 'I need a certificate of substantial completion' },
-    { label: 'Notice to Owner',                  prompt: 'I need a notice to owner' },
-    { label: 'Site Observation Report',          prompt: 'I need a site observation report' },
-    { label: 'Weekly Report',                    prompt: 'I need a weekly report' },
-    { label: 'Certified Payroll',                prompt: 'I need a certified payroll report' },
-    { label: 'Warranty Letter',                  prompt: 'I need a warranty letter' },
-    { label: 'Substitution Request',             prompt: 'I need a substitution request' },
-    { label: 'Closeout Checklist',               prompt: 'I need a closeout checklist' },
+    { label: 'RFI',                    prompt: 'I need to create an RFI' },
+    { label: 'Change Order',           prompt: 'I need a change order' },
+    { label: 'Submittal',              prompt: 'I need to create a submittal' },
+    { label: 'Lien Waiver',            prompt: 'I need a lien waiver' },
+    { label: 'Invoice',                prompt: 'I need to create an invoice' },
+    { label: 'AIA Pay App',            prompt: 'I need an AIA pay application' },
+    { label: 'Daily Field Report',     prompt: 'I need a daily field report' },
+    { label: 'Meeting Minutes',        prompt: 'I need meeting minutes' },
+    { label: 'Punch List',             prompt: 'I need a punch list' },
+    { label: 'Transmittal',            prompt: 'I need a transmittal' },
+    { label: 'Notice to Proceed',      prompt: 'I need a notice to proceed' },
+    { label: 'Subcontract',            prompt: 'I need a subcontract agreement' },
+    { label: 'Change Order Log',       prompt: 'I need a change order log' },
+    { label: 'Submittal Log',          prompt: 'I need a submittal log' },
+    { label: 'Request for Proposal',   prompt: 'I need a request for proposal' },
+    { label: 'Change Directive',       prompt: 'I need a construction change directive' },
+    { label: 'Substantial Completion', prompt: 'I need a certificate of substantial completion' },
+    { label: 'Notice to Owner',        prompt: 'I need a notice to owner' },
+    { label: 'Site Observation',       prompt: 'I need a site observation report' },
+    { label: 'Weekly Report',          prompt: 'I need a weekly report' },
+    { label: 'Certified Payroll',      prompt: 'I need a certified payroll report' },
+    { label: 'Warranty Letter',        prompt: 'I need a warranty letter' },
+    { label: 'Substitution Request',   prompt: 'I need a substitution request' },
+    { label: 'Closeout Checklist',     prompt: 'I need a closeout checklist' },
   ];
 
-  // Group into rows of 2 for brick-offset layout
   const rows = [];
-  for (let i = 0; i < ALL_DOCS.length; i += 2) {
-    rows.push(ALL_DOCS.slice(i, i + 2));
+  let i = 0, rowNum = 0;
+  while (i < ALL_DOCS.length) {
+    const size = rowNum % 2 === 0 ? 4 : 5;
+    rows.push(ALL_DOCS.slice(i, i + size));
+    i += size; rowNum++;
   }
 
   return (
     <div className="h-full overflow-y-auto scrollbar-thin">
-      <div className="max-w-xs mx-auto px-4 py-6">
+      <style>{`
+        .doc-tile {
+          flex: 0 0 auto;
+          background: #1C1C1E;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 12px;
+          font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+          font-weight: 500;
+          font-size: 14px;
+          color: rgba(255,255,255,0.85);
+          padding: 14px 20px;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: all 180ms ease;
+        }
+        .doc-tile:hover {
+          transform: scale(1.06);
+          background: rgba(10,132,255,0.12);
+          box-shadow: 0 0 0 1.5px #0A84FF, 0 4px 20px rgba(10,132,255,0.25);
+          color: #FFFFFF;
+        }
+      `}</style>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px' }}>
         <div className="text-center mb-6">
           <div className="w-14 h-14 bg-bear-accent/15 rounded-2xl flex items-center justify-center mx-auto mb-3">
             <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
@@ -455,19 +479,11 @@ function EmptyState() {
           <h2 className="text-xl font-bold text-bear-text">What do you need today?</h2>
           <p className="text-bear-muted text-sm mt-1">Tell me what document you need and I'll create it instantly.</p>
         </div>
-        <div className="overflow-hidden">
-          {rows.map((row, rowIdx) => (
-            <div
-              key={rowIdx}
-              style={{ marginLeft: rowIdx % 2 === 1 ? '25%' : '0' }}
-              className="flex gap-2 mb-2"
-            >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+          {rows.map((row, ri) => (
+            <div key={ri} style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'nowrap' }}>
               {row.map(({ label, prompt }) => (
-                <button
-                  key={label}
-                  onClick={() => sendMessage(prompt)}
-                  className="flex-1 card px-3 py-3 text-xs font-medium text-bear-muted hover:text-bear-text hover:border-bear-accent/50 transition-colors text-left"
-                >
+                <button key={label} className="doc-tile" onClick={() => sendMessage(prompt)}>
                   {label}
                 </button>
               ))}
