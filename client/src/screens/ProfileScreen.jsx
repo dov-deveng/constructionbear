@@ -60,7 +60,8 @@ export default function ProfileScreen() {
     setProfile({ ...profile, logo_path: null });
   }
 
-  const logoUrl = profile?.logo_path ? `/api${profile.logo_path}` : null;
+  const API_BASE = import.meta.env.VITE_API_URL || '/api';
+  const logoUrl = profile?.logo_path ? `${API_BASE}${profile.logo_path}` : null;
 
   return (
     <div className="h-full flex flex-col bg-bear-bg">
