@@ -41,6 +41,11 @@
 - **Env:** `API_URL` and `GOOGLE_CLIENT_SECRET` placeholders in `.env` (fill in Railway vars)
 - **Files:** `server/src/routes/auth.js`, `client/src/screens/AuthScreen.jsx`
 
+### Task 10 — Compose Icon + Recent Chats (commit `82ca7df`)
+- **ComposeButton.jsx:** Icon-only compose button using exact provided SVG. Transparent bg, hover/active opacity-70. Calls `startNewChat()` + `setView('chat')`.
+- **All 7 screens updated:** ChatScreen (replaces text "New Chat" in activeSession header, always visible), LibraryScreen, ProjectsScreen, ContactsScreen, ProfileScreen, SettingsScreen, AdminScreen.
+- **Sidebar Recent section:** Already fully functional — shows doc type badge, project name, and relative date. No backend changes needed.
+
 ### Task 9 — Pre-Upload Image Markup Editor (commit `97123c2`)
 - **ImageMarkupEditor.jsx:** Full-screen canvas markup tool (z-[60], mounts above bottom sheet).
   - Tools: Draw (freehand pen), Arrow (with auto arrowhead), Text (tap to place floating input), Erase (destination-out composite)
