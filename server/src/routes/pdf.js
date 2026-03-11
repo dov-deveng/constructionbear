@@ -5,9 +5,9 @@ import { getDb } from '../db/schema.js';
 
 const router = Router();
 
-// ── Color palette ────────────────────────────────────────────────────────────
-const ACCENT      = rgb(0.98, 0.45, 0.09);   // bear orange
-const ACCENT_DARK = rgb(0.14, 0.18, 0.26);   // dark navy header
+// ── Bear OS color palette ─────────────────────────────────────────────────
+const ACCENT      = rgb(0.98, 0.45, 0.09);
+const ACCENT_DARK = rgb(0.14, 0.18, 0.26);
 const BLACK       = rgb(0.08, 0.08, 0.08);
 const DARK        = rgb(0.18, 0.18, 0.18);
 const MUTED       = rgb(0.45, 0.45, 0.45);
@@ -17,7 +17,14 @@ const BG          = rgb(0.96, 0.96, 0.97);
 const WHITE       = rgb(1, 1, 1);
 const CELL_BG     = rgb(0.975, 0.975, 0.98);
 
-// ── Page constants ────────────────────────────────────────────────────────────
+// ── AIA-accurate palette ──────────────────────────────────────────────────
+const AIA_BLUE = rgb(0.722, 0.800, 0.894);  // light blue cell headers
+const AIA_BORD = rgb(0.627, 0.667, 0.749);  // table borders
+const AIA_LOGO = rgb(0.87,  0.87,  0.87);   // logo placeholder fill
+const AIA_MAR  = 40;                          // AIA page margin
+const AIA_W    = 612 - AIA_MAR * 2;          // 532 — AIA content width
+
+// ── Page constants ────────────────────────────────────────────────────────
 const PAGE_W    = 612;
 const PAGE_H    = 792;
 const MARGIN    = 48;
@@ -26,15 +33,137 @@ const FOOTER_H  = 48;
 const BODY_TOP  = PAGE_H - MARGIN;
 const BODY_BOT  = FOOTER_H + 12;
 
-// ── Layout engine ─────────────────────────────────────────────────────────────
+// ── AIA layout helpers ────────────────────────────────────────────────────
+
+// Draw AIA document header: company info left, logo+title right.
+// Returns y where table body should begin.
+function aiaDocHeader(page, fonts, profile, titleText, titleSize, titleCentered = false) {
+  const { regular, bold } = fonts;
+  const NEAR_BLACK = rgb(0.08, 0.08, 0.08);
+  const GRAY_MED   = rgb(0.38, 0.38, 0.38);
+
+  let y = PAGE_H - AIA_MAR; // 752
+
+  // ── company info (top-left) ──────────────────────────────────────────────
+  const company = String(profile?.company_name || 'Your Company');
+  page.drawText(company, { x: AIA_MAR, y, size: 12, font: bold, color: NEAR_BLACK });
+  y -= 15;
+
+  const cityLine = [profile?.city, profile?.state, profile?.zip].filter(Boolean).join(', ');
+  const addrLine = [profile?.address, cityLine].filter(Boolean).join('\n');
+  for (const part of addrLine.split('\n').filter(Boolean)) {
+    page.drawText(String(part), { x: AIA_MAR, y, size: 8.5, font: regular, color: GRAY_MED });
+    y -= 12;
+  }
+  if (profile?.phone) {
+    page.drawText(String(profile.phone), { x: AIA_MAR, y, size: 8.5, font: regular, color: GRAY_MED });
+    y -= 12;
+  }
+  if (profile?.email) {
+    page.drawText(String(profile.email), { x: AIA_MAR, y, size: 8.5, font: regular, color: GRAY_MED });
+    y -= 12;
+  }
+
+  // ── logo placeholder (top-right) ─────────────────────────────────────────
+  const logoW = 110, logoH = 65;
+  const logoX = PAGE_W - AIA_MAR - logoW;
+  const logoBottomY = PAGE_H - AIA_MAR - logoH; // pdf-lib y = bottom-left of rect
+  page.drawRectangle({
+    x: logoX, y: logoBottomY, width: logoW, height: logoH,
+    color: AIA_LOGO, borderColor: AIA_BORD, borderWidth: 0.75,
+  });
+  const logoLabel = '[LOGO]';
+  const logoLabelW = regular.widthOfTextAtSize(logoLabel, 10);
+  page.drawText(logoLabel, {
+    x: logoX + (logoW - logoLabelW) / 2,
+    y: logoBottomY + logoH / 2 - 5,
+    size: 10, font: regular, color: rgb(0.55, 0.55, 0.55),
+  });
+
+  // ── document title ────────────────────────────────────────────────────────
+  const titleY = logoBottomY - titleSize - 10;
+  const titleW = bold.widthOfTextAtSize(titleText, titleSize);
+  const titleX = titleCentered
+    ? (PAGE_W - titleW) / 2
+    : PAGE_W - AIA_MAR - titleW;
+  page.drawText(titleText, { x: titleX, y: titleY, size: titleSize, font: bold, color: NEAR_BLACK });
+
+  // body starts below lower of the two columns
+  const bodyStart = Math.min(y, titleY) - 16;
+  return bodyStart;
+}
+
+// Draw AIA-style table sections: blue header row + white data row per section.
+// sections = [{ headers: string[], values: string[], colWidths: number[], dataH?: number }]
+// Returns new y after all sections are drawn.
+function aiaBlock(page, fonts, y, sections) {
+  const { regular, bold } = fonts;
+  const NEAR_BLACK = rgb(0.08, 0.08, 0.08);
+  const HDR_H = 18;
+
+  for (const sec of sections) {
+    const { headers, values, colWidths, dataH = 24 } = sec;
+    if (y < 60 + HDR_H + dataH) break;
+
+    // — header row (blue bg, bold label) —
+    let cx = AIA_MAR;
+    for (let i = 0; i < headers.length; i++) {
+      page.drawRectangle({
+        x: cx, y: y - HDR_H, width: colWidths[i], height: HDR_H,
+        color: AIA_BLUE, borderColor: AIA_BORD, borderWidth: 0.5,
+      });
+      const hTxt = String(headers[i] || '');
+      if (hTxt) {
+        page.drawText(hTxt, { x: cx + 5, y: y - HDR_H + 5, size: 8.5, font: bold, color: NEAR_BLACK });
+      }
+      cx += colWidths[i];
+    }
+    y -= HDR_H;
+
+    // — data row (white bg) —
+    cx = AIA_MAR;
+    for (let i = 0; i < colWidths.length; i++) {
+      page.drawRectangle({
+        x: cx, y: y - dataH, width: colWidths[i], height: dataH,
+        color: WHITE, borderColor: AIA_BORD, borderWidth: 0.5,
+      });
+      const val = String(values?.[i] ?? '');
+      if (val) {
+        // word-wrap inside cell
+        const innerW = colWidths[i] - 10;
+        const words = val.split(' ');
+        const lines = [];
+        let cur = '';
+        for (const w of words) {
+          const test = cur ? cur + ' ' + w : w;
+          if (regular.widthOfTextAtSize(test, 9.5) > innerW && cur) {
+            lines.push(cur); cur = w;
+          } else { cur = test; }
+        }
+        if (cur) lines.push(cur);
+        const lineH = 13;
+        const maxLines = Math.max(1, Math.floor((dataH - 8) / lineH));
+        let ty = y - 11;
+        for (const line of lines.slice(0, maxLines)) {
+          page.drawText(line, { x: cx + 5, y: ty, size: 9.5, font: regular, color: NEAR_BLACK });
+          ty -= lineH;
+        }
+      }
+      cx += colWidths[i];
+    }
+    y -= dataH;
+  }
+
+  return y;
+}
+
+// ── Bear OS layout engine ─────────────────────────────────────────────────
 class Doc {
   constructor(page, fonts) {
     this.page  = page;
     this.fonts = fonts;
     this.y     = BODY_TOP;
   }
-
-  // ── primitives ──
 
   _text(str, x, y, size, font, color) {
     const s = String(str ?? '').slice(0, 200);
@@ -53,7 +182,6 @@ class Doc {
     this.page.drawRectangle(opts);
   }
 
-  // wrap text into lines fitting maxW
   _wrap(str, size, font, maxW) {
     const words = String(str ?? '').split(' ');
     const lines = [];
@@ -67,10 +195,8 @@ class Doc {
     return lines;
   }
 
-  // ── spacing ──
   gap(n = 8) { this.y -= n; }
 
-  // ── section heading ──
   sectionHeader(label) {
     if (this.y < BODY_BOT + 30) return;
     this.gap(6);
@@ -79,14 +205,12 @@ class Doc {
     this.y -= 22;
   }
 
-  // ── divider line ──
   rule(color = BORDER, thickness = 0.5) {
     this.gap(4);
     this._line(MARGIN, this.y, PAGE_W - MARGIN, this.y, thickness, color);
     this.gap(8);
   }
 
-  // ── inline text ──
   text(str, { x = MARGIN, size = 10, font = 'regular', color = BLACK } = {}) {
     if (this.y < BODY_BOT) return;
     const f = this.fonts[font];
@@ -98,21 +222,17 @@ class Doc {
     }
   }
 
-  // ── boxed cell: label + value ──
   cell(label, value, x, cellW, { labelSize = 7, valueSize = 9.5 } = {}) {
     if (!value && value !== 0) value = '';
     const cellH = 30;
     const f = this.fonts;
-
     this._rect(x, this.y - cellH, cellW, cellH, { fill: CELL_BG, border: BORDER });
     this._text(label.toUpperCase(), x + 4, this.y - 10, labelSize, f.bold, LIGHT);
-
     const valStr = String(value).slice(0, 60);
     this._text(valStr, x + 4, this.y - 22, valueSize, f.regular, DARK);
     return cellH;
   }
 
-  // ── row of equal-width cells ──
   cells(pairs, { cellH = 30, labelSize = 7, valueSize = 9.5 } = {}) {
     if (this.y < BODY_BOT + cellH) return;
     const n = pairs.length;
@@ -123,7 +243,6 @@ class Doc {
     this.y -= cellH;
   }
 
-  // ── two cells per row, configurable split ──
   cells2(pairs, split = 0.5) {
     const leftW  = CONTENT_W * split;
     const rightW = CONTENT_W * (1 - split);
@@ -137,7 +256,6 @@ class Doc {
     }
   }
 
-  // ── tall text cell (multiline content) ──
   textCell(label, value, { minH = 50 } = {}) {
     if (!value) return;
     const f = this.fonts;
@@ -156,7 +274,6 @@ class Doc {
     this.y -= cellH;
   }
 
-  // ── financial summary box (right-aligned values) ──
   summaryBox(rows) {
     const validRows = rows.filter(([, v]) => v != null && v !== '');
     if (!validRows.length) return;
@@ -177,13 +294,10 @@ class Doc {
     this.y -= boxH + 4;
   }
 
-  // ── table with header row ──
   table(headers, rows, colWidths) {
     const f = this.fonts;
     const rowH = 18;
     const totalW = colWidths.reduce((a, b) => a + b, 0);
-
-    // header
     if (this.y < BODY_BOT + rowH * 2) return;
     this._rect(MARGIN, this.y - rowH, totalW, rowH, { fill: ACCENT_DARK });
     let hx = MARGIN;
@@ -192,8 +306,6 @@ class Doc {
       hx += colWidths[i];
     });
     this.y -= rowH;
-
-    // data rows
     for (const row of rows) {
       if (this.y < BODY_BOT + rowH) break;
       const isOdd = rows.indexOf(row) % 2 === 0;
@@ -209,7 +321,6 @@ class Doc {
     this.gap(6);
   }
 
-  // ── signature block ──
   signatureBlock(signers) {
     const colW = CONTENT_W / signers.length;
     const sigH = 36;
@@ -226,7 +337,6 @@ class Doc {
     this.y -= sigH + 20;
   }
 
-  // ── checklist items ──
   checklistItems(items) {
     for (const item of items) {
       if (this.y < BODY_BOT + 16) break;
@@ -264,9 +374,361 @@ function buildTitle(type) {
   }[type] || 'DOCUMENT';
 }
 
+// ── AIA G702 / G703 two-page pay-app renderer ─────────────────────────────
+async function renderPayApp(doc, profile) {
+  const pdfDoc  = await PDFDocument.create();
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fonts   = { regular, bold };
+  const raw = doc.content;
+  const c = (typeof raw === 'object' && raw !== null && !raw.text) ? raw : {};
+
+  _drawG702(pdfDoc.addPage([PAGE_W, PAGE_H]), fonts, doc, profile, c);
+  if (Array.isArray(c.line_items) && c.line_items.length > 0) {
+    _drawG703(pdfDoc.addPage([PAGE_W, PAGE_H]), fonts, doc, profile, c);
+  }
+  return pdfDoc.save();
+}
+
+function _drawG702(page, fonts, doc, profile, c) {
+  const { regular, bold } = fonts;
+  const M  = 36;
+  const W  = PAGE_W - M * 2; // 540
+  const NB = rgb(0.06, 0.06, 0.06);
+  const parse$ = s => parseFloat(String(s ?? '').replace(/[^0-9.-]/g, '')) || 0;
+  const fmt$   = n => n ? '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+
+  // ── Title ────────────────────────────────────────────────────────────────
+  let y = PAGE_H - M; // 756
+  page.drawText('APPLICATION AND CERTIFICATE FOR PAYMENT', { x: M, y, size: 11, font: bold, color: NB });
+  const g2lbl = 'AIA DOCUMENT G702';
+  page.drawText(g2lbl, { x: PAGE_W - M - bold.widthOfTextAtSize(g2lbl, 8), y, size: 8, font: bold, color: MUTED });
+  y -= 14;
+  page.drawLine({ start: { x: M, y }, end: { x: PAGE_W - M, y }, thickness: 1.0, color: AIA_BORD });
+  y -= 8; // y ≈ 734
+
+  // ── Info grid ────────────────────────────────────────────────────────────
+  const LW = 296;
+  const RX = M + LW + 4;
+  const RW = W - LW - 4; // 240
+
+  const infoBox = (bx, by, bw, bh, label, val1, val2) => {
+    page.drawRectangle({ x: bx, y: by - bh, width: bw, height: bh, color: WHITE, borderColor: AIA_BORD, borderWidth: 0.5 });
+    page.drawText(String(label), { x: bx + 3, y: by - 10, size: 7, font: bold, color: MUTED });
+    if (val1) page.drawText(String(val1).slice(0, 50), { x: bx + 3, y: by - 22, size: 9, font: regular, color: NB });
+    if (val2) page.drawText(String(val2).slice(0, 50), { x: bx + 3, y: by - 34, size: 8, font: regular, color: DARK });
+  };
+  const rowField = (by, label, val) => {
+    page.drawRectangle({ x: RX, y: by - 18, width: RW, height: 18, color: WHITE, borderColor: AIA_BORD, borderWidth: 0.5 });
+    page.drawText(String(label), { x: RX + 3, y: by - 13, size: 7, font: bold, color: MUTED });
+    if (val) {
+      const v = String(val).slice(0, 36);
+      page.drawText(v, { x: RX + RW - regular.widthOfTextAtSize(v, 8.5) - 3, y: by - 13, size: 8.5, font: regular, color: NB });
+    }
+  };
+
+  // Left: TO / FROM / CONTRACT FOR (heights 52 + 38 + 24 = 114)
+  infoBox(M, y,       LW, 52, 'TO (OWNER):', c.owner || '', c.owner_address || '');
+  infoBox(M, y - 52,  LW, 38, 'FROM (CONTRACTOR):', c.contractor || profile?.company_name || '');
+  infoBox(M, y - 90,  LW, 24, 'CONTRACT FOR:', c.project_name || doc.title || '');
+
+  // Right: 5 fields × 18px = 90px, then filler 24px
+  rowField(y,       'PROJECT:',          c.project_name || '');
+  rowField(y - 18,  'APPLICATION NO:',   String(c.application_number || ''));
+  rowField(y - 36,  'APPLICATION DATE:', c.date || '');
+  rowField(y - 54,  'PERIOD TO:',        c.period_to || '');
+  rowField(y - 72,  'CONTRACT DATE:',    c.contract_date || '');
+  page.drawRectangle({ x: RX, y: y - 114, width: RW, height: 24, color: rgb(0.97, 0.97, 0.97), borderColor: AIA_BORD, borderWidth: 0.5 });
+
+  y -= 114;
+  y -= 4;
+  page.drawLine({ start: { x: M, y }, end: { x: PAGE_W - M, y }, thickness: 0.75, color: AIA_BORD });
+  y -= 8; // y ≈ 608
+
+  // ── Lower section ────────────────────────────────────────────────────────
+  const lowerY = y;
+  const LCW = 268;
+  const RSX = M + LCW + 4;
+  const RSW = W - LCW - 4;
+
+  // LEFT: Contractor's Application
+  let ly = lowerY;
+  page.drawRectangle({ x: M, y: ly - 16, width: LCW, height: 16, color: AIA_BLUE, borderColor: AIA_BORD, borderWidth: 0.5 });
+  page.drawText("CONTRACTOR'S APPLICATION FOR PAYMENT", { x: M + 4, y: ly - 11, size: 7.5, font: bold, color: NB });
+  ly -= 16;
+
+  // Change orders mini-table
+  const coW = [30, 70, 84, 84];
+  const coH  = ['NO.', 'DATE', 'ADDITIONS', 'DEDUCTIONS'];
+  let cx = M;
+  for (let i = 0; i < 4; i++) {
+    page.drawRectangle({ x: cx, y: ly - 13, width: coW[i], height: 13, color: AIA_BLUE, borderColor: AIA_BORD, borderWidth: 0.3 });
+    page.drawText(coH[i], { x: cx + 2, y: ly - 9, size: 6.5, font: bold, color: NB });
+    cx += coW[i];
+  }
+  ly -= 13;
+  const coItems = Array.isArray(c.change_orders) ? c.change_orders : [];
+  for (let r = 0; r < 5; r++) {
+    const co = coItems[r] || {};
+    const shade = r % 2 === 0 ? rgb(0.97, 0.97, 0.98) : WHITE;
+    cx = M;
+    const rv = [co.number || '', co.date || '',
+      co.additions ? fmt$(parse$(co.additions)) : '',
+      co.deductions ? fmt$(parse$(co.deductions)) : ''];
+    for (let i = 0; i < 4; i++) {
+      page.drawRectangle({ x: cx, y: ly - 13, width: coW[i], height: 13, color: shade, borderColor: AIA_BORD, borderWidth: 0.25 });
+      if (rv[i]) page.drawText(String(rv[i]).slice(0, 13), { x: cx + 2, y: ly - 9, size: 7.5, font: regular, color: NB });
+      cx += coW[i];
+    }
+    ly -= 13;
+  }
+  // Totals row
+  cx = M;
+  page.drawRectangle({ x: cx, y: ly - 13, width: coW[0] + coW[1], height: 13, color: AIA_BLUE, borderColor: AIA_BORD, borderWidth: 0.3 });
+  page.drawText('TOTALS', { x: cx + 2, y: ly - 9, size: 7, font: bold, color: NB });
+  cx += coW[0] + coW[1];
+  for (let i = 2; i < 4; i++) {
+    page.drawRectangle({ x: cx, y: ly - 13, width: coW[i], height: 13, color: WHITE, borderColor: AIA_BORD, borderWidth: 0.3 });
+    cx += coW[i];
+  }
+  ly -= 13;
+  ly -= 6;
+
+  // Contractor certification
+  const certLines = [
+    "The undersigned Contractor certifies that to the best of the Contractor's",
+    'knowledge, information and belief the Work covered by this Application for',
+    'Payment has been completed in accordance with the Contract Documents, that',
+    'all amounts have been paid by the Contractor for Work for which previous',
+    'Certificates for Payment were issued and payments received from the Owner,',
+    'and that current payment shown herein is now due.',
+  ];
+  for (const ln of certLines) {
+    page.drawText(ln, { x: M + 2, y: ly, size: 7, font: regular, color: DARK });
+    ly -= 10;
+  }
+  ly -= 8;
+  page.drawLine({ start: { x: M, y: ly }, end: { x: M + 120, y: ly }, thickness: 0.5, color: DARK });
+  page.drawLine({ start: { x: M + 140, y: ly }, end: { x: M + 240, y: ly }, thickness: 0.5, color: DARK });
+  page.drawText('By:', { x: M, y: ly + 3, size: 7, font: regular, color: MUTED });
+  page.drawText('Date:', { x: M + 130, y: ly + 3, size: 7, font: regular, color: MUTED });
+  ly -= 14;
+  page.drawText(`State of: ${c.state || '_________________'}`, { x: M, y: ly, size: 7.5, font: regular, color: DARK });
+  ly -= 11;
+  page.drawText('Subscribed and sworn to before me this _____ day of ___________, 20___', { x: M, y: ly, size: 7, font: regular, color: DARK });
+  ly -= 10;
+  page.drawText('Notary Public:', { x: M, y: ly, size: 7, font: regular, color: DARK });
+  page.drawLine({ start: { x: M + 70, y: ly }, end: { x: M + 240, y: ly }, thickness: 0.4, color: DARK });
+  ly -= 10;
+  page.drawText('My Commission Expires:', { x: M, y: ly, size: 7, font: regular, color: DARK });
+  page.drawLine({ start: { x: M + 104, y: ly }, end: { x: M + 240, y: ly }, thickness: 0.4, color: DARK });
+
+  // RIGHT: Summary lines 1-9
+  let ry = lowerY;
+  page.drawRectangle({ x: RSX, y: ry - 16, width: RSW, height: 16, color: AIA_BLUE, borderColor: AIA_BORD, borderWidth: 0.5 });
+  page.drawText('SUMMARY OF WORK COMPLETED', { x: RSX + 4, y: ry - 11, size: 7.5, font: bold, color: NB });
+  ry -= 16;
+
+  const sumRow = (num, label, val, hi = false) => {
+    const rh = 22;
+    const fill = hi ? rgb(0.91, 0.95, 1.0) : (num % 2 === 0 ? rgb(0.97, 0.97, 0.98) : WHITE);
+    page.drawRectangle({ x: RSX, y: ry - rh, width: RSW, height: rh, color: fill, borderColor: AIA_BORD, borderWidth: 0.3 });
+    page.drawText(`${num ? num + '. ' : '   '}${label}`, { x: RSX + 4, y: ry - rh + 7, size: 7.5, font: hi ? bold : regular, color: NB });
+    if (val) {
+      const v = String(val);
+      const vW = (hi ? bold : regular).widthOfTextAtSize(v, 9);
+      page.drawText(v, { x: RSX + RSW - vW - 4, y: ry - rh + 7, size: 9, font: hi ? bold : regular, color: NB });
+    }
+    ry -= rh;
+  };
+
+  const orig     = parse$(c.contract_amount);
+  const wkComp   = parse$(c.work_completed);
+  const prevPay  = parse$(c.previous_payments);
+  const retPct   = parse$(c.retainage_percent) || 10;
+  const retAmt   = wkComp * (retPct / 100);
+  const earnLess = wkComp - retAmt;
+  const currDue  = earnLess - prevPay;
+  const balance  = orig - earnLess;
+
+  sumRow(1, 'Original Contract Sum',                  orig    ? fmt$(orig)    : '');
+  sumRow(2, 'Net Change by Change Orders',             fmt$(0));
+  sumRow(3, 'Contract Sum to Date',                    orig    ? fmt$(orig)    : '');
+  sumRow(4, 'Total Completed & Stored to Date',        wkComp  ? fmt$(wkComp) : '');
+  sumRow(5, `Retainage (${retPct}%)`,                  retAmt  ? fmt$(retAmt) : '');
+  sumRow(6, 'Total Earned Less Retainage',             earnLess ? fmt$(earnLess) : '');
+  sumRow(7, 'Less Previous Certificates for Payment',  prevPay ? fmt$(prevPay) : '');
+  sumRow(8, 'CURRENT PAYMENT DUE',                     currDue > 0 ? fmt$(currDue) : '', true);
+  sumRow(9, 'Balance to Finish, Including Retainage',  balance > 0 ? fmt$(balance) : '');
+  ry -= 8;
+
+  // Architect Certification block
+  page.drawRectangle({ x: RSX, y: ry - 14, width: RSW, height: 14, color: AIA_BLUE, borderColor: AIA_BORD, borderWidth: 0.5 });
+  page.drawText("ARCHITECT'S CERTIFICATION", { x: RSX + 4, y: ry - 10, size: 7.5, font: bold, color: NB });
+  ry -= 14;
+  const archCert = [
+    'In accordance with the Contract Documents, based on on-site observations',
+    "and the data comprising this Application, the Architect certifies to the Owner",
+    "that the Work has progressed to the point indicated and the quality of the",
+    'Work is in accordance with the Contract Documents.',
+  ];
+  for (const ln of archCert) {
+    if (ry < 60) break;
+    page.drawText(ln, { x: RSX + 4, y: ry - 10, size: 7, font: regular, color: DARK });
+    ry -= 11;
+  }
+  ry -= 8;
+  if (ry > 60) {
+    page.drawRectangle({ x: RSX, y: ry - 24, width: RSW, height: 24, color: rgb(0.91, 0.95, 1.0), borderColor: AIA_BORD, borderWidth: 0.5 });
+    page.drawText('AMOUNT CERTIFIED:', { x: RSX + 4, y: ry - 15, size: 8, font: bold, color: NB });
+    if (currDue > 0) {
+      const amtTxt = fmt$(currDue);
+      page.drawText(amtTxt, { x: RSX + RSW - bold.widthOfTextAtSize(amtTxt, 10) - 4, y: ry - 15, size: 10, font: bold, color: NB });
+    }
+    ry -= 32;
+  }
+  if (ry > 40) {
+    if (c.architect) page.drawText(`ARCHITECT: ${c.architect}`, { x: RSX + 4, y: ry - 10, size: 8, font: regular, color: DARK });
+    ry -= 16;
+    const le = RSX + RSW * 0.55;
+    page.drawLine({ start: { x: RSX + 4, y: ry }, end: { x: le, y: ry }, thickness: 0.5, color: DARK });
+    page.drawText('By:', { x: RSX + 4, y: ry + 4, size: 7, font: regular, color: MUTED });
+    page.drawText('Date:', { x: le + 8, y: ry + 4, size: 7, font: regular, color: MUTED });
+    page.drawLine({ start: { x: le + 32, y: ry }, end: { x: RSX + RSW, y: ry }, thickness: 0.5, color: DARK });
+  }
+
+  // Footer
+  const ft = 'AIA Document G702 — Application and Certificate for Payment  |  Powered by ConstructionBear.AI';
+  page.drawText(ft, { x: (PAGE_W - regular.widthOfTextAtSize(ft, 7)) / 2, y: 18, size: 7, font: regular, color: MUTED });
+}
+
+function _drawG703(page, fonts, doc, profile, c) {
+  const { regular, bold } = fonts;
+  const M  = 28;
+  const W  = PAGE_W - M * 2; // 556
+  const NB = rgb(0.06, 0.06, 0.06);
+  const parse$ = s => parseFloat(String(s ?? '').replace(/[^0-9.-]/g, '')) || 0;
+  const $k     = n => n ? '$' + Math.round(n).toLocaleString('en-US') : '';
+
+  // Title
+  let y = PAGE_H - M;
+  page.drawText('CONTINUATION SHEET', { x: M, y, size: 11, font: bold, color: NB });
+  const g3lbl = 'AIA DOCUMENT G703';
+  page.drawText(g3lbl, { x: PAGE_W - M - bold.widthOfTextAtSize(g3lbl, 8), y, size: 8, font: bold, color: MUTED });
+  y -= 12;
+  page.drawLine({ start: { x: M, y }, end: { x: PAGE_W - M, y }, thickness: 1.0, color: AIA_BORD });
+  y -= 8;
+
+  // App info
+  for (const info of [
+    `AIA Document G702, Application No: ${c.application_number || ''}   |   Date: ${c.date || ''}   |   Period To: ${c.period_to || ''}`,
+    `Project: ${c.project_name || doc.title || ''}   |   Contractor: ${c.contractor || ''}`,
+  ]) {
+    page.drawText(info, { x: M, y, size: 8, font: regular, color: DARK });
+    y -= 12;
+  }
+  y -= 4;
+
+  // Column defs — total W = 556
+  const cols = [
+    { key: 'no',   hdr: ['ITEM', 'NO.'],               w: 24,  align: 'center' },
+    { key: 'desc', hdr: ['DESCRIPTION OF WORK', ''],   w: 145, align: 'left'   },
+    { key: 'sch',  hdr: ['SCHEDULED', 'VALUE (C)'],    w: 54,  align: 'right'  },
+    { key: 'prev', hdr: ['WORK COMPL.', 'PREV (D)'],   w: 52,  align: 'right'  },
+    { key: 'this', hdr: ['WORK COMPL.', 'THIS PD (E)'],w: 52,  align: 'right'  },
+    { key: 'mats', hdr: ['MATERIALS', 'STORED (F)'],   w: 44,  align: 'right'  },
+    { key: 'tot',  hdr: ['TOTAL COMPL.', '& STRD (G)'],w: 54,  align: 'right'  },
+    { key: 'pct',  hdr: ['%', '(G/C)'],                w: 28,  align: 'right'  },
+    { key: 'bal',  hdr: ['BALANCE', 'TO FINISH (H)'],  w: 52,  align: 'right'  },
+    { key: 'ret',  hdr: ['RETAIN-', 'AGE (I)'],        w: 51,  align: 'right'  },
+  ]; // 24+145+54+52+52+44+54+28+52+51 = 556 ✓
+
+  // Header rows
+  const hh = 24;
+  let cxh = M;
+  for (const col of cols) {
+    page.drawRectangle({ x: cxh, y: y - hh, width: col.w, height: hh, color: AIA_BLUE, borderColor: AIA_BORD, borderWidth: 0.3 });
+    page.drawText(col.hdr[0], { x: cxh + 2, y: y - 10, size: 6,   font: bold, color: NB });
+    if (col.hdr[1]) page.drawText(col.hdr[1], { x: cxh + 2, y: y - 19, size: 5.5, font: bold, color: NB });
+    cxh += col.w;
+  }
+  y -= hh;
+
+  // Data rows
+  const rowH = 15;
+  const items = Array.isArray(c.line_items) ? c.line_items : [];
+  let totSch = 0, totPrev = 0, totThis = 0, totMats = 0, totComp = 0, totBal = 0, totRet = 0;
+
+  for (let r = 0; r < items.length; r++) {
+    if (y < 50) break;
+    const it  = items[r];
+    const isO = typeof it === 'object' && it !== null;
+    const sch  = parse$(isO ? (it.scheduled_value ?? it.value) : '');
+    const prev = parse$(isO ? (it.prev_completed ?? it.previous) : '');
+    const thisp= parse$(isO ? (it.this_period ?? it.this_application) : '');
+    const mats = parse$(isO ? it.materials_stored : '');
+    const tot  = prev + thisp + mats;
+    const pct  = sch > 0 ? (tot / sch * 100).toFixed(1) : '';
+    const bal  = sch - tot;
+    const ret  = parse$(isO ? it.retainage : '');
+    totSch += sch; totPrev += prev; totThis += thisp; totMats += mats;
+    totComp += tot; totBal += bal; totRet += ret;
+
+    const rv = {
+      no:   isO ? String(it.item_no ?? it.no ?? r + 1) : String(r + 1),
+      desc: isO ? String(it.description ?? '').slice(0, 44) : String(it).slice(0, 44),
+      sch:  $k(sch), prev: $k(prev), this: $k(thisp), mats: $k(mats),
+      tot:  $k(tot), pct: pct ? `${pct}%` : '', bal: $k(Math.max(0, bal)), ret: $k(ret),
+    };
+    const shade = r % 2 === 1 ? rgb(0.97, 0.97, 0.98) : WHITE;
+    let cxr = M;
+    for (const col of cols) {
+      page.drawRectangle({ x: cxr, y: y - rowH, width: col.w, height: rowH, color: shade, borderColor: AIA_BORD, borderWidth: 0.25 });
+      const v = rv[col.key];
+      if (v) {
+        const vW = regular.widthOfTextAtSize(v, 7.5);
+        const tx = col.align === 'right'  ? cxr + col.w - vW - 2
+                 : col.align === 'center' ? cxr + (col.w - vW) / 2
+                 : cxr + 2;
+        page.drawText(v, { x: tx, y: y - rowH + 4, size: 7.5, font: regular, color: NB });
+      }
+      cxr += col.w;
+    }
+    y -= rowH;
+  }
+
+  // TOTAL row
+  if (y > 40) {
+    const tv = {
+      no: '', desc: 'TOTALS',
+      sch:  $k(totSch), prev: $k(totPrev), this: $k(totThis), mats: $k(totMats),
+      tot:  $k(totComp), pct: totSch > 0 ? `${(totComp/totSch*100).toFixed(1)}%` : '',
+      bal:  $k(Math.max(0, totBal)), ret: $k(totRet),
+    };
+    let cxt = M;
+    for (const col of cols) {
+      page.drawRectangle({ x: cxt, y: y - rowH, width: col.w, height: rowH, color: AIA_BLUE, borderColor: AIA_BORD, borderWidth: 0.5 });
+      const v = tv[col.key];
+      if (v) {
+        const vW = bold.widthOfTextAtSize(v, 8);
+        const tx = col.align === 'right'  ? cxt + col.w - vW - 2
+                 : col.align === 'center' ? cxt + (col.w - vW) / 2
+                 : cxt + 2;
+        page.drawText(v, { x: tx, y: y - rowH + 4, size: 8, font: bold, color: NB });
+      }
+      cxt += col.w;
+    }
+  }
+
+  // Footer
+  const ft = 'AIA Document G703 — Continuation Sheet  |  Powered by ConstructionBear.AI';
+  page.drawText(ft, { x: (PAGE_W - regular.widthOfTextAtSize(ft, 7)) / 2, y: 18, size: 7, font: regular, color: MUTED });
+}
+
 async function renderDoc(doc, profile) {
-  const pdfDoc = await PDFDocument.create();
-  const page   = pdfDoc.addPage([PAGE_W, PAGE_H]);
+  if (doc.type === 'pay_app') return renderPayApp(doc, profile);
+  const pdfDoc  = await PDFDocument.create();
+  const page    = pdfDoc.addPage([PAGE_W, PAGE_H]);
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const fonts   = { regular, bold };
@@ -277,41 +739,48 @@ async function renderDoc(doc, profile) {
 
   const d = new Doc(page, fonts);
 
-  // ── HEADER BAND ────────────────────────────────────────────────────────────
-  const HEADER_H = 64;
-  d._rect(0, PAGE_H - HEADER_H, PAGE_W, HEADER_H, { fill: ACCENT_DARK });
+  // AIA types skip the Bear OS header band and use their own header/footer
+  const isAIAType = ['rfi', 'submittal', 'invoice'].includes(doc.type);
 
-  // Company name + info (left)
-  const company = profile?.company_name || 'Your Company';
-  d._text(company, MARGIN, PAGE_H - 22, 13, bold, WHITE);
-  const addrParts = [profile?.address, profile?.city, profile?.state, profile?.zip].filter(Boolean);
-  if (addrParts.length) d._text(addrParts.join(', '), MARGIN, PAGE_H - 35, 7.5, regular, rgb(0.75, 0.78, 0.85));
-  const contactParts = [profile?.phone, profile?.email].filter(Boolean);
-  if (contactParts.length) d._text(contactParts.join('   |   '), MARGIN, PAGE_H - 46, 7.5, regular, rgb(0.75, 0.78, 0.85));
-  if (profile?.license_number) d._text(`License: ${profile.license_number}`, MARGIN, PAGE_H - 57, 7, regular, rgb(0.65, 0.68, 0.75));
+  if (!isAIAType) {
+    // ── HEADER BAND ──────────────────────────────────────────────────────────
+    const HEADER_H = 64;
+    d._rect(0, PAGE_H - HEADER_H, PAGE_W, HEADER_H, { fill: ACCENT_DARK });
 
-  // Doc type badge (right side of header)
-  const typeTitle = buildTitle(doc.type);
-  const ttW = bold.widthOfTextAtSize(typeTitle, 9);
-  d._rect(PAGE_W - MARGIN - ttW - 20, PAGE_H - HEADER_H + 10, ttW + 20, 20, { fill: ACCENT });
-  d._text(typeTitle, PAGE_W - MARGIN - ttW - 10, PAGE_H - HEADER_H + 18, 9, bold, WHITE);
+    const company = profile?.company_name || 'Your Company';
+    d._text(company, MARGIN, PAGE_H - 22, 13, bold, WHITE);
+    const addrParts = [profile?.address, profile?.city, profile?.state, profile?.zip].filter(Boolean);
+    if (addrParts.length) d._text(addrParts.join(', '), MARGIN, PAGE_H - 35, 7.5, regular, rgb(0.75, 0.78, 0.85));
+    const contactParts = [profile?.phone, profile?.email].filter(Boolean);
+    if (contactParts.length) d._text(contactParts.join('   |   '), MARGIN, PAGE_H - 46, 7.5, regular, rgb(0.75, 0.78, 0.85));
+    if (profile?.license_number) d._text(`License: ${profile.license_number}`, MARGIN, PAGE_H - 57, 7, regular, rgb(0.65, 0.68, 0.75));
 
-  d.y = PAGE_H - HEADER_H - 10;
+    const typeTitle = buildTitle(doc.type);
+    const ttW = bold.widthOfTextAtSize(typeTitle, 9);
+    d._rect(PAGE_W - MARGIN - ttW - 20, PAGE_H - HEADER_H + 10, ttW + 20, 20, { fill: ACCENT });
+    d._text(typeTitle, PAGE_W - MARGIN - ttW - 10, PAGE_H - HEADER_H + 18, 9, bold, WHITE);
 
-  // ── DOCUMENT TITLE ROW ────────────────────────────────────────────────────
-  d._text(doc.title.slice(0, 70), MARGIN, d.y, 14, bold, BLACK);
-  d.y -= 16;
-  const projectName = doc.project_name || c.project_name;
-  if (projectName) {
-    d._text(`Project: ${projectName}`, MARGIN, d.y, 8.5, regular, MUTED);
+    d.y = PAGE_H - HEADER_H - 10;
+
+    // ── DOCUMENT TITLE ROW ────────────────────────────────────────────────────
+    d._text(doc.title.slice(0, 70), MARGIN, d.y, 14, bold, BLACK);
+    d.y -= 16;
+    const projectName = doc.project_name || c.project_name;
+    if (projectName) {
+      d._text(`Project: ${projectName}`, MARGIN, d.y, 8.5, regular, MUTED);
+      d.y -= 12;
+    }
+    d._line(MARGIN, d.y, PAGE_W - MARGIN, d.y, 1.5, ACCENT);
     d.y -= 12;
   }
-  d._line(MARGIN, d.y, PAGE_W - MARGIN, d.y, 1.5, ACCENT);
-  d.y -= 12;
 
-  // ── BODY by doc type ─────────────────────────────────────────────────────
+  // ── AIA header for invoice ───────────────────────────────────────────────
+  if (doc.type === 'invoice') {
+    d.y = aiaDocHeader(page, fonts, profile, 'INVOICE', 22, true) - 10;
+  }
+
+  // ── BODY by doc type ──────────────────────────────────────────────────────
   if (c.text) {
-    // Plain text fallback — wrap nicely
     d.sectionHeader('Document Content');
     for (const line of c.text.split('\n')) {
       if (d.y < BODY_BOT) break;
@@ -320,16 +789,169 @@ async function renderDoc(doc, profile) {
   } else {
     switch (doc.type) {
 
-      case 'rfi':
-        d.sectionHeader('Request Details');
-        d.cells([['RFI #', c.rfi_number], ['Date', c.date], ['Date Needed', c.date_needed], ['Project', c.project_name]]);
-        d.cells2([['Addressed To', c.addressed_to], ['Submitted By', c.submitted_by]]);
-        d.gap(4);
-        d.sectionHeader('Question / Request');
-        d.textCell('Question', c.question, { minH: 60 });
-        if (c.response) { d.gap(6); d.sectionHeader('Response'); d.textCell('Response', c.response, { minH: 50 }); }
-        d.signatureBlock(['Submitted By / Date', 'Responded By / Date']);
+      // ── RFI — AIA-accurate layout ──────────────────────────────────────────
+      case 'rfi': {
+        let y = aiaDocHeader(page, fonts, profile, 'Request For Information', 18, false);
+        y -= 8;
+
+        const W  = AIA_W; // 532
+        const c3 = [Math.floor(W / 3), Math.floor(W / 3), W - 2 * Math.floor(W / 3)];
+        const c2 = [Math.floor(W / 2), W - Math.floor(W / 2)];
+        const c1 = [W];
+
+        // Row 1+2: project info grid
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Project Name', 'RFI Number', 'Date of Request'],
+            values:  [c.project_name || '', c.rfi_number || '', c.date || ''],
+            colWidths: c3, dataH: 24,
+          },
+          {
+            headers: ['Project Location', 'Project ID', 'Drawing ID'],
+            values:  [c.project_location || '', c.project_id || '', c.drawing_id || ''],
+            colWidths: c3, dataH: 24,
+          },
+        ]);
+        y -= 10;
+
+        // Row 3: overview + spec section
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['RFI Overview', 'Section(s) Referenced'],
+            values:  [c.overview || c.subject || '', c.sections_referenced || c.spec_section || ''],
+            colWidths: c2, dataH: 50,
+          },
+        ]);
+        y -= 10;
+
+        // Row 4: request / clarification (tall)
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Request / Clarification Required'],
+            values:  [c.question || c.description || ''],
+            colWidths: c1, dataH: 80,
+          },
+        ]);
+        y -= 10;
+
+        // Row 5: requesting party signature row
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Name of Requesting Party', 'Signature', 'Date of Request'],
+            values:  [c.submitted_by || c.requesting_party || '', '', c.date || ''],
+            colWidths: c3, dataH: 28,
+          },
+        ]);
+        y -= 10;
+
+        // Row 6: response (tall, empty if no response yet)
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Response'],
+            values:  [c.response || ''],
+            colWidths: c1, dataH: 80,
+          },
+        ]);
+        y -= 10;
+
+        // Row 7: responding party signature row
+        aiaBlock(page, fonts, y, [
+          {
+            headers: ['Name of Responding Party', 'Signature', 'Date of Response'],
+            values:  ['', '', ''],
+            colWidths: c3, dataH: 28,
+          },
+        ]);
         break;
+      }
+
+      // ── SUBMITTAL — AIA-accurate layout ────────────────────────────────────
+      case 'submittal': {
+        let y = aiaDocHeader(page, fonts, profile, 'SUBMITTAL', 26, true);
+        y -= 18;
+
+        const W  = AIA_W; // 532
+        // 4-col: project name wider, rest equal
+        const c4 = [180, 112, 120, 120];
+        const c2 = [Math.floor(W / 2), W - Math.floor(W / 2)];
+        const c1 = [W];
+        const c4sig = [133, 133, 133, 133];
+
+        // Row 1: project info (4 cols)
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Project Name', 'Submittal No.', 'Date', 'Spec Section'],
+            values:  [c.project_name || '', c.submittal_number || '', c.date || '', c.spec_section || ''],
+            colWidths: c4, dataH: 28,
+          },
+        ]);
+        y -= 8;
+
+        // Row 2: to / from
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['To', 'From'],
+            values:  [c.addressed_to || c.to || 'Architect', c.submitted_by || c.from || ''],
+            colWidths: c2, dataH: 28,
+          },
+        ]);
+        y -= 8;
+
+        // Row 3: description (tall)
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Description'],
+            values:  [c.description || ''],
+            colWidths: c1, dataH: 65,
+          },
+        ]);
+        y -= 8;
+
+        // Row 4: contractor remarks (tall)
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Contractor Remarks'],
+            values:  [c.remarks || c.notes || ''],
+            colWidths: c1, dataH: 65,
+          },
+        ]);
+        y -= 8;
+
+        // Row 5: action required / priority
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Action Required', 'Priority'],
+            values:  [c.action || 'Review', c.priority || 'Routine'],
+            colWidths: c2, dataH: 24,
+          },
+        ]);
+        y -= 18;
+
+        // Row 6: 4-col signature area (GC | Subcontractor | Architect | Consultant)
+        const sigH = 100;
+        const sigLabels = ['GC', 'Subcontractor', 'Architect', 'Consultant'];
+        if (y > 60 + sigH) {
+          let cx = AIA_MAR;
+          for (let i = 0; i < 4; i++) {
+            page.drawRectangle({
+              x: cx, y: y - sigH, width: c4sig[i], height: sigH,
+              color: WHITE, borderColor: AIA_BORD, borderWidth: 0.5,
+            });
+            cx += c4sig[i];
+          }
+          // centered label at bottom of each sig box
+          cx = AIA_MAR;
+          for (let i = 0; i < 4; i++) {
+            const lw = regular.widthOfTextAtSize(sigLabels[i], 8.5);
+            page.drawText(sigLabels[i], {
+              x: cx + (c4sig[i] - lw) / 2, y: y - sigH + 6,
+              size: 8.5, font: regular, color: rgb(0.4, 0.4, 0.4),
+            });
+            cx += c4sig[i];
+          }
+        }
+        break;
+      }
 
       case 'change_order':
         d.sectionHeader('Change Order Information');
@@ -342,19 +964,6 @@ async function renderDoc(doc, profile) {
         d.sectionHeader('Financial & Schedule Impact');
         d.summaryBox([['Contract Sum Before Change', '—'], ['Amount of Change Order', c.cost_change], ['New Contract Sum', '—'], ['Days Added to Contract', c.days_added]]);
         d.signatureBlock(['Contractor Signature / Date', 'Owner Signature / Date', 'Architect Signature / Date']);
-        break;
-
-      case 'submittal':
-        d.sectionHeader('Submittal Information');
-        d.cells([['Submittal #', c.submittal_number], ['Date', c.date], ['Spec Section', c.spec_section], ['Revision', c.revision]]);
-        d.cells2([['Supplier / Manufacturer', c.supplier], ['Submitted By', c.submitted_by]]);
-        d.gap(4);
-        d.sectionHeader('Description');
-        d.textCell('Description of Submittal', c.description, { minH: 70 });
-        d.gap(8);
-        d.sectionHeader('Action');
-        d.cells([['Action', ''], ['Reviewed By', ''], ['Date Returned', ''], ['Re-submittal Required', '']]);
-        d.signatureBlock(['Submitted By / Date', 'Reviewed By / Date']);
         break;
 
       case 'lien_waiver': {
@@ -381,23 +990,7 @@ async function renderDoc(doc, profile) {
       }
 
       case 'pay_app':
-        d.sectionHeader('Project & Contract Information');
-        d.cells([['Application #', c.application_number], ['Period To', c.period_to], ['Architect', c.architect], ['Contract Date', '']]);
-        d.cells2([['Contractor', c.contractor], ['Owner', c.owner]]);
-        d.gap(6);
-        d.sectionHeader('Summary of Work Completed (G702)');
-        d.summaryBox([
-          ['1. Original Contract Sum',                c.contract_amount],
-          ['2. Net Change by Change Orders',           ''],
-          ['3. Contract Sum to Date',                  c.contract_amount],
-          ['4. Total Completed & Stored to Date',      c.work_completed],
-          [`5. Retainage (${c.retainage_percent || '10'}%)`, ''],
-          ['6. Total Earned Less Retainage',           ''],
-          ['7. Less Previous Certificates for Payment', c.previous_payments],
-          ['8. Current Payment Due',                   ''],
-          ['9. Balance to Finish Including Retainage', ''],
-        ]);
-        d.signatureBlock(['Contractor Signature / Date', 'Architect Certification / Date']);
+        // Handled by renderPayApp (two-page G702/G703) — early return above
         break;
 
       case 'meeting_minutes':
@@ -602,11 +1195,22 @@ async function renderDoc(doc, profile) {
   }
 
   // ── FOOTER ────────────────────────────────────────────────────────────────
-  const fy = FOOTER_H - 10;
-  d._rect(0, 0, PAGE_W, FOOTER_H, { fill: ACCENT_DARK });
-  d._text('ConstructionBear.AI', MARGIN, fy, 7.5, bold, rgb(0.65, 0.68, 0.75));
-  d._text(`Generated: ${new Date().toLocaleDateString()}`, MARGIN + 120, fy, 7.5, regular, rgb(0.55, 0.58, 0.65));
-  d._text(`${buildTitle(doc.type)}  |  ${doc.title}`, PAGE_W - MARGIN - 200, fy, 7, regular, rgb(0.55, 0.58, 0.65));
+  if (isAIAType) {
+    // Clean AIA footer — centered text, no band
+    const footerText = 'Powered by Dove & Bear Inc.';
+    const ftW = regular.widthOfTextAtSize(footerText, 8);
+    page.drawText(footerText, {
+      x: (PAGE_W - ftW) / 2, y: 18,
+      size: 8, font: regular, color: rgb(0.5, 0.5, 0.5),
+    });
+  } else {
+    // Bear OS dark footer band
+    const fy = FOOTER_H - 10;
+    d._rect(0, 0, PAGE_W, FOOTER_H, { fill: ACCENT_DARK });
+    d._text('ConstructionBear.AI', MARGIN, fy, 7.5, bold, rgb(0.65, 0.68, 0.75));
+    d._text(`Generated: ${new Date().toLocaleDateString()}`, MARGIN + 120, fy, 7.5, regular, rgb(0.55, 0.58, 0.65));
+    d._text(`${buildTitle(doc.type)}  |  ${doc.title}`, PAGE_W - MARGIN - 200, fy, 7, regular, rgb(0.55, 0.58, 0.65));
+  }
 
   return pdfDoc.save();
 }
