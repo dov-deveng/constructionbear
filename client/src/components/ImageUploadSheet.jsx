@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ImageMarkupEditor from './ImageMarkupEditor.jsx';
 
 /**
  * ImageUploadSheet — slides up from the bottom of the screen.
@@ -14,6 +15,7 @@ export default function ImageUploadSheet({ onSend, onClose }) {
   const [previews, setPreviews] = useState([]);
   const [description, setDescription] = useState('');
   const [sending, setSending] = useState(false);
+  const [markupIdx, setMarkupIdx] = useState(null); // index of file being marked up
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -40,6 +42,14 @@ export default function ImageUploadSheet({ onSend, onClose }) {
 
   function removeFile(idx) {
     setFiles(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function handleMarkupDone(blob) {
+    // Replace the file at markupIdx with the marked-up blob
+    const originalFile = files[markupIdx];
+    const markedFile = new File([blob], originalFile.name, { type: 'image/jpeg', lastModified: Date.now() });
+    setFiles(prev => prev.map((f, i) => i === markupIdx ? markedFile : f));
+    setMarkupIdx(null);
   }
 
   async function handleSend() {
@@ -88,8 +98,23 @@ export default function ImageUploadSheet({ onSend, onClose }) {
         <div className="flex-shrink-0 px-4 py-3">
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
             {previews.map((url, idx) => (
-              <div key={idx} className="relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border border-white/10">
-                <img src={url} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+              <div key={idx} className="relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border border-white/10 group">
+                {/* Tap image to open markup editor */}
+                <img
+                  src={url}
+                  alt={`Image ${idx + 1}`}
+                  className="w-full h-full object-cover cursor-pointer active:opacity-80"
+                  onClick={() => setMarkupIdx(idx)}
+                />
+                {/* Pencil icon overlay hint */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="bg-black/60 rounded-full p-1.5">
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </div>
+                </div>
+                {/* Remove button */}
                 <button
                   onClick={() => removeFile(idx)}
                   className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-red-500 transition-colors"
@@ -157,6 +182,15 @@ export default function ImageUploadSheet({ onSend, onClose }) {
         className="hidden"
         onChange={handleFilePick}
       />
+
+      {/* Markup editor — mounts on top when a thumbnail is tapped */}
+      {markupIdx !== null && previews[markupIdx] && (
+        <ImageMarkupEditor
+          src={previews[markupIdx]}
+          onDone={handleMarkupDone}
+          onCancel={() => setMarkupIdx(null)}
+        />
+      )}
     </div>
   );
 }
