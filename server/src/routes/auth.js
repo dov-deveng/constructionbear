@@ -219,6 +219,20 @@ router.post('/company/join', requireAuth, (req, res) => {
 
   db.prepare('UPDATE users SET company_id = ? WHERE id = ?').run(company.id, req.userId);
 
+  // Pre-populate new member's profile with company owner's shared data (name, address, license)
+  const ownerProfile = db.prepare(
+    'SELECT company_name, address, city, state, zip, phone, email, license_number, logo_path FROM profiles WHERE user_id = ?'
+  ).get(company.owner_id);
+  if (ownerProfile) {
+    const fields = ['company_name', 'address', 'city', 'state', 'zip', 'phone', 'email', 'license_number', 'logo_path'];
+    const toSet = fields.filter(f => ownerProfile[f]);
+    if (toSet.length > 0) {
+      const setClause = toSet.map(f => `${f} = ?`).join(', ');
+      const values = [...toSet.map(f => ownerProfile[f]), Math.floor(Date.now() / 1000), req.userId];
+      db.prepare(`UPDATE profiles SET ${setClause}, updated_at = ? WHERE user_id = ?`).run(...values);
+    }
+  }
+
   res.json({ company_id: company.id, name: company.name, code: company.code });
 });
 

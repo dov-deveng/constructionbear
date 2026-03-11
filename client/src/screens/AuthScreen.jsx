@@ -43,8 +43,8 @@ export default function AuthScreen({ mode = 'login' }) {
     try {
       const res = await api.googleAuth(credential);
       login(res.token, { id: res.userId, email: '', email_verified: res.emailVerified });
-      const [userData, profileData] = await Promise.all([api.me(), api.getProfile()]);
-      useAuthStore.setState({ user: userData, profile: profileData });
+      const [userData, profileData, companyData] = await Promise.all([api.me(), api.getProfile(), api.getCompany().catch(() => null)]);
+      useAuthStore.setState({ user: userData, profile: profileData, company: companyData });
       navigate(profileData?.onboarding_complete ? '/' : '/onboarding', { replace: true });
     } catch (err) {
       setError(err.message);
@@ -76,8 +76,8 @@ export default function AuthScreen({ mode = 'login' }) {
       } else {
         const res = await api.login(email, password);
         login(res.token, { id: res.userId, email, email_verified: res.emailVerified });
-        const [userData, profileData] = await Promise.all([api.me(), api.getProfile()]);
-        useAuthStore.setState({ user: userData, profile: profileData });
+        const [userData, profileData, companyData] = await Promise.all([api.me(), api.getProfile(), api.getCompany().catch(() => null)]);
+        useAuthStore.setState({ user: userData, profile: profileData, company: companyData });
         navigate(profileData?.onboarding_complete ? '/' : '/onboarding', { replace: true });
       }
     } catch (err) {
