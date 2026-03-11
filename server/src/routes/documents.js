@@ -39,6 +39,9 @@ const VALID_TYPES = [
   'transmittal', 'schedule_of_values', 'notice_to_proceed',
   'substantial_completion', 'warranty_letter', 'substitution_request',
   'closeout_checklist', 'certified_payroll',
+  // Task 4 additions
+  'ccd', 'rfp', 'change_order_log', 'submittal_log', 'rfi_log',
+  'coi', 'visitor_waiver', 'notice_to_neighbors', 'parking_pass',
   'upload', 'other',
 ];
 
@@ -62,6 +65,16 @@ const TYPE_ALIASES = {
   'substitution_request': 'substitution_request', 'substitution request': 'substitution_request',
   'closeout_checklist': 'closeout_checklist', 'closeout checklist': 'closeout_checklist', 'close-out checklist': 'closeout_checklist',
   'certified_payroll': 'certified_payroll', 'certified payroll': 'certified_payroll', 'davis-bacon': 'certified_payroll',
+  // Task 4 additions
+  'ccd': 'ccd', 'construction change directive': 'ccd', 'change directive': 'ccd',
+  'rfp': 'rfp', 'request for proposal': 'rfp',
+  'change_order_log': 'change_order_log', 'change order log': 'change_order_log', 'co log': 'change_order_log',
+  'submittal_log': 'submittal_log', 'submittal log': 'submittal_log',
+  'rfi_log': 'rfi_log', 'rfi log': 'rfi_log',
+  'coi': 'coi', 'certificate of insurance': 'coi',
+  'visitor_waiver': 'visitor_waiver', "visitor's waiver": 'visitor_waiver', 'visitor waiver': 'visitor_waiver',
+  'notice_to_neighbors': 'notice_to_neighbors', 'notice to neighbors': 'notice_to_neighbors', 'neighbor notice': 'notice_to_neighbors',
+  'parking_pass': 'parking_pass', 'parking pass': 'parking_pass',
   'other': 'other',
 };
 

@@ -472,6 +472,186 @@ function CertifiedPayrollRenderer({ c }) {
   );
 }
 
+// --- Task 4 new renderers ---
+
+function CCDRenderer({ c }) {
+  return (
+    <>
+      <DocHeader badge="CCD — AIA G714" title={c.description || 'Construction Change Directive'} subtitle={c.project_name} number={c.ccd_number} date={c.date} />
+      <div className="grid grid-cols-2 gap-x-6">
+        <Field label="Owner" value={c.owner} />
+        <Field label="Architect" value={c.architect} />
+        <Field label="Contractor" value={c.contractor} />
+        <Field label="Contract Date" value={c.contract_date} />
+      </div>
+      <Field label="Description of Work" value={c.description} />
+      <div className="bg-bear-surface border border-bear-border rounded-xl p-4 mt-2">
+        <Row label="Basis of Adjustment" value={c.basis} />
+        <Row label="Estimated Amount" value={c.amount} />
+        <Row label="Time Adjustment" value={c.time_adjustment} />
+      </div>
+      <p className="text-xs text-bear-muted mt-3 italic">This Construction Change Directive is not a Change Order. The Contractor must proceed with the directed changes.</p>
+    </>
+  );
+}
+
+function RFPRenderer({ c }) {
+  return (
+    <>
+      <DocHeader badge="RFP" title={c.description || 'Request for Proposal'} subtitle={c.project_name} number={c.rfp_number} date={c.date} />
+      <div className="grid grid-cols-2 gap-x-6">
+        <Field label="Addressed To" value={c.addressed_to} />
+        <Field label="Issued By" value={c.architect || c.owner} />
+        <Field label="Proposal Due" value={c.response_due} />
+        <Field label="Questions Due" value={c.questions_due} />
+      </div>
+      <Field label="Scope of Proposal" value={c.description} />
+      {c.inclusions && <Field label="Inclusions" value={c.inclusions} />}
+      {c.exclusions && <Field label="Exclusions" value={c.exclusions} />}
+      {c.notes && <Field label="Notes" value={c.notes} />}
+    </>
+  );
+}
+
+function LogRenderer({ badge, entries, entryFields, c, title }) {
+  const rows = Array.isArray(entries) ? entries : [];
+  const cols = Object.entries(entryFields);
+  return (
+    <>
+      <DocHeader badge={badge} title={title || badge} subtitle={c.project_name} date={c.date} />
+      <div className="grid grid-cols-2 gap-x-6 mb-3">
+        <Field label="Contractor" value={c.contractor} />
+        <Field label="Project No." value={c.project_number} />
+      </div>
+      {rows.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-bear-border">
+                {cols.map(([k, label]) => (
+                  <th key={k} className="text-left py-1.5 pr-3 font-semibold text-bear-muted uppercase tracking-wider">{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i} className="border-b border-bear-border last:border-0">
+                  {cols.map(([k]) => (
+                    <td key={k} className="py-2 pr-3 text-bear-text">{row[k] || '—'}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-sm text-bear-muted italic">No entries recorded.</p>
+      )}
+    </>
+  );
+}
+
+function ChangeOrderLogRenderer({ c }) {
+  return <LogRenderer badge="CO Log" title="Change Order Log" entries={c.entries} c={c} entryFields={{ co_number: 'CO #', date: 'Date', description: 'Description', amount: 'Amount', days_added: 'Days', status: 'Status' }} />;
+}
+
+function SubmittalLogRenderer({ c }) {
+  return <LogRenderer badge="Submittal Log" title="Submittal Log" entries={c.entries} c={c} entryFields={{ submittal_number: '#', spec_section: 'Spec', description: 'Description', date_submitted: 'Submitted', date_returned: 'Returned', action: 'Action', revision: 'Rev.' }} />;
+}
+
+function RFILogRenderer({ c }) {
+  return <LogRenderer badge="RFI Log" title="RFI Log" entries={c.entries} c={c} entryFields={{ rfi_number: 'RFI #', date_issued: 'Issued', subject: 'Subject', addressed_to: 'To', date_needed: 'Needed By', date_received: 'Received', status: 'Status' }} />;
+}
+
+function COIRenderer({ c }) {
+  return (
+    <>
+      <DocHeader badge="Certificate of Insurance" title={c.insured || 'COI'} subtitle={c.project_name} date={c.date} />
+      <div className="grid grid-cols-2 gap-x-6">
+        <Field label="Insured" value={c.insured} />
+        <Field label="Insured Address" value={c.insured_address} />
+        <Field label="Insurance Agent" value={c.insurance_agent} />
+        <Field label="Agent Phone" value={c.agent_phone} />
+      </div>
+      <div className="bg-bear-surface border border-bear-border rounded-xl p-4 mt-2 space-y-0">
+        <p className="text-xs font-semibold text-bear-muted uppercase tracking-wider mb-2">Coverage</p>
+        <Row label="GL Insurer" value={c.gl_insurer} />
+        <Row label="GL Policy #" value={c.gl_policy_number} />
+        <Row label="GL Expiration" value={c.gl_expiration} />
+        <Row label="Each Occurrence" value={c.gl_each_occurrence} />
+        <Row label="General Aggregate" value={c.gl_aggregate} />
+        <Row label="WC Insurer" value={c.wc_insurer} />
+        <Row label="WC Policy #" value={c.wc_policy_number} />
+        <Row label="WC Expiration" value={c.wc_expiration} />
+      </div>
+      <Field label="Certificate Holder" value={c.certificate_holder} />
+      {c.additional_insured && <Field label="Additional Insured" value={c.additional_insured} />}
+    </>
+  );
+}
+
+function VisitorWaiverRenderer({ c }) {
+  return (
+    <>
+      <DocHeader badge="Visitor's Waiver" title={c.visitor_name || "Visitor's Waiver"} subtitle={c.project_name} date={c.date} />
+      <div className="grid grid-cols-2 gap-x-6">
+        <Field label="Visitor" value={c.visitor_name} />
+        <Field label="Company" value={c.visitor_company} />
+        <Field label="Host / Escort" value={c.host} />
+        <Field label="Purpose of Visit" value={c.purpose} />
+        <Field label="Project Address" value={c.project_address} />
+        <Field label="Project" value={c.project_name} />
+      </div>
+      <div className="mt-3 p-3 bg-bear-border/30 rounded-xl">
+        <p className="text-xs text-bear-muted leading-relaxed">By signing below, the visitor acknowledges the inherent risks of being on an active construction site and agrees to follow all site safety rules, wear required PPE, and remain with their authorized escort at all times.</p>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-6">
+        <div className="border-t border-bear-border pt-2"><p className="text-xs text-bear-muted">Visitor Signature</p></div>
+        <div className="border-t border-bear-border pt-2"><p className="text-xs text-bear-muted">Date</p></div>
+      </div>
+    </>
+  );
+}
+
+function NoticeToNeighborsRenderer({ c }) {
+  return (
+    <>
+      <DocHeader badge="Notice to Neighbors" title={c.project_name || 'Notice to Neighbors'} subtitle={c.project_address} date={c.date} />
+      <div className="grid grid-cols-2 gap-x-6">
+        <Field label="Company" value={c.company_name} />
+        <Field label="Phone" value={c.company_phone} />
+        <Field label="Email" value={c.company_email} />
+        <Field label="Project Manager" value={c.project_manager} />
+        <Field label="Start Date" value={c.start_date} />
+        <Field label="Estimated End Date" value={c.end_date} />
+        <Field label="Work Hours" value={c.work_hours} />
+      </div>
+      <Field label="Description of Work" value={c.work_description} />
+      {c.noise_dates && <Field label="High-Noise Activity Dates" value={c.noise_dates} />}
+      {c.special_notes && <Field label="Special Notes" value={c.special_notes} />}
+    </>
+  );
+}
+
+function ParkingPassRenderer({ c }) {
+  return (
+    <>
+      <DocHeader badge="Parking Pass" title={c.project_name || 'Construction Parking Pass'} subtitle={c.project_address} number={c.pass_number} date={c.date} />
+      <div className="grid grid-cols-2 gap-x-6">
+        <Field label="Pass Holder" value={c.holder_name} />
+        <Field label="Company" value={c.company_name} />
+        <Field label="Vehicle" value={c.vehicle_make} />
+        <Field label="Color" value={c.vehicle_color} />
+        <Field label="License Plate" value={c.license_plate} />
+        <Field label="Authorized Area" value={c.authorized_area} />
+        <Field label="Valid Through" value={c.expiration_date} />
+        <Field label="Issued By" value={c.issued_by} />
+      </div>
+      <p className="text-xs text-bear-muted mt-3 italic">This pass must be displayed on the vehicle dashboard at all times. Non-transferable. Unauthorized vehicles will be towed at owner's expense.</p>
+    </>
+  );
+}
+
 // --- Upload renderer ---
 
 function UploadRenderer({ c }) {
@@ -521,6 +701,16 @@ const RENDERERS = {
   substitution_request: SubstitutionRequestRenderer,
   closeout_checklist: CloseoutChecklistRenderer,
   certified_payroll: CertifiedPayrollRenderer,
+  // Task 4
+  ccd: CCDRenderer,
+  rfp: RFPRenderer,
+  change_order_log: ChangeOrderLogRenderer,
+  submittal_log: SubmittalLogRenderer,
+  rfi_log: RFILogRenderer,
+  coi: COIRenderer,
+  visitor_waiver: VisitorWaiverRenderer,
+  notice_to_neighbors: NoticeToNeighborsRenderer,
+  parking_pass: ParkingPassRenderer,
   upload: UploadRenderer,
 };
 

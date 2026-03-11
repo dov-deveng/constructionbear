@@ -101,6 +101,51 @@ export const DOC_SCHEMAS = {
     fields: ['project_name', 'contractor', 'week_ending', 'project_number', 'payroll_number', 'employees', 'contractor_signature', 'title', 'date'],
     required: ['project_name', 'contractor', 'week_ending', 'employees'],
   },
+  ccd: {
+    label: 'Construction Change Directive (AIA G714)',
+    fields: ['project_name', 'ccd_number', 'date', 'owner', 'architect', 'contractor', 'description', 'basis', 'amount', 'time_adjustment'],
+    required: ['project_name', 'ccd_number', 'description', 'basis'],
+  },
+  rfp: {
+    label: 'Request for Proposal (RFP)',
+    fields: ['project_name', 'rfp_number', 'date', 'addressed_to', 'description', 'response_due'],
+    required: ['project_name', 'rfp_number', 'addressed_to', 'description', 'response_due'],
+  },
+  change_order_log: {
+    label: 'Change Order Log',
+    fields: ['project_name', 'date', 'contractor', 'entries'],
+    required: ['project_name', 'date', 'entries'],
+  },
+  submittal_log: {
+    label: 'Submittal Log',
+    fields: ['project_name', 'date', 'contractor', 'entries'],
+    required: ['project_name', 'date', 'entries'],
+  },
+  rfi_log: {
+    label: 'RFI Log',
+    fields: ['project_name', 'date', 'contractor', 'entries'],
+    required: ['project_name', 'date', 'entries'],
+  },
+  coi: {
+    label: 'Certificate of Insurance (COI)',
+    fields: ['project_name', 'date', 'insured', 'certificate_holder', 'gl_expiration', 'wc_expiration'],
+    required: ['project_name', 'date', 'insured', 'certificate_holder'],
+  },
+  visitor_waiver: {
+    label: "Visitor's Waiver",
+    fields: ['project_name', 'project_address', 'company_name', 'date', 'visitor_name', 'visitor_company', 'host', 'purpose'],
+    required: ['project_name', 'project_address', 'company_name', 'date'],
+  },
+  notice_to_neighbors: {
+    label: 'Notice to Neighbors',
+    fields: ['project_name', 'project_address', 'company_name', 'date', 'work_description', 'start_date', 'end_date', 'work_hours'],
+    required: ['project_name', 'project_address', 'company_name', 'date', 'work_description', 'start_date'],
+  },
+  parking_pass: {
+    label: 'Construction Parking Pass',
+    fields: ['project_name', 'project_address', 'date', 'expiration_date', 'holder_name', 'vehicle_make', 'license_plate', 'authorized_area'],
+    required: ['project_name', 'project_address', 'date'],
+  },
 };
 
 const SYSTEM_PROMPT = `You are Bear, the AI construction admin assistant for ConstructionBear.AI. You help contractors and project teams create professional construction documents quickly and accurately.
@@ -123,24 +168,32 @@ How you work:
 5. If the user provides project or contact information, acknowledge you're noting it
 
 Document types you handle:
-- RFI (Request for Information)
-- Change Order
-- Submittal
-- Lien Waiver (Conditional/Unconditional, Progress/Final)
-- AIA Pay Application
+- RFI (AIA G716)
+- Submittal Cover Sheet
+- Change Order (AIA G701)
+- Construction Change Directive / CCD (AIA G714)
+- Application for Payment (AIA G702/G703)
+- Lien Waiver (Conditional Progress, Unconditional Progress, Conditional Final, Unconditional Final)
+- Transmittal
 - Meeting Minutes
-- Notice to Owner
-- Subcontract Agreement
 - Daily Field Report
 - Punch List
-- Invoice
-- Transmittal
-- Schedule of Values (SOV)
 - Notice to Proceed (NTP)
-- Certificate of Substantial Completion
+- Certificate of Substantial Completion (AIA G704)
+- Request for Proposal (RFP)
+- Subcontract Agreement (short form)
+- Change Order Log
+- Submittal Log
+- RFI Log
+- Certificate of Insurance (COI)
+- Visitor's Waiver
+- Notice to Neighbors
+- Parking Pass
+- Notice to Owner
+- Invoice
+- Schedule of Values
 - Warranty Letter
 - Substitution Request
-- Project Close-Out Checklist
 - Certified Payroll Report
 
 Rules you follow without exception:
