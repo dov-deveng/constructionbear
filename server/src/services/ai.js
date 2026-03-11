@@ -377,6 +377,49 @@ function autoPopulateDates(docType, fields) {
   return result;
 }
 
+// ── Profile auto-fill (Task 13) ───────────────────────────────────────────────
+// Maps known profile data into empty document fields so Bear never has to ask.
+
+// Each key is a profile field; value is the list of doc fields it can fill.
+const PROFILE_FIELD_MAP = {
+  company_name:    ['contractor', 'general_contractor', 'contractor_name', 'from_name', 'claimant', 'insured', 'company_name'],
+  owner_name:      ['submitted_by', 'prepared_by', 'superintendent', 'project_manager', 'contractor_signature'],
+  address_full:    ['contractor_address', 'from_address'],  // assembled below
+  license_number:  ['license_number'],
+};
+
+function autoPopulateFromProfile(docType, fields, profile) {
+  if (!profile) return fields;
+  const result = { ...fields };
+
+  // Build full address string once
+  const fullAddress = [profile.address, profile.city, profile.state, profile.zip]
+    .filter(Boolean).join(', ');
+
+  const profileValues = {
+    company_name:   profile.company_name,
+    owner_name:     profile.owner_name,
+    address_full:   fullAddress || null,
+    license_number: profile.license_number,
+  };
+
+  for (const [profileKey, docFields] of Object.entries(PROFILE_FIELD_MAP)) {
+    const val = profileValues[profileKey];
+    if (!val) continue;
+    for (const docField of docFields) {
+      // Only fill if the field exists in the result and is empty/missing
+      if (docField in result) {
+        const existing = result[docField];
+        if (existing === null || existing === undefined || (typeof existing === 'string' && !existing.trim())) {
+          result[docField] = val;
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
 // Post-generation validation: check all required fields are populated
 function validateGeneratedDoc(generatedDoc) {
   if (!generatedDoc?.isStructured) return generatedDoc;
@@ -408,10 +451,18 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
   let systemPrompt = SYSTEM_PROMPT + `\n\nToday's date: ${todayStr}. Default due dates: 14 days from today (${plus14Str}) unless otherwise specified. Submittals default to 2-day response window.`;
 
   if (profile?.company_name) {
-    systemPrompt += `\n\nUser's company: ${profile.company_name}`;
-    if (profile.owner_name) systemPrompt += ` | Owner: ${profile.owner_name}`;
-    if (profile.license_number) systemPrompt += ` | License: ${profile.license_number}`;
-    if (profile.city) systemPrompt += ` | Location: ${profile.city}, ${profile.state}`;
+    const knownFields = [];
+    systemPrompt += `\n\nCOMPANY PROFILE (pre-filled — do NOT ask the user for any of these):`;
+    systemPrompt += `\n  Company name: ${profile.company_name}`; knownFields.push('company name');
+    if (profile.owner_name) { systemPrompt += ` | Owner: ${profile.owner_name}`; knownFields.push('owner name'); }
+    if (profile.phone) { systemPrompt += ` | Phone: ${profile.phone}`; knownFields.push('phone'); }
+    if (profile.email) { systemPrompt += ` | Email: ${profile.email}`; knownFields.push('email'); }
+    if (profile.address) {
+      const fullAddr = [profile.address, profile.city, profile.state, profile.zip].filter(Boolean).join(', ');
+      systemPrompt += ` | Address: ${fullAddr}`; knownFields.push('address');
+    }
+    if (profile.license_number) { systemPrompt += ` | License: ${profile.license_number}`; knownFields.push('license number'); }
+    systemPrompt += `\nDO NOT ask the user for: ${knownFields.join(', ')}. These are already known and will be pre-filled automatically.`;
   }
 
   if (projects.length > 0) {
@@ -466,7 +517,9 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
       try {
         const rawFields = JSON.parse(fieldsMatch[1]);
         // Task 11: auto-populate empty date fields
-        const fields = autoPopulateDates(docType, rawFields);
+        // Task 13: auto-populate empty profile fields (company name, owner, address, license)
+        const datedFields = autoPopulateDates(docType, rawFields);
+        const fields = autoPopulateFromProfile(docType, datedFields, profile);
         // Load AIA template and merge with company profile defaults
         const template = getTemplate(docType, fields.subtype || fields.type || null);
         generatedDoc = {
