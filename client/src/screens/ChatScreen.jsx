@@ -412,30 +412,89 @@ function TypingIndicator() {
 function EmptyState() {
   const { sendMessage } = useChatStore();
 
-  const QUICK_STARTS = [
-    { label: 'Create an RFI', prompt: 'I need to create an RFI' },
-    { label: 'Write a Change Order', prompt: 'I need a change order' },
-    { label: 'Make a Submittal', prompt: 'I need to create a submittal' },
-    { label: 'Draft a Lien Waiver', prompt: 'I need a lien waiver' },
+  const DOC_CATEGORIES = [
+    {
+      label: 'Field Documents',
+      docs: [
+        { name: 'RFI', desc: 'Request for Information', prompt: 'I need to create an RFI', icon: '❓' },
+        { name: 'Daily Field Report', desc: 'Site activity and progress log', prompt: 'I need a daily field report', icon: '📋' },
+        { name: 'Punch List', desc: 'Outstanding items before closeout', prompt: 'I need a punch list', icon: '✅' },
+        { name: 'Site Observation Report', desc: 'Architect or inspector site visit notes', prompt: 'I need a site observation report', icon: '🔍' },
+        { name: 'Notice to Proceed', desc: 'Authorization to begin work', prompt: 'I need a notice to proceed', icon: '🚦' },
+      ],
+    },
+    {
+      label: 'Submittals & Approvals',
+      docs: [
+        { name: 'Submittal', desc: 'Product data, shop drawings, samples', prompt: 'I need to create a submittal', icon: '📁' },
+        { name: 'Submittal Log', desc: 'Track all project submittals', prompt: 'I need a submittal log', icon: '📊' },
+        { name: 'Transmittal', desc: 'Cover sheet for sending documents', prompt: 'I need a transmittal', icon: '📤' },
+        { name: 'Request for Proposal', desc: 'Solicit pricing from subs or vendors', prompt: 'I need a request for proposal', icon: '📩' },
+      ],
+    },
+    {
+      label: 'Financial',
+      docs: [
+        { name: 'Invoice', desc: 'Bill for services rendered', prompt: 'I need to create an invoice', icon: '💵' },
+        { name: 'AIA Pay App (G702/G703)', desc: 'Application and certificate for payment', prompt: 'I need an AIA pay application G702', icon: '🏦' },
+        { name: 'Change Order (G701)', desc: 'Modify contract scope or price', prompt: 'I need a change order', icon: '🔄' },
+        { name: 'Change Order Log', desc: 'Track all change orders on a project', prompt: 'I need a change order log', icon: '📈' },
+        { name: 'Construction Change Directive', desc: 'AIA G714 — directed change before CO', prompt: 'I need a construction change directive', icon: '⚡' },
+      ],
+    },
+    {
+      label: 'Legal & Closeout',
+      docs: [
+        { name: 'Lien Waiver — Conditional Progress', desc: 'Waive lien rights upon payment', prompt: 'I need a conditional progress lien waiver', icon: '📜' },
+        { name: 'Lien Waiver — Unconditional Progress', desc: 'Waive lien rights, payment received', prompt: 'I need an unconditional progress lien waiver', icon: '📜' },
+        { name: 'Lien Waiver — Conditional Final', desc: 'Final waiver upon final payment', prompt: 'I need a conditional final lien waiver', icon: '📜' },
+        { name: 'Lien Waiver — Unconditional Final', desc: 'Final waiver, payment confirmed', prompt: 'I need an unconditional final lien waiver', icon: '📜' },
+        { name: 'Substantial Completion', desc: 'AIA G704 certificate of substantial completion', prompt: 'I need a certificate of substantial completion', icon: '🏁' },
+        { name: 'Subcontract Agreement', desc: 'Short-form subcontract for trade work', prompt: 'I need a subcontract agreement', icon: '🤝' },
+      ],
+    },
+    {
+      label: 'Administrative',
+      docs: [
+        { name: 'Meeting Minutes', desc: 'Record of project meeting discussion', prompt: 'I need meeting minutes', icon: '🗒️' },
+        { name: 'Weekly Report', desc: 'Weekly project status summary', prompt: 'I need a weekly report', icon: '📅' },
+        { name: 'Contact Directory', desc: 'Project team contact list', prompt: 'I need a contact directory', icon: '📇' },
+        { name: 'Project Summary', desc: 'High-level project overview', prompt: 'I need a project summary', icon: '🏗️' },
+      ],
+    },
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[60vh] px-4 text-center max-w-md mx-auto">
-      <div className="w-16 h-16 bg-bear-accent/15 rounded-2xl flex items-center justify-center mb-4">
-        <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
-      </div>
-      <h2 className="text-xl font-bold text-bear-text mb-2">What do you need today?</h2>
-      <p className="text-bear-muted text-sm mb-6">Tell me what document you need and I'll create it instantly.</p>
-      <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
-        {QUICK_STARTS.map(({ label, prompt }) => (
-          <button
-            key={label}
-            onClick={() => sendMessage(prompt)}
-            className="card px-3 py-3 text-xs font-medium text-bear-muted hover:text-bear-text hover:border-bear-accent/50 transition-colors text-left"
-          >
-            {label}
-          </button>
-        ))}
+    <div className="h-full overflow-y-auto scrollbar-thin">
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 bg-bear-accent/15 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
+          </div>
+          <h2 className="text-xl font-bold text-bear-text">What do you need today?</h2>
+          <p className="text-bear-muted text-sm mt-1">Select a document type to get started instantly.</p>
+        </div>
+
+        <div className="space-y-5">
+          {DOC_CATEGORIES.map(({ label, docs }) => (
+            <div key={label}>
+              <p className="text-xs font-semibold text-bear-muted uppercase tracking-widest mb-2 px-1">{label}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {docs.map(({ name, desc, prompt, icon }) => (
+                  <button
+                    key={name}
+                    onClick={() => sendMessage(prompt)}
+                    className="card p-3 text-left hover:border-bear-accent/50 hover:bg-bear-surface/80 transition-all group"
+                  >
+                    <span className="text-lg leading-none mb-1 block">{icon}</span>
+                    <p className="text-xs font-semibold text-bear-text group-hover:text-bear-accent transition-colors leading-snug">{name}</p>
+                    <p className="text-xs text-bear-muted mt-0.5 leading-snug">{desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
