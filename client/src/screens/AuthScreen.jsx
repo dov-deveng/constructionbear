@@ -93,7 +93,7 @@ export default function AuthScreen({ mode = 'login' }) {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-bear-accent rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">🐻</span>
+            <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-bear-text">ConstructionBear.AI</h1>
           <p className="text-bear-muted text-sm mt-1">Construction documents, instantly.</p>

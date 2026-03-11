@@ -22,7 +22,7 @@ export default function SubscriptionModal({ onClose }) {
       <div className="card p-6 w-full max-w-sm animate-slide-up space-y-4">
         <div className="text-center">
           <div className="w-14 h-14 bg-bear-accent/15 rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <span className="text-3xl">🐻</span>
+            <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
           </div>
           <h2 className="text-lg font-bold text-bear-text">Unlock unlimited documents</h2>
           <p className="text-bear-muted text-sm mt-1">Your first document was free. Subscribe to create unlimited RFIs, Change Orders, Submittals, and more.</p>

@@ -172,7 +172,7 @@ export default function ChatScreen() {
         </button>
         <div className="flex items-center gap-2 flex-1">
           <div className="w-8 h-8 bg-bear-accent rounded-lg flex items-center justify-center">
-            <span className="text-base">🐻</span>
+            <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
           </div>
           <div>
             <p className="text-sm font-semibold text-bear-text">Bear</p>
@@ -238,7 +238,7 @@ function MessageBubble({ message, onSaveDoc }) {
     <div className={clsx('flex gap-2 animate-fade-in', isUser ? 'justify-end' : 'justify-start')}>
       {!isUser && (
         <div className="w-7 h-7 bg-bear-accent rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-          <span className="text-sm">🐻</span>
+          <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
         </div>
       )}
       <div className={clsx('max-w-xs sm:max-w-sm lg:max-w-md space-y-2', isUser && 'items-end flex flex-col')}>
@@ -261,7 +261,7 @@ function TypingIndicator() {
   return (
     <div className="flex gap-2 justify-start animate-fade-in">
       <div className="w-7 h-7 bg-bear-accent rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-        <span className="text-sm">🐻</span>
+        <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
       </div>
       <div className="bubble-bear">
         <div className="flex gap-1 items-center h-5">
@@ -287,7 +287,7 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[60vh] px-4 text-center max-w-md mx-auto">
       <div className="w-16 h-16 bg-bear-accent/15 rounded-2xl flex items-center justify-center mb-4">
-        <span className="text-3xl">🐻</span>
+        <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
       </div>
       <h2 className="text-xl font-bold text-bear-text mb-2">What do you need today?</h2>
       <p className="text-bear-muted text-sm mb-6">Tell me what document you need and I'll create it instantly.</p>

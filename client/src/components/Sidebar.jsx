@@ -23,7 +23,7 @@ export default function Sidebar() {
       <div className="px-4 pt-4 pb-3 border-b border-bear-border">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 bg-bear-accent rounded-xl flex items-center justify-center">
-            <span className="text-lg">🐻</span>
+            <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
           </div>
           <div>
             <p className="text-sm font-bold text-bear-text">ConstructionBear.AI</p>

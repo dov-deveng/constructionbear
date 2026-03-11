@@ -50,7 +50,7 @@ function CompanySetupStep({ onComplete }) {
     <div className="h-full bg-bear-bg flex flex-col">
       <div className="safe-top bg-bear-bg border-b border-bear-border px-4 py-3 flex items-center gap-3">
         <div className="w-9 h-9 bg-bear-accent rounded-xl flex items-center justify-center flex-shrink-0">
-          <span className="text-lg">🐻</span>
+          <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
         </div>
         <div>
           <p className="text-sm font-semibold text-bear-text">Bear</p>
@@ -231,7 +231,7 @@ export default function OnboardingScreen() {
       {/* Header */}
       <div className="safe-top bg-bear-bg border-b border-bear-border px-4 py-3 flex items-center gap-3">
         <div className="w-9 h-9 bg-bear-accent rounded-xl flex items-center justify-center flex-shrink-0">
-          <span className="text-lg">🐻</span>
+          <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
         </div>
         <div>
           <p className="text-sm font-semibold text-bear-text">Bear</p>
@@ -250,7 +250,7 @@ export default function OnboardingScreen() {
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
             {msg.role === 'assistant' && (
               <div className="w-7 h-7 bg-bear-accent rounded-lg flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-                <span className="text-sm">🐻</span>
+                <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
               </div>
             )}
             <div className={msg.role === 'user' ? 'bubble-user' : 'bubble-bear'}>
@@ -262,7 +262,7 @@ export default function OnboardingScreen() {
         {loading && (
           <div className="flex justify-start animate-fade-in">
             <div className="w-7 h-7 bg-bear-accent rounded-lg flex items-center justify-center mr-2 mt-1">
-              <span className="text-sm">🐻</span>
+              <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
             </div>
             <div className="bubble-bear">
               <div className="flex gap-1 items-center h-5">
