@@ -76,8 +76,8 @@ router.get('/', requireAuth, (req, res) => {
   const db = getDb();
   const { type, status, project, search, limit = 50, offset = 0 } = req.query;
 
-  let sql = 'SELECT * FROM documents WHERE user_id = ?';
-  const params = [req.userId];
+  let sql = 'SELECT * FROM documents WHERE company_id = ?';
+  const params = [req.companyId];
 
   if (type && type !== 'all') { sql += ' AND type = ?'; params.push(type); }
   if (status) { sql += ' AND status = ?'; params.push(status); }
@@ -88,7 +88,7 @@ router.get('/', requireAuth, (req, res) => {
   params.push(parseInt(limit), parseInt(offset));
 
   const docs = db.prepare(sql).all(...params);
-  const count = db.prepare('SELECT COUNT(*) as n FROM documents WHERE user_id = ?').get(req.userId).n;
+  const count = db.prepare('SELECT COUNT(*) as n FROM documents WHERE company_id = ?').get(req.companyId).n;
 
   // Parse content_json for each doc
   const parsed = docs.map(d => ({ ...d, content: JSON.parse(d.content_json), content_json: undefined }));
@@ -99,10 +99,10 @@ router.get('/', requireAuth, (req, res) => {
 router.get('/stats/summary', requireAuth, (req, res) => {
   const db = getDb();
   const byType = db.prepare(`
-    SELECT type, COUNT(*) as count FROM documents WHERE user_id = ? GROUP BY type
-  `).all(req.userId);
-  const total = db.prepare('SELECT COUNT(*) as n FROM documents WHERE user_id = ?').get(req.userId).n;
-  const recent = db.prepare('SELECT * FROM documents WHERE user_id = ? ORDER BY created_at DESC LIMIT 5').all(req.userId);
+    SELECT type, COUNT(*) as count FROM documents WHERE company_id = ? GROUP BY type
+  `).all(req.companyId);
+  const total = db.prepare('SELECT COUNT(*) as n FROM documents WHERE company_id = ?').get(req.companyId).n;
+  const recent = db.prepare('SELECT * FROM documents WHERE company_id = ? ORDER BY created_at DESC LIMIT 5').all(req.companyId);
 
   res.json({
     total,
@@ -137,8 +137,8 @@ router.post('/upload', requireAuth, (req, res) => {
     // Auto-link project
     let project_id = bodyProjectId || null;
     if (!project_id && project_name) {
-      const proj = db.prepare('SELECT id FROM projects WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
-        .get(req.userId, project_name);
+      const proj = db.prepare('SELECT id FROM projects WHERE company_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
+        .get(req.companyId, project_name);
       if (proj) project_id = proj.id;
     }
 
@@ -154,9 +154,9 @@ router.post('/upload', requireAuth, (req, res) => {
     };
 
     db.prepare(`
-      INSERT INTO documents (id, user_id, project_id, type, title, project_name, status, content_json)
-      VALUES (?, ?, ?, 'upload', ?, ?, 'final', ?)
-    `).run(id, req.userId, project_id, docTitle, project_name || null, JSON.stringify(content));
+      INSERT INTO documents (id, user_id, company_id, project_id, type, title, project_name, status, content_json)
+      VALUES (?, ?, ?, ?, 'upload', ?, ?, 'final', ?)
+    `).run(id, req.userId, req.companyId, project_id, docTitle, project_name || null, JSON.stringify(content));
 
     const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
     res.status(201).json({ ...doc, content: JSON.parse(doc.content_json), content_json: undefined });
@@ -166,7 +166,7 @@ router.post('/upload', requireAuth, (req, res) => {
 // GET /documents/:id
 router.get('/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const doc = db.prepare('SELECT * FROM documents WHERE id = ? AND user_id = ?').get(req.params.id, req.userId);
+  const doc = db.prepare('SELECT * FROM documents WHERE id = ? AND company_id = ?').get(req.params.id, req.companyId);
   if (!doc) return res.status(404).json({ error: 'Document not found' });
   res.json({ ...doc, content: JSON.parse(doc.content_json), content_json: undefined });
 });
@@ -195,16 +195,16 @@ router.post('/', requireAuth, (req, res) => {
   // Auto-link project_id if a matching project exists by name
   let project_id = req.body.project_id || null;
   if (!project_id && project_name) {
-    const proj = db.prepare('SELECT id FROM projects WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
-      .get(req.userId, project_name);
+    const proj = db.prepare('SELECT id FROM projects WHERE company_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
+      .get(req.companyId, project_name);
     if (proj) project_id = proj.id;
   }
 
   const id = uuidv4();
   db.prepare(`
-    INSERT INTO documents (id, user_id, project_id, type, title, project_name, status, content_json)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, req.userId, project_id, type, title, project_name || null, status, JSON.stringify(content));
+    INSERT INTO documents (id, user_id, company_id, project_id, type, title, project_name, status, content_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, req.userId, req.companyId, project_id, type, title, project_name || null, status, JSON.stringify(content));
 
   const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(id);
   res.status(201).json({ ...doc, content: JSON.parse(doc.content_json), content_json: undefined });
@@ -213,7 +213,7 @@ router.post('/', requireAuth, (req, res) => {
 // PUT /documents/:id
 router.put('/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const doc = db.prepare('SELECT id FROM documents WHERE id = ? AND user_id = ?').get(req.params.id, req.userId);
+  const doc = db.prepare('SELECT id FROM documents WHERE id = ? AND company_id = ?').get(req.params.id, req.companyId);
   if (!doc) return res.status(404).json({ error: 'Document not found' });
 
   const { title, project_name, content, status } = req.body;
@@ -236,7 +236,7 @@ router.put('/:id', requireAuth, (req, res) => {
 // DELETE /documents/:id
 router.delete('/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const doc = db.prepare('SELECT id FROM documents WHERE id = ? AND user_id = ?').get(req.params.id, req.userId);
+  const doc = db.prepare('SELECT id FROM documents WHERE id = ? AND company_id = ?').get(req.params.id, req.companyId);
   if (!doc) return res.status(404).json({ error: 'Document not found' });
   db.prepare('DELETE FROM documents WHERE id = ?').run(req.params.id);
   res.json({ success: true });

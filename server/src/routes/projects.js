@@ -10,8 +10,8 @@ router.get('/', requireAuth, (req, res) => {
   const db = getDb();
   const { status, search, limit = 50, offset = 0 } = req.query;
 
-  let sql = 'SELECT * FROM projects WHERE user_id = ?';
-  const params = [req.userId];
+  let sql = 'SELECT * FROM projects WHERE company_id = ?';
+  const params = [req.companyId];
 
   if (status) { sql += ' AND status = ?'; params.push(status); }
   if (search) { sql += ' AND name LIKE ?'; params.push(`%${search}%`); }
@@ -20,7 +20,7 @@ router.get('/', requireAuth, (req, res) => {
   params.push(parseInt(limit), parseInt(offset));
 
   const projects = db.prepare(sql).all(...params);
-  const total = db.prepare('SELECT COUNT(*) as n FROM projects WHERE user_id = ?').get(req.userId).n;
+  const total = db.prepare('SELECT COUNT(*) as n FROM projects WHERE company_id = ?').get(req.companyId).n;
 
   res.json({ projects, total });
 });
@@ -28,11 +28,11 @@ router.get('/', requireAuth, (req, res) => {
 // GET /projects/:id
 router.get('/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(req.params.id, req.userId);
+  const project = db.prepare('SELECT * FROM projects WHERE id = ? AND company_id = ?').get(req.params.id, req.companyId);
   if (!project) return res.status(404).json({ error: 'Project not found' });
 
-  const contacts = db.prepare('SELECT * FROM contacts WHERE project_id = ? AND user_id = ?').all(req.params.id, req.userId);
-  const docs = db.prepare('SELECT id, type, title, status, created_at FROM documents WHERE project_id = ? AND user_id = ?').all(req.params.id, req.userId);
+  const contacts = db.prepare('SELECT * FROM contacts WHERE project_id = ? AND company_id = ?').all(req.params.id, req.companyId);
+  const docs = db.prepare('SELECT id, type, title, status, created_at FROM documents WHERE project_id = ? AND company_id = ?').all(req.params.id, req.companyId);
 
   res.json({ ...project, contacts, documents: docs });
 });
@@ -50,12 +50,12 @@ router.post('/', requireAuth, (req, res) => {
   const id = uuidv4();
 
   db.prepare(`
-    INSERT INTO projects (id, user_id, name, client_name, client_contact, client_email, client_phone,
+    INSERT INTO projects (id, user_id, company_id, name, client_name, client_contact, client_email, client_phone,
       address, city, state, zip, gc_name, gc_contact, gc_email, gc_phone,
       architect_name, architect_contact, architect_email,
       contract_value, start_date, end_date, status, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, req.userId, name, client_name || null, client_contact || null,
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, req.userId, req.companyId, name, client_name || null, client_contact || null,
     client_email || null, client_phone || null, address || null, city || null,
     state || null, zip || null, gc_name || null, gc_contact || null,
     gc_email || null, gc_phone || null, architect_name || null,
@@ -69,7 +69,7 @@ router.post('/', requireAuth, (req, res) => {
 // PUT /projects/:id
 router.put('/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const project = db.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?').get(req.params.id, req.userId);
+  const project = db.prepare('SELECT id FROM projects WHERE id = ? AND company_id = ?').get(req.params.id, req.companyId);
   if (!project) return res.status(404).json({ error: 'Project not found' });
 
   const fields = ['name', 'client_name', 'client_contact', 'client_email', 'client_phone',
@@ -93,7 +93,7 @@ router.put('/:id', requireAuth, (req, res) => {
 // DELETE /projects/:id
 router.delete('/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const project = db.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?').get(req.params.id, req.userId);
+  const project = db.prepare('SELECT id FROM projects WHERE id = ? AND company_id = ?').get(req.params.id, req.companyId);
   if (!project) return res.status(404).json({ error: 'Project not found' });
   db.prepare('DELETE FROM projects WHERE id = ?').run(req.params.id);
   res.json({ success: true });

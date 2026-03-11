@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -20,8 +21,39 @@ export function getDb() {
   return db;
 }
 
+function generateCompanyCode(db) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code;
+  do {
+    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  } while (db.prepare('SELECT id FROM companies WHERE code = ?').get(code));
+  return code;
+}
+
+export function ensureUserCompany(db, userId, email) {
+  const user = db.prepare('SELECT company_id, email FROM users WHERE id = ?').get(userId);
+  if (user?.company_id) return user.company_id;
+
+  const companyId = uuidv4();
+  const code = generateCompanyCode(db);
+  const name = user?.email || email || 'My Company';
+
+  db.prepare('INSERT INTO companies (id, name, code, owner_id) VALUES (?, ?, ?, ?)').run(companyId, name, code, userId);
+  db.prepare('UPDATE users SET company_id = ? WHERE id = ?').run(companyId, userId);
+  return companyId;
+}
+
 function initSchema(db) {
   db.exec(`
+    -- Companies
+    CREATE TABLE IF NOT EXISTS companies (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      code TEXT UNIQUE NOT NULL,
+      owner_id TEXT NOT NULL,
+      created_at INTEGER DEFAULT (unixepoch())
+    );
+
     -- Users
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -182,6 +214,7 @@ function initSchema(db) {
     );
 
     -- Indexes
+    CREATE INDEX IF NOT EXISTS idx_companies_code ON companies(code);
     CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
     CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);
     CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
@@ -198,6 +231,21 @@ function initSchema(db) {
   } catch {
     // Column already exists, ignore
   }
+
+  // company_id columns — migrate existing tables
+  const companyMigrations = [
+    `ALTER TABLE users ADD COLUMN company_id TEXT`,
+    `ALTER TABLE projects ADD COLUMN company_id TEXT`,
+    `ALTER TABLE contacts ADD COLUMN company_id TEXT`,
+    `ALTER TABLE documents ADD COLUMN company_id TEXT`,
+    `ALTER TABLE doc_templates ADD COLUMN company_id TEXT`,
+  ];
+  for (const sql of companyMigrations) {
+    try { db.exec(sql); } catch { /* column already exists */ }
+  }
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_projects_company_id ON projects(company_id)`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_contacts_company_id ON contacts(company_id)`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_documents_company_id ON documents(company_id)`); } catch {}
 
   // Add is_admin column to users if it doesn't exist yet
   try {

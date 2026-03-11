@@ -36,6 +36,11 @@ export const api = {
   forgotPassword: (email) => request('POST', '/auth/forgot-password', { email }),
   resetPassword: (token, password) => request('POST', '/auth/reset-password', { token, password }),
 
+  // Company
+  getCompany: () => request('GET', '/auth/company'),
+  createCompany: (name) => request('POST', '/auth/company/create', { name }),
+  joinCompany: (code) => request('POST', '/auth/company/join', { code }),
+
   // Profile
   getProfile: () => request('GET', '/profile'),
   updateProfile: (data) => request('PUT', '/profile', data),

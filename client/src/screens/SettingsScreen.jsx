@@ -4,7 +4,7 @@ import { api } from '../api/index.js';
 
 export default function SettingsScreen() {
   const { user, subscription, logout } = useAuthStore();
-  const { toggleSidebar } = useUIStore();
+  const { toggleSidebar, setView } = useUIStore();
   const [portalLoading, setPortalLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
@@ -51,9 +51,9 @@ export default function SettingsScreen() {
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         <div className="max-w-lg mx-auto p-4 space-y-4">
-          {/* Account */}
+          {/* My Account */}
           <div className="card p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-bear-text">Account</h2>
+            <h2 className="text-sm font-semibold text-bear-text">My Account</h2>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-bear-text">{user?.email}</p>
@@ -62,6 +62,64 @@ export default function SettingsScreen() {
                 </p>
               </div>
             </div>
+            <div className="border-t border-bear-border pt-3">
+              <button
+                onClick={() => setView('projects')}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bear-border/50 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-bear-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-bear-text">Projects</p>
+                    <p className="text-xs text-bear-muted">Manage your active jobs</p>
+                  </div>
+                </div>
+                <svg className="w-4 h-4 text-bear-muted group-hover:text-bear-text transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Company Info */}
+          <div className="card p-4 space-y-3">
+            <h2 className="text-sm font-semibold text-bear-text">Company Info</h2>
+            <button
+              onClick={() => setView('profile')}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bear-border/50 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-bear-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-bear-text">Company Profile</p>
+                  <p className="text-xs text-bear-muted">Name, address, license, logo</p>
+                </div>
+              </div>
+              <svg className="w-4 h-4 text-bear-muted group-hover:text-bear-text transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setView('contacts')}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bear-border/50 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-bear-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-bear-text">Contacts</p>
+                  <p className="text-xs text-bear-muted">Owners, architects, subs, inspectors</p>
+                </div>
+              </div>
+              <svg className="w-4 h-4 text-bear-muted group-hover:text-bear-text transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
 
           {/* Subscription */}

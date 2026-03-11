@@ -7,17 +7,19 @@ export const useAuthStore = create((set, get) => ({
   loading: true,
   profile: null,
   subscription: null,
+  company: null,
 
   init: async () => {
     const token = localStorage.getItem('cb_token');
     if (!token) { set({ loading: false }); return; }
     try {
-      const [user, profile, sub] = await Promise.all([
+      const [user, profile, sub, company] = await Promise.all([
         api.me(),
         api.getProfile(),
         api.getSubStatus(),
+        api.getCompany().catch(() => null),
       ]);
-      set({ user, profile, subscription: sub, loading: false });
+      set({ user, profile, subscription: sub, company, loading: false });
     } catch {
       localStorage.removeItem('cb_token');
       set({ user: null, token: null, loading: false });
@@ -31,11 +33,12 @@ export const useAuthStore = create((set, get) => ({
 
   logout: () => {
     localStorage.removeItem('cb_token');
-    set({ user: null, token: null, profile: null, subscription: null });
+    set({ user: null, token: null, profile: null, subscription: null, company: null });
   },
 
   setProfile: (profile) => set({ profile }),
   setSubscription: (subscription) => set({ subscription }),
+  setCompany: (company) => set({ company }),
 
   canCreateDoc: () => {
     const { subscription } = get();

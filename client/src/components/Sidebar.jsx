@@ -2,11 +2,12 @@ import React from 'react';
 import { useAuthStore, useUIStore } from '../store/index.js';
 import clsx from 'clsx';
 
-const NAV_ITEMS = [
+const PRIMARY_NAV = [
   { id: 'chat', label: 'Chat', icon: ChatIcon },
   { id: 'library', label: 'Documents', icon: LibraryIcon },
-  { id: 'projects', label: 'Projects', icon: ProjectsIcon },
-  { id: 'contacts', label: 'Contacts', icon: ContactsIcon },
+];
+
+const BOTTOM_NAV = [
   { id: 'profile', label: 'Profile', icon: ProfileIcon },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
@@ -31,9 +32,28 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav */}
+      {/* Primary Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5">
-        {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+        {PRIMARY_NAV.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setView(id)}
+            className={clsx(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+              activeView === id
+                ? 'bg-bear-accent/15 text-bear-accent'
+                : 'text-bear-muted hover:text-bear-text hover:bg-bear-border/50'
+            )}
+          >
+            <Icon className="w-5 h-5 flex-shrink-0" />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Bottom Nav */}
+      <div className="px-2 pb-2 space-y-0.5 border-t border-bear-border pt-2">
+        {BOTTOM_NAV.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setView(id)}
@@ -54,7 +74,7 @@ export default function Sidebar() {
           <button
             onClick={() => setView('admin')}
             className={clsx(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors mt-1',
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
               activeView === 'admin'
                 ? 'bg-purple-500/15 text-purple-400'
                 : 'text-bear-muted hover:text-purple-400 hover:bg-purple-500/10'
@@ -64,7 +84,7 @@ export default function Sidebar() {
             Admin
           </button>
         )}
-      </nav>
+      </div>
 
       {/* Subscription status */}
       {subscription && subscription.status !== 'active' && (

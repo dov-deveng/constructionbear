@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { getDb } from '../db/schema.js';
+import { getDb, ensureUserCompany } from '../db/schema.js';
 
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization;
@@ -12,11 +12,18 @@ export function requireAuth(req, res, next) {
     req.userId = payload.userId;
     req.email = payload.email;
 
-    // Stamp last_active + load is_admin (non-blocking)
+    // Stamp last_active + load is_admin + resolve company_id
     try {
       const db = getDb();
-      const user = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(req.userId);
+      const user = db.prepare('SELECT is_admin, company_id, email FROM users WHERE id = ?').get(req.userId);
       req.isAdmin = !!(user?.is_admin);
+      req.companyId = user?.company_id;
+
+      // Auto-provision company for legacy users without one
+      if (!req.companyId) {
+        req.companyId = ensureUserCompany(db, req.userId, user?.email || req.email);
+      }
+
       db.prepare('UPDATE users SET last_active = ? WHERE id = ?').run(Math.floor(Date.now() / 1000), req.userId);
     } catch { /* non-critical */ }
 

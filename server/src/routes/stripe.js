@@ -76,7 +76,7 @@ router.get('/status', requireAuth, (req, res) => {
     current_period_end: sub?.current_period_end || null,
     doc_count: docCount,
     free_docs_used: docCount >= 1,
-    can_create: docCount < 1 || sub?.status === 'active',
+    can_create: req.isAdmin || docCount < 1 || sub?.status === 'active',
   });
 });
 

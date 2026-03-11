@@ -3,8 +3,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { OAuth2Client } from 'google-auth-library';
-import { getDb } from '../db/schema.js';
+import { getDb, ensureUserCompany } from '../db/schema.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -38,10 +39,12 @@ router.post('/register', async (req, res) => {
   const password_hash = await bcrypt.hash(password, 12);
   const verification_token = uuidv4();
 
+  const isAdmin = process.env.ADMIN_EMAIL && email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase() ? 1 : 0;
+
   db.prepare(`
-    INSERT INTO users (id, email, password_hash, verification_token)
-    VALUES (?, ?, ?, ?)
-  `).run(id, email.toLowerCase(), password_hash, verification_token);
+    INSERT INTO users (id, email, password_hash, verification_token, is_admin)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, email.toLowerCase(), password_hash, verification_token, isAdmin);
 
   ensureProfile(db, id);
 
@@ -63,6 +66,11 @@ router.post('/login', async (req, res) => {
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
+
+  // Auto-promote admin email on every login
+  if (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL.toLowerCase()) {
+    db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(user.id);
+  }
 
   const token = signToken(user.id, user.email);
   res.json({ token, userId: user.id, emailVerified: !!user.email_verified });
@@ -177,6 +185,53 @@ router.get('/me', (req, res) => {
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
+});
+
+// POST /auth/company/create — create a new company for the current user
+router.post('/company/create', requireAuth, (req, res) => {
+  const { name } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: 'Company name required' });
+
+  const db = getDb();
+  const companyId = uuidv4();
+
+  // Generate unique 6-char join code
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code;
+  do {
+    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  } while (db.prepare('SELECT id FROM companies WHERE code = ?').get(code));
+
+  db.prepare('INSERT INTO companies (id, name, code, owner_id) VALUES (?, ?, ?, ?)').run(companyId, name.trim(), code, req.userId);
+  db.prepare('UPDATE users SET company_id = ? WHERE id = ?').run(companyId, req.userId);
+
+  res.json({ company_id: companyId, code, name: name.trim() });
+});
+
+// POST /auth/company/join — join an existing company by code
+router.post('/company/join', requireAuth, (req, res) => {
+  const { code } = req.body;
+  if (!code?.trim()) return res.status(400).json({ error: 'Company code required' });
+
+  const db = getDb();
+  const company = db.prepare('SELECT * FROM companies WHERE code = ? COLLATE NOCASE').get(code.trim().toUpperCase());
+  if (!company) return res.status(404).json({ error: 'Invalid company code. Check with your account admin.' });
+
+  db.prepare('UPDATE users SET company_id = ? WHERE id = ?').run(company.id, req.userId);
+
+  res.json({ company_id: company.id, name: company.name, code: company.code });
+});
+
+// GET /auth/company — get current user's company info
+router.get('/company', requireAuth, (req, res) => {
+  if (!req.companyId) return res.status(404).json({ error: 'No company assigned' });
+
+  const db = getDb();
+  const company = db.prepare('SELECT id, name, code, owner_id, created_at FROM companies WHERE id = ?').get(req.companyId);
+  if (!company) return res.status(404).json({ error: 'Company not found' });
+
+  const memberCount = db.prepare('SELECT COUNT(*) as n FROM users WHERE company_id = ?').get(req.companyId).n;
+  res.json({ ...company, member_count: memberCount });
 });
 
 export default router;
