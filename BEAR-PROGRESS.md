@@ -41,6 +41,35 @@
 - **Env:** `API_URL` and `GOOGLE_CLIENT_SECRET` placeholders in `.env` (fill in Railway vars)
 - **Files:** `server/src/routes/auth.js`, `client/src/screens/AuthScreen.jsx`
 
+### Task 9 — Pre-Upload Image Markup Editor (commit `97123c2`)
+- **ImageMarkupEditor.jsx:** Full-screen canvas markup tool (z-[60], mounts above bottom sheet).
+  - Tools: Draw (freehand pen), Arrow (with auto arrowhead), Text (tap to place floating input), Erase (destination-out composite)
+  - Color picker: 7 presets (red, orange, yellow, green, blue, white, black). Active color indicated by size + white ring.
+  - Thickness: 1–20 via +/− buttons. Erase multiplies thickness × 5.
+  - Undo: history stack of `ImageData` snapshots; restores prior state on tap.
+  - Done: `canvas.toBlob()` → JPEG blob passed to `onDone`. Cancel discards without modifying original.
+- **ImageUploadSheet:** Thumbnails open markup editor on tap. Pencil icon overlay hint. `handleMarkupDone` replaces file at that index with marked-up `File` blob.
+- **Files:** `client/src/components/ImageMarkupEditor.jsx` (new), `client/src/components/ImageUploadSheet.jsx`
+
+### Task 8 — Image Upload Staging Bottom Sheet (commit `8d04872`)
+- **ImageUploadSheet.jsx:** Dark bottom sheet sliding up from screen bottom (`#1C1C1E`, 20px top radius, animate-slide-up, z-50). Triggered by paperclip button in chat.
+  - Horizontal thumbnail strip with remove-per-image buttons and pencil icon hint for markup.
+  - Multi-select native image picker (no inline file-picker in chat anymore).
+  - Description textarea (16px, auto-focus after images picked). Enter key sends.
+  - Send button: uploads first image via `api.chatUpload`, sets `pendingAttachment`, sends combined description + filename message to Bear. Description-only path also supported.
+- **ChatScreen:** Paperclip now calls `setShowUploadSheet(true)` instead of raw file input. `handleSheetSend` replaces `handleFileSelect`. `ImageUploadSheet` mounted as a portal-sibling when `showUploadSheet`.
+- **Files:** `client/src/components/ImageUploadSheet.jsx` (new), `client/src/screens/ChatScreen.jsx`
+
+### Task 7 — Multi-Page Image Attachments on Documents (commit `5ccefd3`)
+- **DB:** `document_attachments` table — id, document_id, user_id, company_id, file_path, original_filename, caption_label, page_order, created_at. FK cascade on documents + users.
+- **Server:** Full CRUD route at `/documents/:docId/attachments` (mergeParams). Multer stores files in `data/uploads/<userId>/attachments/`. Endpoints: GET list, POST upload (up to 20 images, 20MB each), GET file (thumbnail serving), PATCH caption/order, DELETE (unlinks disk + DB row).
+- **PDF:** `renderDoc` loops `doc.attachments` array; each item becomes a full PDF page with gray 28px caption bar at bottom (`doc_number · date · label`). Legacy `c.attachment_url` fallback preserved if no DB attachments.
+- **PDF route:** `GET /pdf/:id` now queries `document_attachments` and passes as `doc.attachments` before calling `renderDoc`.
+- **Client API:** `getDocAttachments`, `addDocAttachments`, `updateDocAttachment`, `deleteDocAttachment` added to `client/src/api/index.js`.
+- **AttachmentsPanel.jsx:** Grid of photo thumbnails with page number badges, inline caption inputs (auto-saved on blur), add/delete, empty-state drop zone.
+- **ChatScreen:** Imports and renders `AttachmentsPanel` above "Start New Chat" button when `docJustGenerated && generatedDocId`. Added `generatedDocId` memo from last assistant message metadata.
+- **Files:** `server/src/db/schema.js`, `server/src/routes/attachments.js` (new), `server/src/index.js`, `server/src/routes/pdf.js`, `client/src/api/index.js`, `client/src/components/AttachmentsPanel.jsx` (new), `client/src/screens/ChatScreen.jsx`
+
 ### Task 6 — Document Grid Visual Refinement (commit `c234d01`)
 - **Mobile grid:** 2-column `1fr 1fr`, gap 8px, padding 0 16px. Tiles: `height: 48px`, `font-size: 13px`, centered, overflow ellipsis, no hover effect (touch-only active state)
 - **Active state:** `rgba(10,132,255,0.15)` bg, `#0A84FF` border, `scale(0.97)`
