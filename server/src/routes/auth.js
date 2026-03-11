@@ -11,7 +11,7 @@ const router = Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 function signToken(userId, email) {
-  return jwt.sign({ userId, email }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign({ userId, email }, process.env.JWT_SECRET, { expiresIn: '7d' });
 }
 
 function ensureProfile(db, userId) {

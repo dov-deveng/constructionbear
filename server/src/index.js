@@ -41,8 +41,11 @@ app.use(express.json({ limit: '10mb' }));
 // Rate limiting
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 const chatLimiter = rateLimit({ windowMs: 60 * 1000, max: 30 });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, skipSuccessfulRequests: true });
 app.use(limiter);
 app.use('/chat', chatLimiter);
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', authLimiter);
 
 // Static files
 app.use('/logos', express.static(path.join(process.cwd(), 'data/logos')));
