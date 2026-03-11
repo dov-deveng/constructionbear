@@ -326,6 +326,57 @@ Use this exact approach: acknowledge their message briefly in one sentence, then
 Do not answer off-topic questions, provide general advice, or discuss anything else until the required fields are collected or the user explicitly asks to cancel the document.`;
 }
 
+// ── Date auto-population (Task 11) ────────────────────────────────────────────
+
+function isoDate(daysFromNow = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+// Fields that should default to today
+const DATE_FIELDS_TODAY = new Set([
+  'date', 'period_to', 'week_ending', 'meeting_date', 'through_date',
+  'date_of_issuance', 'commencement_date', 'start_date',
+]);
+
+// Fields that should default to today + 14 days
+const DATE_FIELDS_PLUS14 = new Set([
+  'due_date', 'date_needed', 'response_due', 'completion_date',
+  'end_date', 'warranty_end_date',
+]);
+
+// Submittals get a tighter 2-day response window
+const SUBMITTAL_TYPES = new Set(['submittal']);
+
+function autoPopulateDates(docType, fields) {
+  const today = isoDate(0);
+  const plus2 = isoDate(2);
+  const plus14 = isoDate(14);
+  const isSubmittal = SUBMITTAL_TYPES.has(docType);
+  const result = { ...fields };
+
+  for (const key of Object.keys(result)) {
+    const val = result[key];
+    // Only fill empty/missing date fields
+    if (val !== null && val !== undefined && String(val).trim() !== '') continue;
+
+    if (DATE_FIELDS_TODAY.has(key)) {
+      result[key] = today;
+    } else if (DATE_FIELDS_PLUS14.has(key)) {
+      // Submittals use 2-day window for response deadlines
+      result[key] = isSubmittal ? plus2 : plus14;
+    }
+  }
+
+  // For submittals: if date_needed was provided as empty, always use +2
+  if (isSubmittal && !result.date_needed) {
+    result.date_needed = plus2;
+  }
+
+  return result;
+}
+
 // Post-generation validation: check all required fields are populated
 function validateGeneratedDoc(generatedDoc) {
   if (!generatedDoc?.isStructured) return generatedDoc;
@@ -351,7 +402,10 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
   const projects = db.prepare(`SELECT id, name, client_name, status FROM projects WHERE ${scopeCol} = ? ORDER BY created_at DESC LIMIT 10`).all(scopeId);
   const contacts = db.prepare(`SELECT id, name, company, role FROM contacts WHERE ${scopeCol} = ? ORDER BY name ASC LIMIT 20`).all(scopeId);
 
-  let systemPrompt = SYSTEM_PROMPT;
+  // Task 11: inject today's date so Bear can reference it in conversations and documents
+  const todayStr = isoDate(0);
+  const plus14Str = isoDate(14);
+  let systemPrompt = SYSTEM_PROMPT + `\n\nToday's date: ${todayStr}. Default due dates: 14 days from today (${plus14Str}) unless otherwise specified. Submittals default to 2-day response window.`;
 
   if (profile?.company_name) {
     systemPrompt += `\n\nUser's company: ${profile.company_name}`;
@@ -410,7 +464,9 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
     const fieldsMatch = docBody.match(/<fields>\s*([\s\S]*?)\s*<\/fields>/);
     if (fieldsMatch) {
       try {
-        const fields = JSON.parse(fieldsMatch[1]);
+        const rawFields = JSON.parse(fieldsMatch[1]);
+        // Task 11: auto-populate empty date fields
+        const fields = autoPopulateDates(docType, rawFields);
         // Load AIA template and merge with company profile defaults
         const template = getTemplate(docType, fields.subtype || fields.type || null);
         generatedDoc = {
