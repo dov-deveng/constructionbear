@@ -114,43 +114,43 @@ export default function Sidebar() {
 
       {/* Recent Chats */}
       <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin">
-        {sessions.length > 0 && (
-          <>
-            <p className="px-3 pt-3 pb-1 text-xs font-semibold text-bear-muted uppercase tracking-wide">
-              {search.trim() ? 'Results' : 'Recent'}
-            </p>
-            <div className="space-y-0.5">
-              {sessions.map(s => {
-                const short = DOC_TYPE_SHORT[s.document_type] || s.document_type.toUpperCase().slice(0, 4);
-                const isActive = activeSession?.session?.id === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => handleOpenSession(s.id)}
-                    className={clsx(
-                      'w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left transition-colors',
-                      isActive
-                        ? 'bg-bear-accent/15 text-bear-accent'
-                        : 'text-bear-muted hover:text-bear-text hover:bg-bear-border/50'
-                    )}
-                  >
-                    <span className={clsx('flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5', typeColor(s.document_type))}>
-                      {short}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-bear-text truncate leading-tight">{s.title}</p>
-                      <p className="text-[11px] text-bear-muted truncate leading-tight mt-0.5">
-                        {s.project_name ? `${s.project_name} · ` : ''}{timeAgo(s.updated_at)}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {sessions.length === 0 && search.trim() && (
-          <p className="px-3 pt-4 text-xs text-bear-muted">No results for "{search}"</p>
+        <p className="px-3 pt-3 pb-1 text-xs font-semibold text-bear-muted uppercase tracking-wide">
+          {search.trim() ? 'Results' : 'Recent'}
+        </p>
+
+        {sessions.length > 0 ? (
+          <div className="space-y-0.5">
+            {sessions.map(s => {
+              const short = DOC_TYPE_SHORT[s.document_type] || s.document_type.toUpperCase().slice(0, 4);
+              const isActive = activeSession?.session?.id === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => handleOpenSession(s.id)}
+                  className={clsx(
+                    'w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left transition-colors',
+                    isActive
+                      ? 'bg-bear-accent/15 text-bear-accent'
+                      : 'text-bear-muted hover:text-bear-text hover:bg-bear-border/50'
+                  )}
+                >
+                  <span className={clsx('flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5', typeColor(s.document_type))}>
+                    {short}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-bear-text truncate leading-tight">{s.title}</p>
+                    <p className="text-[11px] text-bear-muted truncate leading-tight mt-0.5">
+                      {s.project_name ? `${s.project_name} · ` : ''}{timeAgo(s.updated_at)}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="px-3 py-2 text-xs text-bear-muted">
+            {search.trim() ? `No results for "${search}"` : 'Document chats appear here after you generate one.'}
+          </p>
         )}
       </div>
 

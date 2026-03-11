@@ -703,21 +703,34 @@ Return ONLY valid JSON.`,
 }
 
 // Onboarding chat — collect company profile
-export async function onboardingChat(messages) {
-  const ONBOARDING_PROMPT = `You are Bear, the AI assistant for ConstructionBear.AI. A new user just signed up. Your job is to collect their company information in a friendly, conversational way — like you're having a quick chat, not filling out a form.
+// knownData: { companyName } — fields already known from company setup step
+export async function onboardingChat(messages, knownData = {}) {
+  const { companyName } = knownData;
+
+  // Build the list of fields still needed (skip company name if already known)
+  const fieldsToCollect = [];
+  if (!companyName) fieldsToCollect.push('1. Company name');
+  fieldsToCollect.push(
+    `${fieldsToCollect.length + 1}. Owner's full name`,
+    `${fieldsToCollect.length + 2}. Business email`,
+    `${fieldsToCollect.length + 3}. Phone number`,
+    `${fieldsToCollect.length + 4}. Business address (street, city, state, zip)`,
+    `${fieldsToCollect.length + 5}. Contractor license number (optional)`,
+  );
+
+  const knownSection = companyName
+    ? `\n\nALREADY KNOWN — do NOT ask for this:\n- Company name: "${companyName}" (pre-filled from account setup — include it in the final <profile> block)`
+    : '';
+
+  const ONBOARDING_PROMPT = `You are Bear, the AI assistant for ConstructionBear.AI. A new user just signed up. Your job is to collect their company information in a friendly, conversational way — like you're having a quick chat, not filling out a form.${knownSection}
 
 Collect these details (one at a time, naturally):
-1. Company name
-2. Owner's full name
-3. Business email
-4. Phone number
-5. Business address (street, city, state, zip)
-6. Contractor license number (optional)
+${fieldsToCollect.join('\n')}
 
 When you have all the information, return a JSON block like this:
 <profile>
 {
-  "company_name": "...",
+  "company_name": "${companyName || '...'}",
   "owner_name": "...",
   "email": "...",
   "phone": "...",

@@ -111,10 +111,21 @@ router.post('/onboarding', requireAuth, async (req, res) => {
   if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
 
   try {
-    const { message, extractedProfile } = await onboardingChat(messages);
+    // Load company name so Bear doesn't ask for it again
+    const db = getDb();
+    const user = db.prepare('SELECT company_id FROM users WHERE id = ?').get(req.userId);
+    let companyName = null;
+    if (user?.company_id) {
+      const company = db.prepare('SELECT name FROM companies WHERE id = ?').get(user.company_id);
+      companyName = company?.name || null;
+    }
+
+    const { message, extractedProfile } = await onboardingChat(messages, { companyName });
 
     if (extractedProfile) {
-      const db = getDb();
+      // Always use the company name from the companies table (not what Bear extracted)
+      if (companyName) extractedProfile.company_name = companyName;
+
       const fields = ['company_name', 'owner_name', 'email', 'phone', 'address', 'city', 'state', 'zip', 'license_number'];
       const updates = {};
       for (const f of fields) {
