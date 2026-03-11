@@ -45,6 +45,33 @@ router.post('/message', requireAuth, async (req, res) => {
   try {
     const { message: assistantMessage, generatedDoc } = await chat(req.userId, message, recentMessages, req.companyId);
 
+    // If structured doc generated, auto-save a draft to documents table
+    let savedDocId = null;
+    if (generatedDoc?.isStructured) {
+      savedDocId = uuidv4();
+      const content = generatedDoc.content;
+      const projectName = content.project_name || content.project || null;
+
+      // Auto-link project if exists in company
+      let projectId = null;
+      if (projectName && req.companyId) {
+        const proj = db.prepare('SELECT id FROM projects WHERE company_id = ? AND name = ? COLLATE NOCASE LIMIT 1')
+          .get(req.companyId, projectName);
+        if (proj) projectId = proj.id;
+      }
+
+      db.prepare(`
+        INSERT INTO documents (id, user_id, company_id, project_id, type, title, project_name, status, content_json, template_used)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)
+      `).run(
+        savedDocId, req.userId, req.companyId || null, projectId,
+        generatedDoc.type, generatedDoc.title, projectName,
+        JSON.stringify(content), generatedDoc.templateUsed || generatedDoc.type
+      );
+
+      generatedDoc.savedDocId = savedDocId;
+    }
+
     // Save assistant message
     const assistantMsgId = uuidv4();
     const metadata = generatedDoc ? JSON.stringify({ generatedDoc }) : null;

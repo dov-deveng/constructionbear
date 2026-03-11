@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getDb } from '../db/schema.js';
+import { getTemplate } from '../data/aia-templates.js';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -200,10 +201,26 @@ Rules you follow without exception:
 - Always acknowledge and confirm before executing — never jump straight into asking questions
 - Ask only ONE field at a time
 - Never generate a document with empty required fields — collect everything first
-- When generating, wrap the document in <document type="TYPE" title="TITLE"> ... </document> tags
-- Format all documents in clean, professional, industry-standard layout
 - If the conversation drifts more than 2 exchanges away from collecting a required field, redirect politely: "Before we continue — I still need [missing field] to complete your [document type]. Can we get that first?"
-- If user mentions a project name, client, GC, architect, or contact — acknowledge it and let them know you've noted it`;
+- If user mentions a project name, client, GC, architect, or contact — acknowledge it and let them know you've noted it
+- Never ask for information already provided in the company profile context above (company name, address, phone, email, license number)
+
+DOCUMENT GENERATION FORMAT (critical — follow exactly):
+When you have all required fields and are ready to generate the document, output:
+
+<document type="TYPE" title="TITLE">
+<fields>
+{"field_name": "value", "field_name_2": "value2", ...}
+</fields>
+</document>
+
+Where:
+- TYPE is the document type key (e.g. rfi, change_order, submittal, lien_waiver, pay_app, ccd, rfp, etc.)
+- TITLE is a descriptive title (e.g. "RFI-003 — Mechanical Conflict Level 3")
+- The <fields> block contains ALL collected field values as a valid JSON object
+- Field names must match the document type's field schema exactly
+- Do NOT write the full document text — only output the JSON field values
+- After the document tag, add a brief confirmation line like "I've prepared your RFI — ready to save, or need any changes?"`;
 
 const EXTRACT_PROMPT = `You are a data extraction assistant. Given a conversation message, extract any project or contact information mentioned.
 
@@ -284,11 +301,32 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
   let generatedDoc = null;
 
   if (docMatch) {
-    generatedDoc = {
-      type: docMatch[1],
-      title: docMatch[2],
-      content: docMatch[3].trim(),
-    };
+    const docType = docMatch[1];
+    const docTitle = docMatch[2];
+    const docBody = docMatch[3].trim();
+
+    // Try to parse structured <fields> JSON block
+    const fieldsMatch = docBody.match(/<fields>\s*([\s\S]*?)\s*<\/fields>/);
+    if (fieldsMatch) {
+      try {
+        const fields = JSON.parse(fieldsMatch[1]);
+        // Load AIA template and merge with company profile defaults
+        const template = getTemplate(docType, fields.subtype || fields.type || null);
+        generatedDoc = {
+          type: docType,
+          title: docTitle,
+          content: fields,
+          templateUsed: template ? (template.aia_form || docType) : docType,
+          isStructured: true,
+        };
+      } catch {
+        // Fallback to raw text if JSON parse fails
+        generatedDoc = { type: docType, title: docTitle, content: docBody, isStructured: false };
+      }
+    } else {
+      // Legacy raw text format fallback
+      generatedDoc = { type: docType, title: docTitle, content: docBody, isStructured: false };
+    }
   }
 
   // Auto-extract project/contact info from user message (non-blocking)

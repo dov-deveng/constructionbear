@@ -50,7 +50,19 @@ export default function ChatScreen() {
   async function saveDocument(docData) {
     try {
       if (!canCreateDoc()) { setShowSubModal(true); return; }
-      // Extract project_name from content if present
+
+      // Structured docs are auto-saved as drafts on generation — just confirm
+      if (docData.isStructured && docData.savedDocId) {
+        useChatStore.getState().addMessage({
+          id: `sys-${Date.now()}`,
+          role: 'assistant',
+          content: `Your ${docData.title} has been saved to your Documents library.`,
+          created_at: Math.floor(Date.now() / 1000),
+        });
+        return;
+      }
+
+      // Legacy raw-text fallback
       const project_name = docData.project_name ||
         (typeof docData.content === 'object' ? docData.content?.project_name : null) ||
         null;
@@ -58,15 +70,14 @@ export default function ChatScreen() {
         type: docData.type,
         title: docData.title,
         project_name,
-        content: { text: docData.content },
+        content: { text: typeof docData.content === 'string' ? docData.content : JSON.stringify(docData.content) },
         status: 'draft',
       });
       addDocument(doc);
-      // Send confirmation message
       useChatStore.getState().addMessage({
         id: `sys-${Date.now()}`,
         role: 'assistant',
-        content: `Document saved to your library. You can find it under Documents.`,
+        content: `Your ${docData.title} has been saved to your Documents library.`,
         created_at: Math.floor(Date.now() / 1000),
       });
     } catch (err) {
