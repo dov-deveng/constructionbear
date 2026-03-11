@@ -282,6 +282,39 @@ function initSchema(db) {
     // Column already exists, ignore
   }
 
+  // Chat sessions — one record per generated document, links to messages
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        company_id TEXT,
+        project_id TEXT,
+        document_id TEXT,
+        document_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        project_name TEXT,
+        created_at INTEGER DEFAULT (unixepoch()),
+        updated_at INTEGER DEFAULT (unixepoch()),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_company_id ON chat_sessions(company_id);
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated_at ON chat_sessions(updated_at);
+    `);
+  } catch {
+    // already exists
+  }
+
+  // Add session_id to chat_messages
+  try {
+    db.exec(`ALTER TABLE chat_messages ADD COLUMN session_id TEXT REFERENCES chat_sessions(id) ON DELETE SET NULL`);
+  } catch {
+    // column already exists
+  }
+
   // Promote ADMIN_EMAIL to admin if set
   if (process.env.ADMIN_EMAIL) {
     db.prepare(`UPDATE users SET is_admin = 1 WHERE email = ? COLLATE NOCASE`).run(process.env.ADMIN_EMAIL);

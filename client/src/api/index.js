@@ -61,6 +61,11 @@ export const api = {
   sendMessage: (message) => request('POST', '/chat/message', { message }),
   onboardingChat: (messages) => request('POST', '/chat/onboarding', { messages }),
   clearHistory: () => request('DELETE', '/chat/history'),
+  getSessions: (search) => {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+    return request('GET', `/chat/sessions${qs}`);
+  },
+  getSession: (id) => request('GET', `/chat/sessions/${id}`),
 
   // Documents
   getDocuments: (params = {}) => {

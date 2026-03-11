@@ -77,18 +77,21 @@ function getPlaceholder(messages) {
 export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [showSubModal, setShowSubModal] = useState(false);
-  const { messages, loading, initialized, loadMessages, sendMessage } = useChatStore();
+  const { messages, loading, initialized, loadMessages, sendMessage, activeSession, exitSession } = useChatStore();
   const { toggleSidebar } = useUIStore();
   const { addDocument } = useDocStore();
   const { canCreateDoc } = useAuthStore();
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
+
+  // When viewing a past session, show its messages instead
+  const displayMessages = activeSession ? activeSession.messages : messages;
   const placeholder = useMemo(() => getPlaceholder(messages), [messages]);
 
   useEffect(() => { if (!initialized) loadMessages(); }, []);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
-  useEffect(() => { if (!loading) inputRef.current?.focus(); }, [loading]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayMessages, loading]);
+  useEffect(() => { if (!loading && !activeSession) inputRef.current?.focus(); }, [loading, activeSession]);
 
   function autoResize() {
     const el = textareaRef.current;
@@ -159,7 +162,7 @@ export default function ChatScreen() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   }
 
-  const isEmpty = messages.length === 0 && !loading;
+  const isEmpty = displayMessages.length === 0 && !loading;
 
   return (
     <div className="h-full flex flex-col bg-bear-bg">
@@ -170,24 +173,44 @@ export default function ChatScreen() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <div className="flex items-center gap-2 flex-1">
-          <div className="w-8 h-8 bg-bear-accent rounded-lg flex items-center justify-center">
-            <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
+        {activeSession ? (
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-bear-text truncate">{activeSession.session.title}</p>
+              <p className="text-xs text-bear-muted truncate">
+                {activeSession.session.project_name ? `${activeSession.session.project_name} · ` : ''}Past session
+              </p>
+            </div>
+            <button
+              onClick={exitSession}
+              className="flex-shrink-0 flex items-center gap-1.5 text-xs text-bear-accent hover:text-bear-accent-hover font-medium px-3 py-1.5 rounded-lg bg-bear-accent/10 hover:bg-bear-accent/20 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              New Chat
+            </button>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-bear-text">Bear</p>
-            <p className="text-xs text-bear-muted">Construction Documents AI</p>
+        ) : (
+          <div className="flex items-center gap-2 flex-1">
+            <div className="w-8 h-8 bg-bear-accent rounded-lg flex items-center justify-center">
+              <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-bear-text">Bear</p>
+              <p className="text-xs text-bear-muted">Construction Documents AI</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin">
-        {isEmpty && <EmptyState />}
+        {isEmpty && !activeSession && <EmptyState />}
 
         <div className="space-y-4 max-w-2xl mx-auto">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} onSaveDoc={saveDocument} />
+          {displayMessages.map((msg) => (
+            <MessageBubble key={msg.id} message={msg} onSaveDoc={activeSession ? null : saveDocument} />
           ))}
 
           {loading && <TypingIndicator />}
@@ -196,29 +219,45 @@ export default function ChatScreen() {
       </div>
 
       {/* Input */}
-      <div className="safe-bottom bg-bear-bg border-t border-bear-border px-4 py-3 flex-shrink-0">
-        <div className="max-w-2xl mx-auto flex gap-2 items-end">
-          <textarea
-            ref={el => { textareaRef.current = el; inputRef.current = el; }}
-            value={input}
-            onChange={e => { setInput(e.target.value); autoResize(); }}
-            onKeyDown={handleKey}
-            disabled={loading}
-            rows={1}
-            className="flex-1 bg-bear-surface border border-bear-border rounded-2xl px-4 py-3 text-sm text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent resize-none transition-colors leading-relaxed"
-            placeholder={placeholder}
-          />
-          <button
-            onClick={send}
-            disabled={!input.trim() || loading}
-            className="w-10 h-10 bg-bear-accent rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all"
-          >
-            <svg className="w-4 h-4 text-white rotate-90" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
-          </button>
+      {activeSession ? (
+        <div className="safe-bottom bg-bear-bg border-t border-bear-border px-4 py-3 flex-shrink-0">
+          <div className="max-w-2xl mx-auto">
+            <button
+              onClick={exitSession}
+              className="w-full flex items-center justify-center gap-2 bg-bear-surface border border-bear-border hover:border-bear-accent rounded-2xl px-4 py-3 text-sm text-bear-muted hover:text-bear-accent transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Start a new chat
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="safe-bottom bg-bear-bg border-t border-bear-border px-4 py-3 flex-shrink-0">
+          <div className="max-w-2xl mx-auto flex gap-2 items-end">
+            <textarea
+              ref={el => { textareaRef.current = el; inputRef.current = el; }}
+              value={input}
+              onChange={e => { setInput(e.target.value); autoResize(); }}
+              onKeyDown={handleKey}
+              disabled={loading}
+              rows={1}
+              className="flex-1 bg-bear-surface border border-bear-border rounded-2xl px-4 py-3 text-sm text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent resize-none transition-colors leading-relaxed"
+              placeholder={placeholder}
+            />
+            <button
+              onClick={send}
+              disabled={!input.trim() || loading}
+              className="w-10 h-10 bg-bear-accent rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all"
+            >
+              <svg className="w-4 h-4 text-white rotate-90" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       {showSubModal && <SubscriptionModal onClose={() => setShowSubModal(false)} />}
     </div>
@@ -249,7 +288,7 @@ function MessageBubble({ message, onSaveDoc }) {
         )}
         {doc && (
           <div className="w-full max-w-sm">
-            <DocumentCard doc={doc} inline onSave={() => onSaveDoc(doc)} />
+            <DocumentCard doc={doc} inline onSave={onSaveDoc ? () => onSaveDoc(doc) : null} />
           </div>
         )}
       </div>

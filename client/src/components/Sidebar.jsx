@@ -1,6 +1,37 @@
-import React from 'react';
-import { useAuthStore, useUIStore } from '../store/index.js';
+import React, { useState, useEffect } from 'react';
+import { useAuthStore, useUIStore, useChatStore } from '../store/index.js';
 import clsx from 'clsx';
+
+const DOC_TYPE_SHORT = {
+  rfi: 'RFI', change_order: 'CO', submittal: 'SUB', lien_waiver: 'LW',
+  pay_app: 'PA', meeting_minutes: 'MM', notice_to_owner: 'NTO', subcontract: 'SC',
+  daily_report: 'DFR', punch_list: 'PL', invoice: 'INV', transmittal: 'TRN',
+  schedule_of_values: 'SOV', notice_to_proceed: 'NTP', substantial_completion: 'SCC',
+  warranty_letter: 'WL', substitution_request: 'SR', closeout_checklist: 'CCL',
+  certified_payroll: 'CP', ccd: 'CCD', rfp: 'RFP', change_order_log: 'COL',
+  submittal_log: 'SL', rfi_log: 'RL', coi: 'COI', visitor_waiver: 'VW',
+  notice_to_neighbors: 'NTN', parking_pass: 'PP',
+};
+
+// Stable color per doc type via simple hash
+const TYPE_COLORS = ['bg-blue-500/20 text-blue-400', 'bg-green-500/20 text-green-400',
+  'bg-yellow-500/20 text-yellow-400', 'bg-purple-500/20 text-purple-400',
+  'bg-pink-500/20 text-pink-400', 'bg-orange-500/20 text-orange-400'];
+
+function typeColor(docType) {
+  let h = 0;
+  for (let i = 0; i < docType.length; i++) h = (h * 31 + docType.charCodeAt(i)) & 0xff;
+  return TYPE_COLORS[h % TYPE_COLORS.length];
+}
+
+function timeAgo(unixTs) {
+  const secs = Math.floor(Date.now() / 1000) - unixTs;
+  if (secs < 60) return 'just now';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  if (secs < 604800) return `${Math.floor(secs / 86400)}d ago`;
+  return `${Math.floor(secs / 604800)}w ago`;
+}
 
 const PRIMARY_NAV = [
   { id: 'chat', label: 'Chat', icon: ChatIcon },
@@ -15,7 +46,21 @@ const BOTTOM_NAV = [
 export default function Sidebar() {
   const { user, profile, subscription, logout } = useAuthStore();
   const { activeView, setView } = useUIStore();
+  const { sessions, activeSession, loadSessions, openSession, exitSession } = useChatStore();
   const isAdmin = user?.is_admin;
+  const [search, setSearch] = useState('');
+
+  useEffect(() => { loadSessions(); }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => loadSessions(search || undefined), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  function handleOpenSession(id) {
+    setView('chat');
+    openSession(id);
+  }
 
   return (
     <div className="h-full bg-bear-surface border-r border-bear-border flex flex-col safe-top">
@@ -32,15 +77,31 @@ export default function Sidebar() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="px-3 pt-3 pb-1">
+        <div className="relative">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-bear-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search chats..."
+            className="w-full bg-bear-bg border border-bear-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent transition-colors"
+          />
+        </div>
+      </div>
+
       {/* Primary Nav */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5">
+      <nav className="px-2 pt-2 pb-1 space-y-0.5">
         {PRIMARY_NAV.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setView(id)}
+            onClick={() => { setView(id); if (id === 'chat' && activeSession) exitSession(); }}
             className={clsx(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
-              activeView === id
+              activeView === id && !activeSession
                 ? 'bg-bear-accent/15 text-bear-accent'
                 : 'text-bear-muted hover:text-bear-text hover:bg-bear-border/50'
             )}
@@ -50,6 +111,48 @@ export default function Sidebar() {
           </button>
         ))}
       </nav>
+
+      {/* Recent Chats */}
+      <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin">
+        {sessions.length > 0 && (
+          <>
+            <p className="px-3 pt-3 pb-1 text-xs font-semibold text-bear-muted uppercase tracking-wide">
+              {search.trim() ? 'Results' : 'Recent'}
+            </p>
+            <div className="space-y-0.5">
+              {sessions.map(s => {
+                const short = DOC_TYPE_SHORT[s.document_type] || s.document_type.toUpperCase().slice(0, 4);
+                const isActive = activeSession?.session?.id === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => handleOpenSession(s.id)}
+                    className={clsx(
+                      'w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left transition-colors',
+                      isActive
+                        ? 'bg-bear-accent/15 text-bear-accent'
+                        : 'text-bear-muted hover:text-bear-text hover:bg-bear-border/50'
+                    )}
+                  >
+                    <span className={clsx('flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5', typeColor(s.document_type))}>
+                      {short}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-bear-text truncate leading-tight">{s.title}</p>
+                      <p className="text-[11px] text-bear-muted truncate leading-tight mt-0.5">
+                        {s.project_name ? `${s.project_name} · ` : ''}{timeAgo(s.updated_at)}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+        {sessions.length === 0 && search.trim() && (
+          <p className="px-3 pt-4 text-xs text-bear-muted">No results for "{search}"</p>
+        )}
+      </div>
 
       {/* Bottom Nav */}
       <div className="px-2 pb-2 space-y-0.5 border-t border-bear-border pt-2">

@@ -70,6 +70,20 @@ router.post('/message', requireAuth, async (req, res) => {
       );
 
       generatedDoc.savedDocId = savedDocId;
+
+      // Create a chat session linked to this document
+      const sessionId = uuidv4();
+      db.prepare(`
+        INSERT INTO chat_sessions (id, user_id, company_id, project_id, document_id, document_type, title, project_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(sessionId, req.userId, req.companyId || null, projectId, savedDocId,
+             generatedDoc.type, generatedDoc.title, projectName);
+
+      // Tag all untagged messages for this user as belonging to this session
+      db.prepare(`UPDATE chat_messages SET session_id = ? WHERE user_id = ? AND session_id IS NULL`)
+        .run(sessionId, req.userId);
+
+      generatedDoc.sessionId = sessionId;
     }
 
     // Save assistant message
@@ -118,6 +132,49 @@ router.post('/onboarding', requireAuth, async (req, res) => {
     console.error('Onboarding chat error:', err);
     res.status(500).json({ error: 'Failed to process. Please try again.' });
   }
+});
+
+// GET /chat/sessions — recent 10 sessions, or search all
+router.get('/sessions', requireAuth, (req, res) => {
+  const db = getDb();
+  const { search } = req.query;
+  const scopeId = req.companyId || req.userId;
+  const scopeCol = req.companyId ? 'company_id' : 'user_id';
+
+  let sessions;
+  if (search?.trim()) {
+    const q = `%${search.trim()}%`;
+    sessions = db.prepare(`
+      SELECT * FROM chat_sessions
+      WHERE ${scopeCol} = ? AND (title LIKE ? OR project_name LIKE ? OR document_type LIKE ?)
+      ORDER BY updated_at DESC LIMIT 50
+    `).all(scopeId, q, q, q);
+  } else {
+    sessions = db.prepare(`
+      SELECT * FROM chat_sessions WHERE ${scopeCol} = ?
+      ORDER BY updated_at DESC LIMIT 10
+    `).all(scopeId);
+  }
+
+  res.json({ sessions });
+});
+
+// GET /chat/sessions/:id — single session with its messages
+router.get('/sessions/:id', requireAuth, (req, res) => {
+  const db = getDb();
+  const session = db.prepare('SELECT * FROM chat_sessions WHERE id = ? AND user_id = ?')
+    .get(req.params.id, req.userId);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const messages = db.prepare(`
+    SELECT id, role, content, metadata, created_at FROM chat_messages
+    WHERE session_id = ? ORDER BY created_at ASC
+  `).all(req.params.id);
+
+  res.json({
+    session,
+    messages: messages.map(m => ({ ...m, metadata: m.metadata ? JSON.parse(m.metadata) : null })),
+  });
 });
 
 // DELETE /chat/history — clear chat history

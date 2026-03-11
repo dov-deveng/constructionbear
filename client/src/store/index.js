@@ -50,6 +50,8 @@ export const useChatStore = create((set, get) => ({
   messages: [],
   loading: false,
   initialized: false,
+  sessions: [],
+  activeSession: null, // { session, messages } when viewing a past session
 
   loadMessages: async () => {
     try {
@@ -81,6 +83,10 @@ export const useChatStore = create((set, get) => ({
         created_at: Math.floor(Date.now() / 1000),
       };
       set(s => ({ messages: [...s.messages, assistantMsg], loading: false }));
+      // Refresh session list when a doc is generated
+      if (res.generatedDoc?.sessionId) {
+        get().loadSessions();
+      }
       return res;
     } catch (err) {
       set(s => ({
@@ -92,6 +98,22 @@ export const useChatStore = create((set, get) => ({
   },
 
   clearMessages: () => set({ messages: [] }),
+
+  loadSessions: async (search) => {
+    try {
+      const { sessions } = await api.getSessions(search);
+      set({ sessions });
+    } catch {}
+  },
+
+  openSession: async (id) => {
+    try {
+      const { session, messages } = await api.getSession(id);
+      set({ activeSession: { session, messages } });
+    } catch {}
+  },
+
+  exitSession: () => set({ activeSession: null }),
 }));
 
 export const useDocStore = create((set, get) => ({
