@@ -341,6 +341,21 @@ function initSchema(db) {
     console.error('[schema] backfill error:', err.message);
   }
 
+  // Per-seat billing columns on companies
+  const companyBillingMigrations = [
+    `ALTER TABLE companies ADD COLUMN seats INTEGER DEFAULT 1`,
+    `ALTER TABLE companies ADD COLUMN plan TEXT DEFAULT 'free'`,
+    `ALTER TABLE companies ADD COLUMN stripe_customer_id TEXT`,
+    `ALTER TABLE companies ADD COLUMN stripe_subscription_id TEXT`,
+  ];
+  for (const sql of companyBillingMigrations) {
+    try { db.exec(sql); } catch { /* already exists */ }
+  }
+  // Backfill seats = actual member count for existing companies
+  try {
+    db.exec(`UPDATE companies SET seats = (SELECT COUNT(*) FROM users WHERE users.company_id = companies.id) WHERE seats IS NULL OR seats = 0`);
+  } catch { /* ignore */ }
+
   // Promote ADMIN_EMAIL to admin if set
   if (process.env.ADMIN_EMAIL) {
     db.prepare(`UPDATE users SET is_admin = 1 WHERE email = ? COLLATE NOCASE`).run(process.env.ADMIN_EMAIL);

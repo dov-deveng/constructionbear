@@ -156,8 +156,12 @@ export const api = {
   adminGrantAdmin: (id) => request('POST', `/admin/users/${id}/grant-admin`),
   adminRevokeAdmin: (id) => request('POST', `/admin/users/${id}/revoke-admin`),
 
+  // Company members
+  getMembers: () => request('GET', '/auth/company/members'),
+  removeMember: (userId) => request('DELETE', `/auth/company/members/${userId}`),
+
   // Stripe
   getSubStatus: () => request('GET', '/stripe/status'),
-  createCheckout: () => request('POST', '/stripe/create-checkout'),
+  createCheckout: (plan = 'pro') => request('POST', '/stripe/create-checkout', { plan }),
   createPortal: () => request('POST', '/stripe/create-portal'),
 };

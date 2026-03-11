@@ -7,14 +7,32 @@ export default function SettingsScreen() {
   const { toggleSidebar, setView } = useUIStore();
   const [codeCopied, setCodeCopied] = useState(false);
   const [company, setLocalCompany] = useState(storeCompany);
+  const [billing, setBilling] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [removingId, setRemovingId] = useState(null);
+  const [confirmRemove, setConfirmRemove] = useState(null);
 
-  // Always fetch fresh company data when Settings opens
+  const isOwner = company?.owner_id === user?.id;
+
   useEffect(() => {
-    api.getCompany().then(data => {
-      setLocalCompany(data);
-      setCompany(data);
-    }).catch(() => {});
+    api.getCompany().then(data => { setLocalCompany(data); setCompany(data); }).catch(() => {});
+    api.getSubStatus().then(setBilling).catch(() => {});
+    api.getMembers().then(r => setMembers(r.members || [])).catch(() => {});
   }, []);
+
+  async function handleRemoveMember(memberId) {
+    setRemovingId(memberId);
+    try {
+      await api.removeMember(memberId);
+      setMembers(m => m.filter(u => u.id !== memberId));
+      api.getSubStatus().then(setBilling).catch(() => {});
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setRemovingId(null);
+      setConfirmRemove(null);
+    }
+  }
 
   function copyCode() {
     if (!company?.code) return;
@@ -25,20 +43,7 @@ export default function SettingsScreen() {
   }
 
   const [portalLoading, setPortalLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-
-  async function handleSubscribe() {
-    setCheckoutLoading(true);
-    try {
-      const res = await api.createCheckout();
-      if (res.url) window.location.href = res.url;
-      else alert('Stripe not configured yet. Add your Stripe keys to go live.');
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setCheckoutLoading(false);
-    }
-  }
+  const [checkoutLoading, setCheckoutLoading] = useState(null); // 'pro' | 'business' | null
 
   async function handleManage() {
     setPortalLoading(true);
@@ -51,11 +56,6 @@ export default function SettingsScreen() {
       setPortalLoading(false);
     }
   }
-
-  const isActive = subscription?.status === 'active';
-  const periodEnd = subscription?.current_period_end
-    ? new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : null;
 
   return (
     <div className="h-full flex flex-col bg-bear-bg">
@@ -168,49 +168,89 @@ export default function SettingsScreen() {
             </div>
           </div>
 
-          {/* Subscription */}
-          <div className="card p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-bear-text">Subscription</h2>
+          {/* Billing */}
+          <div className="card p-4 space-y-4">
+            <h2 className="text-sm font-semibold text-bear-text">Billing</h2>
 
-            <div className="flex items-center justify-between">
+            {/* Plan summary */}
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-bear-text">
-                  {isActive ? 'Pro Plan' : 'Free Plan'}
+                <p className="text-sm font-semibold text-bear-text capitalize">
+                  {billing?.plan === 'pro' ? 'Pro Plan' : billing?.plan === 'business' ? 'Business Plan' : 'Free Plan'}
                 </p>
                 <p className="text-xs text-bear-muted mt-0.5">
-                  {isActive
-                    ? `Renews ${periodEnd}`
-                    : `${subscription?.doc_count || 0}/1 free document used`}
+                  {billing?.plan === 'free'
+                    ? `${billing?.doc_count || 0}/1 free document used`
+                    : `${billing?.seats || 1} seat${(billing?.seats || 1) !== 1 ? 's' : ''} · $${billing?.price_per_seat?.toFixed(2)}/seat/mo`}
                 </p>
+                {billing?.plan !== 'free' && billing?.total_monthly > 0 && (
+                  <p className="text-xs font-semibold text-bear-accent mt-1">${billing.total_monthly.toFixed(2)}/month total</p>
+                )}
               </div>
-              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-bear-border text-bear-muted'}`}>
-                {isActive ? 'Active' : 'Free'}
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full shrink-0 ${
+                billing?.plan === 'pro' || billing?.plan === 'business'
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : 'bg-bear-border text-bear-muted'
+              }`}>
+                {billing?.plan === 'pro' ? 'Pro' : billing?.plan === 'business' ? 'Business' : 'Free'}
               </span>
             </div>
 
-            {!isActive ? (
-              <div className="bg-bear-accent/10 border border-bear-accent/20 rounded-xl p-3">
-                <p className="text-sm font-semibold text-bear-text mb-1">Upgrade to Pro</p>
-                <p className="text-xs text-bear-muted mb-3">Unlimited documents, all types, priority AI. $19.99/month, cancel anytime.</p>
+            {/* Upgrade options (owner only, free plan) */}
+            {isOwner && billing?.plan === 'free' && (
+              <div className="space-y-2">
                 <button
-                  onClick={handleSubscribe}
-                  disabled={checkoutLoading}
+                  onClick={() => { setCheckoutLoading('pro'); api.createCheckout('pro').then(r => r.url && (window.location.href = r.url)).catch(e => alert(e.message)).finally(() => setCheckoutLoading(null)); }}
+                  disabled={!!checkoutLoading}
                   className="btn-primary text-sm py-2.5 w-full flex items-center justify-center gap-2"
                 >
-                  {checkoutLoading ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : 'Subscribe — $19.99/mo'}
+                  {checkoutLoading === 'pro' ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Upgrade to Pro — $19.99/seat/mo'}
+                </button>
+                <button
+                  onClick={() => { setCheckoutLoading('business'); api.createCheckout('business').then(r => r.url && (window.location.href = r.url)).catch(e => alert(e.message)).finally(() => setCheckoutLoading(null)); }}
+                  disabled={!!checkoutLoading}
+                  className="btn-secondary text-sm py-2 w-full flex items-center justify-center gap-2"
+                >
+                  {checkoutLoading === 'business' ? <span className="w-4 h-4 border-2 border-bear-muted/30 border-t-bear-muted rounded-full animate-spin" /> : 'Business Plan — $49.99/seat/mo (10+ seats)'}
                 </button>
               </div>
-            ) : (
-              <button
-                onClick={handleManage}
-                disabled={portalLoading}
-                className="btn-secondary text-sm py-2.5 w-full"
-              >
+            )}
+
+            {/* Manage subscription (owner only, paid plan) */}
+            {isOwner && billing?.plan !== 'free' && (
+              <button onClick={handleManage} disabled={portalLoading} className="btn-secondary text-sm py-2.5 w-full">
                 {portalLoading ? 'Loading...' : 'Manage Subscription'}
               </button>
             )}
+
+            {/* Team members table */}
+            <div className="border-t border-bear-border pt-3">
+              <p className="text-xs font-semibold text-bear-muted uppercase tracking-wide mb-2">
+                Team Members ({members.length} seat{members.length !== 1 ? 's' : ''})
+              </p>
+              <div className="space-y-2">
+                {members.map(m => (
+                  <div key={m.id} className="flex items-center justify-between py-1.5">
+                    <div>
+                      <p className="text-sm text-bear-text">{m.owner_name || m.email}</p>
+                      <p className="text-xs text-bear-muted">{m.email}{m.is_owner ? ' · Owner' : ''}</p>
+                    </div>
+                    {isOwner && !m.is_owner && (
+                      confirmRemove?.id === m.id ? (
+                        <div className="flex gap-2">
+                          <button onClick={() => handleRemoveMember(m.id)} disabled={removingId === m.id} className="text-xs text-red-400 font-semibold hover:underline">
+                            {removingId === m.id ? 'Removing…' : 'Confirm'}
+                          </button>
+                          <button onClick={() => setConfirmRemove(null)} className="text-xs text-bear-muted hover:underline">Cancel</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmRemove({ id: m.id, email: m.email })} className="text-xs text-red-400/60 hover:text-red-400 transition-colors">Remove</button>
+                      )
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Account Actions */}
