@@ -252,6 +252,68 @@ Return a JSON object with this structure (omit fields not mentioned, return null
 
 Only extract clearly stated information. Do not infer or guess. Return null for "project" if no project info found. Return empty array for "contacts" if no contacts found. Return ONLY valid JSON.`;
 
+// ── Context realignment: detect in-progress collection session ─────────────────
+// Scans recent conversation history to find if Bear has started collecting fields
+// for a specific document type but hasn't completed it yet.
+// Returns { type, label, required, exchangesSince } or null.
+
+const COLLECTION_TRIGGERS = [
+  "i'll prepare", "i'll put together", "let me prepare", "let me put together",
+  "put together a", "prepare a", "prepare your", "preparing a", "preparing your",
+  "working on your", "to complete your", "need a few more", "couple more details",
+  "quick question", "one more thing", "just need", "a few questions",
+];
+
+function detectCollectionSession(conversationHistory) {
+  if (!conversationHistory || conversationHistory.length < 2) return null;
+
+  const recent = conversationHistory.slice(-12);
+
+  // If the last assistant message already generated a document, no active session
+  for (let i = recent.length - 1; i >= 0; i--) {
+    if (recent[i].role === 'assistant' && recent[i].content.includes('<document type=')) {
+      return null;
+    }
+  }
+
+  // Scan backwards through assistant messages for a collection session start
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const msg = recent[i];
+    if (msg.role !== 'assistant') continue;
+
+    const content = msg.content.toLowerCase();
+    const hasTrigger = COLLECTION_TRIGGERS.some(t => content.includes(t));
+    if (!hasTrigger) continue;
+
+    // Check which doc type this message mentions
+    for (const [type, schema] of Object.entries(DOC_SCHEMAS)) {
+      const label = schema.label.toLowerCase();
+      const typeWords = type.replace(/_/g, ' ');
+      if (content.includes(label) || content.includes(typeWords)) {
+        // Count full exchanges (user+assistant pairs) since this point
+        const messagesAfter = recent.length - 1 - i;
+        const exchangesSince = Math.floor(messagesAfter / 2);
+        return { type, label: schema.label, required: schema.required, exchangesSince };
+      }
+    }
+  }
+
+  return null;
+}
+
+// Build a realignment injection to append to the system prompt when drift detected
+function buildRealignmentInjection(session) {
+  if (!session || session.exchangesSince < 2) return '';
+  return `
+
+REALIGNMENT REQUIRED — ACTIVE COLLECTION SESSION:
+You are currently collecting information for a ${session.label}. This session has been active for ${session.exchangesSince} exchanges. If the last user message did not provide one of the required fields (${session.required.join(', ')}), you MUST redirect the conversation back before responding to anything else.
+
+Use this exact approach: acknowledge their message briefly in one sentence, then immediately redirect: "Before we get to that — I still need [specific missing field] to complete your ${session.label}. Can you give me that first?"
+
+Do not answer off-topic questions, provide general advice, or discuss anything else until the required fields are collected or the user explicitly asks to cancel the document.`;
+}
+
 export async function chat(userId, userMessage, conversationHistory = [], companyId = null) {
   const db = getDb();
 
@@ -282,6 +344,13 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
 
   if (memory?.summary) {
     systemPrompt += `\n\nContext from previous conversations:\n${memory.summary}`;
+  }
+
+  // Context realignment — detect drift from active collection session
+  const collectionSession = detectCollectionSession(conversationHistory);
+  const realignmentInjection = buildRealignmentInjection(collectionSession);
+  if (realignmentInjection) {
+    systemPrompt += realignmentInjection;
   }
 
   // Build messages array
