@@ -5,6 +5,7 @@ import DocumentCard from '../components/DocumentCard.jsx';
 import SubscriptionModal from '../components/SubscriptionModal.jsx';
 import ChatFileViewer from '../components/ChatFileViewer.jsx';
 import AttachmentsPanel from '../components/AttachmentsPanel.jsx';
+import ImageUploadSheet from '../components/ImageUploadSheet.jsx';
 import clsx from 'clsx';
 
 // ── Context-aware placeholder rules (Task 12) ─────────────────────────────────
@@ -87,8 +88,8 @@ export default function ChatScreen() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
-  const fileInputRef = useRef(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [showUploadSheet, setShowUploadSheet] = useState(false);
 
   // When viewing a past session, show its messages instead
   const displayMessages = activeSession ? activeSession.messages : messages;
@@ -181,25 +182,29 @@ export default function ChatScreen() {
     }
   }
 
-  async function handleFileSelect(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
+  async function handleSheetSend(files, description) {
+    setShowUploadSheet(false);
     setUploadLoading(true);
     try {
-      const result = await api.chatUpload(file);
-      // Store as pending attachment so it's passed with future messages
-      setPendingAttachment({ url: result.url, filename: result.filename, mimetype: result.mimetype });
-      // Add inline viewer as a local user message
-      useChatStore.getState().addMessage({
-        id: `upload-${Date.now()}`,
-        role: 'user',
-        content: '',
-        metadata: { uploadedFile: result },
-        created_at: Math.floor(Date.now() / 1000),
-      });
-      // Auto-send acknowledgement to Bear so it knows about the upload
-      await sendMessage(`I've uploaded "${result.filename}" — please use it as the base document.`);
+      if (files.length > 0) {
+        // Upload the first file as the primary attachment for Bear to analyze
+        const result = await api.chatUpload(files[0]);
+        setPendingAttachment({ url: result.url, filename: result.filename, mimetype: result.mimetype });
+        useChatStore.getState().addMessage({
+          id: `upload-${Date.now()}`,
+          role: 'user',
+          content: description || '',
+          metadata: { uploadedFile: result },
+          created_at: Math.floor(Date.now() / 1000),
+        });
+        const msg = description
+          ? `${description}\n\nI've attached "${result.filename}" — please use it as the base document.`
+          : `I've uploaded "${result.filename}" — please use it as the base document.`;
+        await sendMessage(msg);
+      } else if (description) {
+        setInput(description);
+        await send(description);
+      }
     } catch {
       useChatStore.getState().addMessage({
         id: `err-${Date.now()}`,
@@ -311,19 +316,11 @@ export default function ChatScreen() {
             </div>
           )}
           <div className="max-w-2xl mx-auto flex gap-2 items-end">
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,image/*"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            {/* Paperclip upload button */}
+            {/* Paperclip upload button — opens bottom sheet */}
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setShowUploadSheet(true)}
               disabled={loading || uploadLoading}
-              title="Attach a file"
+              title="Attach photos or files"
               className="w-11 h-11 flex items-center justify-center rounded-xl text-bear-muted hover:text-bear-text hover:bg-bear-surface transition-colors flex-shrink-0 disabled:opacity-40"
             >
               {uploadLoading ? (
@@ -363,6 +360,13 @@ export default function ChatScreen() {
           dismissable={false}
           plan="Free"
           onClose={() => setShowSubModal(false)}
+        />
+      )}
+
+      {showUploadSheet && (
+        <ImageUploadSheet
+          onSend={handleSheetSend}
+          onClose={() => setShowUploadSheet(false)}
         />
       )}
     </div>
