@@ -341,6 +341,29 @@ function initSchema(db) {
     console.error('[schema] backfill error:', err.message);
   }
 
+  // project_contacts junction table — contact can have different roles on different projects
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS project_contacts (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        contact_id TEXT NOT NULL,
+        company_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        created_at INTEGER DEFAULT (unixepoch()),
+        UNIQUE(project_id, contact_id),
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_project_contacts_project ON project_contacts(project_id);
+      CREATE INDEX IF NOT EXISTS idx_project_contacts_contact ON project_contacts(contact_id);
+    `);
+  } catch { /* already exists */ }
+
+  // Soft delete columns
+  try { db.exec(`ALTER TABLE contacts ADD COLUMN deleted_at INTEGER`); } catch {}
+  try { db.exec(`ALTER TABLE projects ADD COLUMN deleted_at INTEGER`); } catch {}
+
   // Per-seat billing columns on companies
   const companyBillingMigrations = [
     `ALTER TABLE companies ADD COLUMN seats INTEGER DEFAULT 1`,

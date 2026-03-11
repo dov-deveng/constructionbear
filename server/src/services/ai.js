@@ -378,6 +378,42 @@ function autoPopulateDates(docType, fields) {
   return result;
 }
 
+// ── Project contact auto-fill (Task 2) ────────────────────────────────────────
+// Maps contact roles on the selected project to known document fields.
+const ROLE_TO_DOC_FIELDS = {
+  'Architect':          ['architect', 'architect_name', 'architect_contact'],
+  'General Contractor': ['gc_name', 'gc_contact', 'general_contractor', 'contractor'],
+  'Owner':              ['owner', 'owner_name', 'client_name'],
+  'Engineer':           ['engineer', 'engineer_name'],
+  'Inspector':          ['inspector', 'inspector_name'],
+  'Subcontractor':      ['subcontractor', 'subcontractor_name'],
+  'Developer':          ['developer', 'developer_name'],
+  'Property Manager':   ['property_manager'],
+  'Supplier':           ['supplier', 'supplier_name'],
+};
+
+function autoPopulateFromProjectContacts(fields, projectContacts) {
+  if (!projectContacts?.length) return fields;
+  const result = { ...fields };
+  for (const contact of projectContacts) {
+    const docFields = ROLE_TO_DOC_FIELDS[contact.project_role];
+    if (!docFields) continue;
+    for (const docField of docFields) {
+      if (docField in result) {
+        const existing = result[docField];
+        if (existing === null || existing === undefined || (typeof existing === 'string' && !existing.trim())) {
+          result[docField] = contact.name;
+          // Also fill email variant if present
+          if (contact.email && `${docField}_email` in result && !result[`${docField}_email`]) {
+            result[`${docField}_email`] = contact.email;
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+
 // ── Profile auto-fill (Task 13) ───────────────────────────────────────────────
 // Maps known profile data into empty document fields so Bear never has to ask.
 
@@ -443,8 +479,8 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
   const profile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(userId);
   const scopeId = companyId || userId;
   const scopeCol = companyId ? 'company_id' : 'user_id';
-  const projects = db.prepare(`SELECT id, name, client_name, status FROM projects WHERE ${scopeCol} = ? ORDER BY created_at DESC LIMIT 10`).all(scopeId);
-  const contacts = db.prepare(`SELECT id, name, company, role FROM contacts WHERE ${scopeCol} = ? ORDER BY name ASC LIMIT 20`).all(scopeId);
+  const projects = db.prepare(`SELECT id, name, client_name, status FROM projects WHERE ${scopeCol} = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 10`).all(scopeId);
+  const contacts = db.prepare(`SELECT id, name, company, role FROM contacts WHERE ${scopeCol} = ? AND deleted_at IS NULL ORDER BY name ASC LIMIT 20`).all(scopeId);
 
   // Task 11: inject today's date so Bear can reference it in conversations and documents
   const todayStr = isoDate(0);
@@ -520,7 +556,22 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
         // Task 11: auto-populate empty date fields
         // Task 13: auto-populate empty profile fields (company name, owner, address, license)
         const datedFields = autoPopulateDates(docType, rawFields);
-        const fields = autoPopulateFromProfile(docType, datedFields, profile);
+        const profileFilled = autoPopulateFromProfile(docType, datedFields, profile);
+        // Task 2: auto-populate contact fields from project_contacts junction (role-based)
+        const projectName = rawFields.project_name || rawFields.project || null;
+        let projectContacts = [];
+        if (projectName && companyId) {
+          const proj = db.prepare('SELECT id FROM projects WHERE company_id = ? AND name = ? COLLATE NOCASE AND deleted_at IS NULL LIMIT 1').get(companyId, projectName);
+          if (proj) {
+            projectContacts = db.prepare(`
+              SELECT c.name, c.email, pc.project_role
+              FROM contacts c
+              INNER JOIN project_contacts pc ON pc.contact_id = c.id AND pc.project_id = ?
+              WHERE c.deleted_at IS NULL
+            `).all(proj.id);
+          }
+        }
+        const fields = autoPopulateFromProjectContacts(profileFilled, projectContacts);
         // Load AIA template and merge with company profile defaults
         const template = getTemplate(docType, fields.subtype || fields.type || null);
         generatedDoc = {
