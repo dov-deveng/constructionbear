@@ -1,6 +1,81 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/index.js';
 import ComposeButton from '../components/ComposeButton.jsx';
+
+// ── CSV helpers ────────────────────────────────────────────────────────────────
+
+// Minimal RFC-4180 CSV parser — handles quoted fields with embedded commas/newlines
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (inQuote) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"') { inQuote = false; }
+      else { field += ch; }
+    } else {
+      if (ch === '"') { inQuote = true; }
+      else if (ch === ',') { row.push(field.trim()); field = ''; }
+      else if (ch === '\n' || (ch === '\r' && next === '\n')) {
+        if (ch === '\r') i++;
+        row.push(field.trim()); field = '';
+        if (row.some(c => c !== '')) rows.push(row);
+        row = [];
+      } else { field += ch; }
+    }
+  }
+  row.push(field.trim());
+  if (row.some(c => c !== '')) rows.push(row);
+  return rows;
+}
+
+// Map raw header strings → project field names
+const HEADER_MAP = {
+  name: ['name', 'project name', 'project', 'job name', 'job'],
+  address: ['address', 'project address', 'site address', 'job address', 'street'],
+  city: ['city'],
+  state: ['state'],
+  zip: ['zip', 'zip code', 'postal'],
+  client_name: ['client', 'client name', 'owner', 'owner name'],
+  client_contact: ['client contact', 'client contact name'],
+  client_email: ['client email'],
+  client_phone: ['client phone'],
+  gc_name: ['gc', 'gc name', 'general contractor'],
+  gc_email: ['gc email'],
+  architect_name: ['architect', 'architect name'],
+  contract_value: ['contract value', 'contract amount', 'value', 'contract'],
+  start_date: ['start date', 'start', 'commencement', 'start_date'],
+  end_date: ['end date', 'end', 'completion date', 'substantial completion', 'end_date'],
+  status: ['status'],
+  notes: ['notes', 'description', 'comments'],
+};
+
+function mapHeaders(rawHeaders) {
+  return rawHeaders.map(h => {
+    const lower = h.toLowerCase().trim();
+    for (const [field, aliases] of Object.entries(HEADER_MAP)) {
+      if (aliases.includes(lower)) return field;
+    }
+    return null; // unrecognized
+  });
+}
+
+function csvRowToProject(headers, row) {
+  const obj = {};
+  headers.forEach((field, i) => {
+    if (field && row[i]) obj[field] = row[i];
+  });
+  // Default start_date to today if missing (server requires it)
+  if (!obj.start_date) obj.start_date = new Date().toISOString().split('T')[0];
+  return obj;
+}
+
+const CSV_TEMPLATE = [
+  'name,address,city,state,client_name,client_email,gc_name,contract_value,start_date,end_date,status,notes',
+  '123 Main Street Renovation,123 Main St,Miami,FL,Smith Family Trust,owner@email.com,Sunrise GC,250000,2026-01-15,2026-09-30,active,Kitchen and bath remodel',
+  'Oceanfront Buildout,456 Ocean Dr,Miami Beach,FL,Ocean Properties LLC,ops@oceanprop.com,,500000,2026-03-01,,active,',
+].join('\n');
 
 export default function ProjectsScreen() {
   const [projects, setProjects] = useState([]);
@@ -15,6 +90,8 @@ export default function ProjectsScreen() {
   const [contactForm, setContactForm] = useState({});
   const [savingContact, setSavingContact] = useState(false);
   const [confirmId, setConfirmId] = useState(null);
+  const [csvImport, setCsvImport] = useState(null); // { rows: [{...}], importing, done, errors }
+  const csvInputRef = useRef(null);
 
   useEffect(() => { loadProjects(); }, []);
 
@@ -80,6 +157,56 @@ export default function ProjectsScreen() {
   function openNew() {
     setForm({});
     setShowForm(true);
+  }
+
+  function handleCsvFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const rows = parseCsv(ev.target.result);
+        if (rows.length < 2) { setError('CSV must have a header row and at least one data row.'); return; }
+        const mappedHeaders = mapHeaders(rows[0]);
+        const nameIdx = mappedHeaders.indexOf('name');
+        if (nameIdx === -1) { setError('CSV must have a "name" or "project name" column.'); return; }
+        const projects = rows.slice(1).map(r => csvRowToProject(mappedHeaders, r)).filter(p => p.name);
+        if (projects.length === 0) { setError('No valid project rows found in CSV.'); return; }
+        setCsvImport({ rows: projects, importing: false, done: 0, errors: [] });
+      } catch {
+        setError('Failed to parse CSV. Please check the file format.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleCsvImport() {
+    if (!csvImport) return;
+    setCsvImport(c => ({ ...c, importing: true }));
+    let done = 0;
+    const errors = [];
+    for (const row of csvImport.rows) {
+      try {
+        await api.createProject(row);
+        done++;
+        setCsvImport(c => ({ ...c, done }));
+      } catch (e) {
+        errors.push(`"${row.name}": ${e.message || 'failed'}`);
+      }
+    }
+    setCsvImport(c => ({ ...c, importing: false, errors, done }));
+    if (done > 0) await loadProjects();
+    if (errors.length === 0) setCsvImport(null);
+  }
+
+  function downloadTemplate() {
+    const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'projects_template.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   function openContactForm(projectId) {
@@ -194,6 +321,15 @@ export default function ProjectsScreen() {
       <div className="px-4 py-3 border-b border-bear-border bg-bear-surface">
         <div className="flex items-center gap-2 mb-3">
           <h1 className="text-lg font-bold text-bear-text flex-1">Projects</h1>
+          <button
+            onClick={() => csvInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-sm font-medium text-bear-text bg-bear-border/50 hover:bg-bear-border px-3 py-1.5 rounded-lg transition-colors"
+            title="Import projects from CSV"
+          >
+            <UploadIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Import CSV</span>
+          </button>
+          <input ref={csvInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvFile} />
           <button onClick={openNew} className="flex items-center gap-1.5 text-sm font-medium text-white bg-bear-accent hover:bg-bear-accent-hover px-3 py-1.5 rounded-lg transition-colors">
             <PlusIcon className="w-4 h-4" /> New Project
           </button>
@@ -274,6 +410,83 @@ export default function ProjectsScreen() {
           onConfirm={confirmDelete}
           onCancel={() => setConfirmId(null)}
         />
+      )}
+
+      {/* CSV Import modal */}
+      {csvImport && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-bear-surface rounded-2xl w-full max-w-lg flex flex-col max-h-[80vh]">
+            <div className="sticky top-0 bg-bear-surface px-4 py-3 border-b border-bear-border flex items-center justify-between rounded-t-2xl">
+              <div>
+                <h3 className="font-semibold text-bear-text">Import Projects from CSV</h3>
+                <p className="text-xs text-bear-muted mt-0.5">{csvImport.rows.length} project{csvImport.rows.length !== 1 ? 's' : ''} found</p>
+              </div>
+              {!csvImport.importing && (
+                <button onClick={() => setCsvImport(null)} className="text-bear-muted hover:text-bear-text">
+                  <CloseIcon className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            <div className="overflow-y-auto flex-1 divide-y divide-bear-border/30">
+              {csvImport.rows.map((p, i) => (
+                <div key={i} className="px-4 py-2.5">
+                  <p className="text-sm font-medium text-bear-text">{p.name}</p>
+                  <p className="text-xs text-bear-muted">
+                    {[p.address, p.city, p.state].filter(Boolean).join(', ')}
+                    {p.client_name ? ` · ${p.client_name}` : ''}
+                    {p.contract_value ? ` · $${Number(p.contract_value).toLocaleString()}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {csvImport.errors.length > 0 && (
+              <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20">
+                <p className="text-xs font-semibold text-red-400 mb-1">
+                  {csvImport.done} imported · {csvImport.errors.length} failed
+                </p>
+                {csvImport.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-red-400/80">{e}</p>
+                ))}
+              </div>
+            )}
+
+            <div className="sticky bottom-0 bg-bear-surface px-4 py-3 border-t border-bear-border rounded-b-2xl flex gap-2">
+              <button
+                onClick={downloadTemplate}
+                className="text-xs text-bear-muted hover:text-bear-accent underline self-center"
+              >
+                Download template
+              </button>
+              <div className="flex-1" />
+              {csvImport.errors.length > 0 ? (
+                <button onClick={() => setCsvImport(null)} className="px-4 py-2.5 text-sm font-semibold text-white bg-bear-accent rounded-xl">
+                  Done
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setCsvImport(null)}
+                    disabled={csvImport.importing}
+                    className="flex-1 py-2.5 text-sm font-medium text-bear-muted border border-bear-border rounded-xl hover:bg-bear-bg transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCsvImport}
+                    disabled={csvImport.importing}
+                    className="flex-1 py-2.5 text-sm font-semibold text-white bg-bear-accent hover:bg-bear-accent-hover rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {csvImport.importing
+                      ? `Importing ${csvImport.done}/${csvImport.rows.length}...`
+                      : `Import ${csvImport.rows.length} Project${csvImport.rows.length !== 1 ? 's' : ''}`}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {showForm && (
@@ -417,6 +630,9 @@ function StatusBadge({ status }) {
 
 function PlusIcon({ className }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>;
+}
+function UploadIcon({ className }) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>;
 }
 function BackIcon({ className }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>;
