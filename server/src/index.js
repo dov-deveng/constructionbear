@@ -36,6 +36,7 @@ const ALLOWED_ORIGINS = [
   process.env.CLIENT_URL || 'http://localhost:5173',
   'https://app.doveandbearinc.com',
   'https://constructionbear.vercel.app',
+  'https://constructionbear-app.vercel.app',
   'https://constructionbear.dev',
   'https://www.constructionbear.dev',
 ];
