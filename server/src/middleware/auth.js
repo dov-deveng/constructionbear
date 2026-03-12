@@ -19,6 +19,10 @@ export function requireAuth(req, res, next) {
       req.isAdmin = !!(user?.is_admin);
       req.companyId = user?.company_id;
 
+      // Test accounts bypass the paywall — comma-separated list in TEST_EMAILS env var
+      const testEmails = (process.env.TEST_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+      req.isTestAccount = testEmails.includes((user?.email || req.email || '').toLowerCase());
+
       // Auto-provision company for legacy users without one
       if (!req.companyId) {
         req.companyId = ensureUserCompany(db, req.userId, user?.email || req.email);

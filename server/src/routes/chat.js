@@ -138,7 +138,7 @@ router.post('/message', requireAuth, async (req, res) => {
       // Free plan: allow exactly 1 document total per company
       const company = req.companyId ? db.prepare('SELECT plan FROM companies WHERE id = ?').get(req.companyId) : null;
       const plan = company?.plan || 'free';
-      if (plan === 'free' && !req.isAdmin) {
+      if (plan === 'free' && !req.isAdmin && !req.isTestAccount) {
         const scopeId = req.companyId || req.userId;
         const scopeCol = req.companyId ? 'company_id' : 'user_id';
         const docCount = db.prepare(`SELECT COUNT(*) as n FROM documents WHERE ${scopeCol} = ?`).get(scopeId).n;

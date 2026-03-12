@@ -84,7 +84,7 @@ router.get('/status', requireAuth, (req, res) => {
   const pricePerSeat = plan === 'business' ? 49.99 : plan === 'pro' ? 19.99 : 0;
 
   // Free: 1 user, 1 doc; paid: unlimited
-  const canCreate = req.isAdmin || plan === 'pro' || plan === 'business' || docCount < 1;
+  const canCreate = req.isAdmin || req.isTestAccount || plan === 'pro' || plan === 'business' || docCount < 1;
 
   res.json({
     status: plan,
