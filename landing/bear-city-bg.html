@@ -8,8 +8,24 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #04080F; }
 
-    .scene { position: fixed; inset: 0; }
-    .bg-image { position: absolute; inset: 0; background: url('bear-city.png') center center / cover no-repeat; }
+    .scene { position: fixed; inset: 0; overflow: hidden; }
+    .bg-image {
+      position: absolute; inset: 0;
+      background: url('bear-city.png') center center / cover no-repeat;
+      animation: kenBurns 20s ease-in-out infinite alternate;
+    }
+    @keyframes kenBurns {
+      0%   { transform: scale(1.0) translate(0%, 0%); }
+      25%  { transform: scale(1.08) translate(-2%, 1%); }
+      50%  { transform: scale(1.12) translate(1%, -1.5%); }
+      75%  { transform: scale(1.06) translate(-1%, 2%); }
+      100% { transform: scale(1.1) translate(2%, -1%); }
+    }
+    .bg-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(4,8,20,0.6) 0%, rgba(4,8,20,0.35) 40%, rgba(4,8,20,0.35) 60%, rgba(4,8,20,0.88) 100%);
+      pointer-events: none;
+    }
     .fx { position: absolute; inset: 0; pointer-events: none; }
 
     /* BEAR CITY SIGN GLOW */
@@ -101,6 +117,7 @@
 <body>
   <div class="scene">
     <div class="bg-image"></div>
+    <div class="bg-overlay"></div>
     <div class="fx">
       <div class="fx-sign"></div>
       <div class="fx-spark"></div>

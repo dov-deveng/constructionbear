@@ -28,36 +28,12 @@
       50%       { opacity: 0.15; }
     }
 
-    /* ─── LIGHT BEAM PULSE ─── */
-    @keyframes beamPulse {
-      0%, 100% { opacity: 0.22; }
-      50%       { opacity: 0.35; }
-    }
-    .beam-pulse { animation: beamPulse 3s ease-in-out infinite; }
-    .beam-pulse-2 { animation: beamPulse 4s ease-in-out infinite 1.5s; }
-
     /* ─── BEARING WAVE ─── */
     @keyframes bearWave {
       0%, 100% { transform: rotate(-10deg); }
       50%       { transform: rotate(15deg); }
     }
     .bear-arm-wave { animation: bearWave 1.2s ease-in-out infinite; transform-origin: 0% 50%; }
-
-    /* ─── CAUTION TAPE STRIPE (card) ─── */
-    .tape {
-      position: absolute;
-      background: repeating-linear-gradient(
-        -45deg,
-        #FFB800 0px, #FFB800 14px,
-        #0A0A0A  14px, #0A0A0A  28px
-      );
-      z-index: 2;
-      pointer-events: none;
-    }
-    .tape-top    { top: -7px;  left: -12px; right: -12px; height: 14px; transform: rotate(-1.4deg); }
-    .tape-bottom { bottom: -7px; left: -12px; right: -12px; height: 14px; transform: rotate(0.9deg); }
-    .tape-left   { left: -7px; top: -12px; bottom: -12px; width: 14px; transform: rotate(-0.7deg); }
-    .tape-right  { right: -7px; top: -12px; bottom: -12px; width: 14px; transform: rotate(1.3deg); }
 
     /* ─── BADGE ─── */
     @keyframes pulseDot {
@@ -95,6 +71,7 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 17px;
       line-height: 1;
+      overflow: hidden;
     }
     .logo-text {
       font-size: 16px;
@@ -178,6 +155,18 @@
       position: relative;
     }
 
+    /* ─── CAUTION TAPE DRAPES ─── */
+    .tape-drape {
+      position: absolute;
+      left: -50px;
+      width: 480px;
+      pointer-events: none;
+      z-index: 5;
+      display: block;
+    }
+    .tape-drape-top { top: -22px; }
+    .tape-drape-bottom { bottom: -22px; }
+
     .card {
       background: #0A0A0A;
       border-radius: 16px;
@@ -196,7 +185,6 @@
     .bear-icon {
       display: flex;
       justify-content: center;
-      margin-bottom: 14px;
     }
     .card-title {
       font-size: 18px;
@@ -268,7 +256,6 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .success-state.show { display: flex; }
-    .success-emoji { font-size: 52px; margin-bottom: 16px; }
     .success-title { font-size: 20px; font-weight: 600; color: white; margin-bottom: 8px; }
     .success-body  { font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.55; max-width: 280px; }
 
@@ -309,7 +296,7 @@
 
   <!-- Header -->
   <header>
-    <div class="logo-mark">🐻</div>
+    <div class="logo-mark"><img src="bear-mascot.png" height="32" style="border-radius:50%;"></div>
     <span class="logo-text">ConstructionBear</span>
   </header>
 
@@ -337,41 +324,40 @@
 
       <!-- Email capture card -->
       <div class="card-wrap">
+
+        <!-- Caution tape drapes — hang over the card like a barrier rope -->
+        <!-- Top drape: hangs above the card, sagging slightly in the middle -->
+        <svg class="tape-drape tape-drape-top" viewBox="0 0 480 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <pattern id="stripes-top" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="28" height="28" fill="#FFB800"/>
+              <rect width="14" height="28" fill="#1A1A1A"/>
+            </pattern>
+          </defs>
+          <!-- tape strip: top edge sags from y=4 at edges to y=16 at center; strip is 16px tall -->
+          <path d="M0,4 Q240,18 480,4 L480,20 Q240,34 0,20 Z" fill="url(#stripes-top)" opacity="0.95"/>
+          <!-- subtle shadow line at bottom edge -->
+          <path d="M0,20 Q240,34 480,20" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
+        </svg>
+
+        <!-- Bottom drape: hangs below the card, sagging slightly downward -->
+        <svg class="tape-drape tape-drape-bottom" viewBox="0 0 480 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <pattern id="stripes-bot" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="28" height="28" fill="#FFB800"/>
+              <rect width="14" height="28" fill="#1A1A1A"/>
+            </pattern>
+          </defs>
+          <path d="M0,16 Q240,2 480,16 L480,32 Q240,18 0,32 Z" fill="url(#stripes-bot)" opacity="0.95"/>
+          <path d="M0,16 Q240,2 480,16" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
+        </svg>
+
         <div class="card" id="card">
-          <!-- Caution tape corners -->
-          <div class="tape tape-top"></div>
-          <div class="tape tape-bottom"></div>
-          <div class="tape tape-left"></div>
-          <div class="tape tape-right"></div>
 
           <!-- Form content -->
           <div class="card-inner" id="form-content">
             <div class="bear-icon">
-              <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Bear body -->
-                <ellipse cx="26" cy="35" rx="14" ry="12" fill="#C8936A"/>
-                <!-- Bear head -->
-                <circle cx="26" cy="20" r="13" fill="#D4A07A"/>
-                <!-- Ears -->
-                <circle cx="14" cy="10" r="5" fill="#D4A07A"/>
-                <circle cx="14" cy="10" r="3" fill="#C8836A"/>
-                <circle cx="38" cy="10" r="5" fill="#D4A07A"/>
-                <circle cx="38" cy="10" r="3" fill="#C8836A"/>
-                <!-- Eyes -->
-                <circle cx="21" cy="20" r="2.5" fill="#2A1408"/>
-                <circle cx="31" cy="20" r="2.5" fill="#2A1408"/>
-                <circle cx="22" cy="19" r="0.8" fill="white" opacity="0.6"/>
-                <circle cx="32" cy="19" r="0.8" fill="white" opacity="0.6"/>
-                <!-- Snout -->
-                <ellipse cx="26" cy="24" rx="4.5" ry="3" fill="#C07858"/>
-                <ellipse cx="26" cy="23" rx="2"   ry="1.2" fill="#2A1408"/>
-                <!-- Hard Hat -->
-                <ellipse cx="26" cy="10" rx="16" ry="6" fill="#FFB800"/>
-                <rect x="10" y="7" width="32" height="6" fill="#FFB800" rx="2"/>
-                <rect x="8"  y="10" width="36" height="4" fill="#E5A500" rx="1"/>
-                <!-- Hat brim -->
-                <rect x="6" y="13" width="40" height="3" fill="#FFB800" rx="1"/>
-              </svg>
+              <img src="bear-mascot.png" height="48" style="border-radius:50%; margin-bottom:10px;">
             </div>
 
             <div class="card-title">Get Early Access</div>
@@ -384,7 +370,7 @@
 
           <!-- Success state (hidden initially) -->
           <div class="success-state" id="success-state">
-            <div class="success-emoji">🐻‍❄️</div>
+            <img src="bear-mascot.png" height="52" style="border-radius:50%; margin-bottom:10px;">
             <div class="success-title">You're on the list.</div>
             <p class="success-body">We'll let you know the moment Bear is ready. Your 7 days free are waiting.</p>
           </div>
