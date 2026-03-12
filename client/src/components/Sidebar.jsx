@@ -36,6 +36,8 @@ function timeAgo(unixTs) {
 const PRIMARY_NAV = [
   { id: 'chat', label: 'Chat', icon: ChatIcon },
   { id: 'library', label: 'Documents', icon: LibraryIcon },
+  { id: 'projects', label: 'Projects', icon: ProjectsIcon },
+  { id: 'contacts', label: 'Contacts', icon: ContactsIcon },
 ];
 
 const BOTTOM_NAV = [
