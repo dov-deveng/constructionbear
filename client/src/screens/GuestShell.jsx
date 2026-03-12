@@ -161,7 +161,7 @@ export default function GuestShell() {
             Sign In
           </button>
           <button
-            onClick={() => navigate('/register')}
+            onClick={() => textareaRef.current?.focus()}
             className="text-xs font-semibold bg-bear-accent hover:bg-bear-accent/90 text-white px-3 py-1.5 rounded-lg transition-colors"
           >
             Get Started

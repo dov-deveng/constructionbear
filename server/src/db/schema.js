@@ -423,6 +423,10 @@ function initSchema(db) {
   // Existing sessions are all completed
   try { db.exec(`UPDATE chat_sessions SET status = 'completed' WHERE status IS NULL`); } catch {}
 
+  // Add role + company_type to profiles if not present
+  try { db.exec(`ALTER TABLE profiles ADD COLUMN role TEXT`); } catch { /* already exists */ }
+  try { db.exec(`ALTER TABLE profiles ADD COLUMN company_type TEXT`); } catch { /* already exists */ }
+
   // Guest lead capture — tracks unauthenticated users who generated a document
   try {
     db.exec(`

@@ -40,7 +40,7 @@ router.get('/', requireAuth, (req, res) => {
 // PUT /profile
 router.put('/', requireAuth, (req, res) => {
   const db = getDb();
-  const fields = ['company_name', 'owner_name', 'email', 'phone', 'address', 'city', 'state', 'zip', 'license_number', 'onboarding_complete'];
+  const fields = ['company_name', 'owner_name', 'email', 'phone', 'address', 'city', 'state', 'zip', 'license_number', 'role', 'company_type', 'onboarding_complete'];
   const updates = {};
   for (const f of fields) {
     if (req.body[f] !== undefined) updates[f] = req.body[f];

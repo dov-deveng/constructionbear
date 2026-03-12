@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-12
+
+### SS3 / SS7 Gap Fixes — SaveGateModal + Guest Header (session 10)
+
+**Gaps found vs. original spec and fixed:**
+
+| Gap | Fix |
+|-----|-----|
+| Screen 2 had only company name field | Added role dropdown, company type dropdown, phone, license number, address + "Skip for now" link |
+| Password min was 6 chars (spec: 8) | Fixed to 8 chars with updated placeholder |
+| Screen 1 headline was off-spec | Changed to "Your document is ready." per spec |
+| Screen 2 "Save" button text off-spec | Changed to "Save and Go to Dashboard" per spec |
+| Screen 1 missing "Already have an account? Sign in" | Added — navigates to /login |
+| "Get Started" in guest header navigated to /register | Fixed — now focuses chat textarea instead |
+| role + company_type not in profiles table | Added ALTER TABLE migration in schema.js |
+| Profile PUT route didn't accept role/company_type | Added both fields to whitelist |
+
+**Files changed:**
+- `client/src/components/SaveGateModal.jsx` — full Screen 2 rebuild + Screen 1 copy fixes
+- `client/src/screens/GuestShell.jsx` — Get Started focuses textarea
+- `server/src/db/schema.js` — migration adds role + company_type to profiles
+- `server/src/routes/profile.js` — whitelist updated
+
+---
+
 ## 2026-03-11
 
 ### RFI PDF Renderer Fix (commit `6133d09`)
