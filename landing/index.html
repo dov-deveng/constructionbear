@@ -91,6 +91,8 @@ footer { position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; text-align:
 </main>
 <footer>© 2025 ConstructionBear.AI — Built by Dove &amp; Bear Inc.</footer>
 <script>
+const APPS_SCRIPT_URL = ''; // paste your Apps Script Web App URL here
+
 fetch('https://constructionbear-production.up.railway.app/api/waitlist/track-visit', { method: 'POST' }).catch(() => {});
 
 async function handleSubmit() {
@@ -110,6 +112,8 @@ async function handleSubmit() {
       body: JSON.stringify({ name, email })
     });
     if (res.ok) {
+      // Google Sheets backup — fire and forget
+      if (APPS_SCRIPT_URL) fetch(`${APPS_SCRIPT_URL}?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`).catch(()=>{});
       document.getElementById('form-state').style.display = 'none';
       const s = document.getElementById('success-state');
       s.style.display = 'flex';
