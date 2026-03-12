@@ -331,46 +331,45 @@ export default function ChatScreen() {
           </div>
         </div>
       ) : (activeSession || docJustGenerated) ? (
-        <div className="safe-bottom bg-bear-bg border-t border-bear-border flex-shrink-0">
+        <div className="bg-bear-bg border-t border-bear-border flex-shrink-0 animate-slide-up">
+          {/* Attachment panel + secondary actions — padded, constrained */}
           {docJustGenerated && generatedDocId && (
             <AttachmentsPanel docId={generatedDocId} />
           )}
-          <div className="px-4 py-4">
-          <div className="max-w-2xl mx-auto space-y-2">
-            {docJustGenerated && (
+          {docJustGenerated && (
+            <div className="px-4 pt-3 max-w-2xl mx-auto space-y-2">
               <p className="text-center text-xs text-bear-muted">Document saved to your library and Recent chats.</p>
-            )}
-            {/* PDF Preview button */}
-            {docJustGenerated && generatedDocId && (
-              <button
-                onClick={() => {
-                  const last = [...messages].reverse().find(m => m.role === 'assistant');
-                  const doc = last?.metadata?.generatedDoc;
-                  const fname = doc?.title ? `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf` : 'document.pdf';
-                  setPdfPreview({ url: `${BASE_URL}/pdf/${generatedDocId}`, filename: fname });
-                }}
-                className="w-full flex items-center justify-center gap-2 bg-bear-surface border border-bear-border hover:border-bear-accent rounded-2xl px-4 py-3 text-sm font-semibold text-bear-text transition-colors active:scale-[0.98]"
-              >
-                <svg className="w-4 h-4 text-bear-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Preview PDF
-              </button>
-            )}
-            <button
-              onClick={() => {
-                if (!activeSession && !canCreateDoc()) { setShowSubModal(true); return; }
-                activeSession ? exitSession() : startNewChat();
-              }}
-              className="w-full flex items-center justify-center gap-2 bg-bear-accent hover:bg-bear-accent-hover rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-colors active:scale-[0.98]"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Start New Chat
-            </button>
-          </div>
-          </div>
+              {generatedDocId && (
+                <button
+                  onClick={() => {
+                    const last = [...messages].reverse().find(m => m.role === 'assistant');
+                    const doc = last?.metadata?.generatedDoc;
+                    const fname = doc?.title ? `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf` : 'document.pdf';
+                    setPdfPreview({ url: `${BASE_URL}/pdf/${generatedDocId}`, filename: fname });
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-bear-surface border border-bear-border hover:border-bear-accent rounded-2xl px-4 py-3 text-sm font-semibold text-bear-text transition-colors active:scale-[0.98]"
+                >
+                  <svg className="w-4 h-4 text-bear-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Preview PDF
+                </button>
+              )}
+            </div>
+          )}
+          {/* Full-width Start New Chat — edge to edge, transforms into position */}
+          <button
+            onClick={() => {
+              if (!activeSession && !canCreateDoc()) { setShowSubModal(true); return; }
+              activeSession ? exitSession() : startNewChat();
+            }}
+            className="safe-bottom w-full flex items-center justify-center gap-2.5 bg-bear-accent hover:bg-bear-accent-hover mt-3 px-6 py-5 text-base font-bold text-white transition-colors active:opacity-90"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            {activeSession ? 'Back to Chat' : 'Start New Chat'}
+          </button>
         </div>
       ) : (
         <div className="safe-bottom bg-bear-bg border-t border-bear-border px-4 py-3 flex-shrink-0">
