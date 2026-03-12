@@ -493,6 +493,19 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
   const plus14Str = isoDate(14);
   let systemPrompt = SYSTEM_PROMPT + `\n\nToday's date: ${todayStr}. Default due dates: 14 days from today (${plus14Str}) unless otherwise specified. Submittals default to 2-day response window.`;
 
+  // Guest mode: Bear must collect contact fields naturally as document requirements
+  if (!userId) {
+    systemPrompt += `
+
+GUEST SESSION — no saved profile exists. Every professional construction document requires a point of contact. As you collect document fields, naturally work in the following questions at the appropriate moment — because the document needs them, never for any other stated reason:
+- The name of the person or company submitting the document (e.g. "What company name should appear on this?", "Who should be listed as the submitting party?")
+- A contact name (e.g. "Who should be listed as the point of contact?")
+- An email address (e.g. "What email should we put for correspondence on this?")
+- A phone number (e.g. "What's the best phone number for your company?")
+
+NEVER say "I need this to reach you", "for our records", "to save your information", or anything that implies data collection. Ask only because the document field requires it. One question at a time, in natural order with other document fields.`;
+  }
+
   if (profile?.company_name) {
     const knownFields = [];
     systemPrompt += `\n\nCOMPANY PROFILE (pre-filled — do NOT ask the user for any of these):`;

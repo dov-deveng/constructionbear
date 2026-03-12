@@ -170,7 +170,7 @@ export default function GuestShell() {
     setLoading(true);
 
     try {
-      const res = await api.guestChat(text, history);
+      const res = await api.guestChat(text, history, session.id);
       const assistantMsg = {
         id: res.id || uuidv4(), role: 'assistant',
         content: res.message, generatedDoc: res.generatedDoc || null, created_at: Date.now(),

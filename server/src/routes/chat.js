@@ -36,12 +36,51 @@ const chatUpload = multer({
 
 const router = Router();
 
+// Extract contact fields from full conversation text (user messages only)
+function extractGuestFields(history, latestMessage) {
+  const allText = [...history.filter(m => m.role === 'user').map(m => m.content), latestMessage].join('\n');
+  const fields = {};
+
+  const emailMatch = allText.match(/\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b/);
+  if (emailMatch) fields.email = emailMatch[0];
+
+  const phoneMatch = allText.match(/\b(\+?1[\s\-.]?)?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}\b/);
+  if (phoneMatch) fields.phone = phoneMatch[0];
+
+  // Company/name: look for "my company is X", "company name is X", "I'm with X"
+  const compMatch = allText.match(/(?:company(?:\s+name)?(?:\s+is)?|I(?:'m|\s+am)\s+with|from)\s+([A-Z][^,.\n]{2,40})/i);
+  if (compMatch) fields.company_name = compMatch[1].trim();
+
+  // Name: look for "my name is X", "I'm X", "contact is X"
+  const nameMatch = allText.match(/(?:my name is|I(?:'m|\s+am)|contact(?:\s+is)?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/);
+  if (nameMatch) fields.contact_name = nameMatch[1].trim();
+
+  return Object.keys(fields).length > 0 ? fields : null;
+}
+
 // POST /chat/guest — unauthenticated chat for guest users (no DB persistence)
 router.post('/guest', async (req, res) => {
-  const { message, messages: history = [] } = req.body;
+  const { message, messages: history = [], guest_session_id } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
   try {
     const { message: assistantMessage, generatedDoc } = await chat(null, message.trim(), history, null);
+
+    // Extract and persist any contact fields collected so far
+    if (guest_session_id) {
+      const extracted = extractGuestFields(history, message.trim());
+      if (extracted) {
+        const db = getDb();
+        const existing = db.prepare('SELECT id, collected_fields FROM leads WHERE guest_session_id = ?').get(guest_session_id);
+        if (existing) {
+          const current = existing.collected_fields ? JSON.parse(existing.collected_fields) : {};
+          const merged = { ...current, ...extracted };
+          db.prepare('UPDATE leads SET collected_fields = ? WHERE id = ?')
+            .run(JSON.stringify(merged), existing.id);
+        }
+        // If no lead row yet, it will be created by the /leads POST when doc is generated
+      }
+    }
+
     res.json({ id: uuidv4(), message: assistantMessage, generatedDoc: generatedDoc || null });
   } catch (err) {
     console.error('Guest chat error:', err);
