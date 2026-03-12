@@ -23,6 +23,7 @@ const transporter = nodemailer.createTransport({
 
 // POST /api/waitlist
 router.post('/', (req, res) => {
+  console.log('Waitlist hit:', req.body);
   const { name, email } = req.body;
   if (!email || typeof email !== 'string') {
     return res.status(400).json({ error: 'Email is required.' });

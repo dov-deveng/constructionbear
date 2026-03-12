@@ -32,18 +32,17 @@ const PORT = process.env.PORT || 3457;
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
 // Standard middleware
-const ALLOWED_ORIGINS = [
-  process.env.CLIENT_URL || 'http://localhost:5173',
-  'https://app.doveandbearinc.com',
-  'https://constructionbear.vercel.app',
-  'https://constructionbear-app.vercel.app',
-  'https://constructionbear.dev',
-  'https://www.constructionbear.dev',
-];
-app.use(cors({
-  origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin)),
+const corsOptions = {
+  origin: [
+    'https://constructionbear.dev',
+    'https://www.constructionbear.dev',
+    'https://constructionbear-app.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ],
   credentials: true,
-}));
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting
