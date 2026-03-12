@@ -1,447 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ConstructionBear.AI — Coming Soon</title>
-  <meta name="description" content="Construction documents, built by Bear. Every document your jobsite needs, built instantly.">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --blue: #0A84FF;
-      --amber: #FFB800;
-      --bg: #0A0A0F;
-    }
-
-    html, body {
-      height: 100%;
-      color: white;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-      overflow-x: hidden;
-    }
-
-
-    /* ─── STAR TWINKLE ─── */
-    @keyframes twinkle {
-      0%, 100% { opacity: var(--op, 0.7); }
-      50%       { opacity: 0.15; }
-    }
-
-    /* ─── BEARING WAVE ─── */
-    @keyframes bearWave {
-      0%, 100% { transform: rotate(-10deg); }
-      50%       { transform: rotate(15deg); }
-    }
-    .bear-arm-wave { animation: bearWave 1.2s ease-in-out infinite; transform-origin: 0% 50%; }
-
-    /* ─── BADGE ─── */
-    @keyframes pulseDot {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.3; }
-    }
-    .badge-dot { animation: pulseDot 1.5s ease-in-out infinite; }
-
-    /* ─── LAYOUT ─── */
-    .layout {
-      position: relative;
-      z-index: 10;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      background: rgba(10,10,15,0.65);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-    .logo-mark {
-      width: 32px; height: 32px;
-      background: #0A84FF;
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 17px;
-      line-height: 1;
-      overflow: hidden;
-    }
-    .logo-text {
-      font-size: 16px;
-      font-weight: 500;
-      color: white;
-      letter-spacing: -0.2px;
-    }
-
-    main {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 100px 24px 100px;
-    }
-
-    .content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      max-width: 640px;
-      width: 100%;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      background: rgba(10,132,255,0.15);
-      border: 1px solid rgba(10,132,255,0.3);
-      border-radius: 100px;
-      color: #0A84FF;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.1px;
-    }
-    .badge-dot-el {
-      width: 7px; height: 7px;
-      background: #0A84FF;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    h1 {
-      font-size: 56px;
-      font-weight: 700;
-      color: white;
-      letter-spacing: -1.5px;
-      line-height: 1.06;
-      margin-top: 24px;
-    }
-
-    .sub {
-      font-size: 20px;
-      color: rgba(255,255,255,0.6);
-      margin-top: 16px;
-      line-height: 1.4;
-    }
-
-    .oneliner {
-      font-size: 15px;
-      color: rgba(255,255,255,0.45);
-      max-width: 520px;
-      line-height: 1.6;
-      margin-top: 12px;
-    }
-
-    .offer {
-      font-size: 15px;
-      color: #FFB800;
-      font-weight: 500;
-      margin-top: 24px;
-    }
-
-    /* ─── EMAIL CARD ─── */
-    .card-wrap {
-      margin-top: 20px;
-      width: 380px;
-      position: relative;
-    }
-
-    /* ─── CAUTION TAPE DRAPES ─── */
-    .tape-drape {
-      position: absolute;
-      left: -50px;
-      width: 480px;
-      pointer-events: none;
-      z-index: 5;
-      display: block;
-    }
-    .tape-drape-top { top: -22px; }
-    .tape-drape-bottom { bottom: -22px; }
-
-    .card {
-      background: #0A0A0A;
-      border-radius: 16px;
-      padding: 32px;
-      box-shadow:
-        0 0 40px rgba(10,132,255,0.15),
-        0 0 0 1px rgba(255,255,255,0.06);
-      position: relative;
-      overflow: visible;
-      transition: opacity 0.35s ease;
-    }
-    .card-inner {
-      position: relative;
-      z-index: 3;
-    }
-    .bear-icon {
-      display: flex;
-      justify-content: center;
-    }
-    .card-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: white;
-      margin-bottom: 6px;
-    }
-    .card-sub {
-      font-size: 13px;
-      color: rgba(255,255,255,0.5);
-      margin-bottom: 20px;
-    }
-
-    input[type="email"] {
-      width: 100%;
-      height: 48px;
-      background: #1C1C1E;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      padding: 0 16px;
-      font-size: 15px;
-      color: white;
-      font-family: inherit;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    input[type="email"]::placeholder { color: rgba(255,255,255,0.28); }
-    input[type="email"]:focus { border-color: rgba(10,132,255,0.6); }
-
-    .submit-btn {
-      display: block;
-      width: 100%;
-      height: 48px;
-      background: #0A84FF;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 700;
-      font-family: inherit;
-      cursor: pointer;
-      margin-top: 12px;
-      letter-spacing: -0.1px;
-      transition: filter 0.15s, transform 0.15s;
-    }
-    .submit-btn:hover:not(:disabled) { filter: brightness(0.88); transform: scale(1.01); }
-    .submit-btn:active:not(:disabled) { transform: scale(0.99); }
-    .submit-btn:disabled { opacity: 0.6; cursor: default; }
-
-    .error-msg {
-      font-size: 13px;
-      color: #FF453A;
-      margin-top: 8px;
-      display: none;
-    }
-    .error-msg.visible { display: block; }
-
-    /* ─── SUCCESS STATE ─── */
-    .success-state {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 32px;
-      animation: fadeUp 0.4s ease;
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .success-state.show { display: flex; }
-    .success-title { font-size: 20px; font-weight: 600; color: white; margin-bottom: 8px; }
-    .success-body  { font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.55; max-width: 280px; }
-
-    footer {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      padding: 14px;
-      text-align: center;
-      font-size: 12px;
-      color: rgba(255,255,255,0.22);
-      z-index: 10;
-      pointer-events: none;
-    }
-
-    @media (max-width: 480px) {
-      h1 { font-size: 34px; letter-spacing: -0.8px; }
-      .sub { font-size: 16px; }
-      .card-wrap { width: 100%; }
-      main { padding: 90px 16px 80px; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConstructionBear.AI — Construction Documents, Built by Bear</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: 'DM Sans', sans-serif; background: #03060e; color: #fff; }
+.bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+.bg-img { position: absolute; inset: -10%; width: 120%; height: 120%; background: url('bear-city.png') center/cover no-repeat; animation: kenburns 36s ease-in-out infinite alternate; transform-origin: center center; }
+@keyframes kenburns {
+  0%   { transform: scale(1.0) translate(0%, 0%); }
+  25%  { transform: scale(1.06) translate(-2%, -1%); }
+  50%  { transform: scale(1.1) translate(1%, -2%); }
+  75%  { transform: scale(1.06) translate(2%, 1%); }
+  100% { transform: scale(1.0) translate(-1%, 2%); }
+}
+.bg-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(3,6,14,0.55) 0%, rgba(3,6,14,0.75) 100%); }
+header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; gap: 10px; padding: 16px 28px; background: transparent; }
+.header-bear { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; }
+.header-brand { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 0.04em; color: #fff; line-height: 1; }
+main { position: relative; z-index: 10; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 80px 20px 40px; }
+.headline { font-family: 'Bebas Neue', cursive; font-size: clamp(48px, 7vw, 72px); color: #fff; text-align: center; line-height: 1.05; letter-spacing: 0.02em; text-shadow: 0 2px 24px rgba(0,0,0,0.9), 0 1px 4px rgba(0,0,0,0.8); }
+.card-wrap { width: 100%; max-width: 400px; }
+/* Card is the stacking context — tapes live inside it at z-index 1, content at z-index 2 */
+.card { position: relative; z-index: 15; background: rgba(3,6,14,0.88); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); padding: 36px 32px; width: 100%; display: flex; flex-direction: column; align-items: center; overflow: visible; }
+.tape { position: absolute; left: -60px; right: -60px; height: 40px; background: repeating-linear-gradient(-45deg, #F5C200 0px, #F5C200 16px, #1a1200 16px, #1a1200 32px); display: flex; align-items: center; overflow: hidden; z-index: 1; box-shadow: 0 4px 18px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.4); pointer-events: none; }
+.tape-1 { top: 36px; transform: rotate(-6deg); }
+.tape-2 { bottom: 36px; transform: rotate(6deg); }
+.tape-text { white-space: nowrap; font-size: 11px; font-weight: 800; letter-spacing: 0.2em; color: #000; font-family: 'DM Sans', sans-serif; line-height: 40px; user-select: none; }
+/* All interactive content sits above the tapes */
+.card-content { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; }
+.card-bear { width: 80px; height: 80px; border-radius: 14px; object-fit: cover; margin-bottom: 14px; }
+.card-title { font-family: 'Bebas Neue', cursive; font-size: 28px; color: #fff; letter-spacing: 0.04em; margin-bottom: 6px; }
+.card-sub { font-size: 13px; color: rgba(255,255,255,0.45); text-align: center; margin-bottom: 20px; line-height: 1.4; }
+.card-input { width: 100%; height: 48px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 0 14px; font-family: 'DM Sans', sans-serif; font-size: 15px; color: #fff; outline: none; margin-bottom: 12px; transition: border-color 0.2s; }
+.card-input::placeholder { color: rgba(255,255,255,0.3); }
+.card-input:focus { border-color: rgba(26,111,255,0.6); }
+.card-btn { width: 100%; height: 48px; background: #1A6FFF; border: none; border-radius: 8px; font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 0.05em; color: #fff; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, background 0.15s; }
+.card-btn:hover:not(:disabled) { background: #2e7fff; transform: scale(1.02); box-shadow: 0 0 20px rgba(26,111,255,0.5); }
+.card-btn:disabled { opacity: 0.7; cursor: default; }
+/* Success state: also above tapes, inside the same card */
+.success-content { display: none; position: relative; z-index: 2; width: 100%; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 28px 0; opacity: 0; transition: opacity 0.4s ease; }
+.success-content.visible { opacity: 1; }
+.success-bear { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; margin-bottom: 4px; }
+.success-title { font-family: 'Bebas Neue', cursive; font-size: 36px; color: #fff; letter-spacing: 0.04em; }
+.success-sub { font-size: 15px; color: rgba(255,255,255,0.6); line-height: 1.4; }
+.success-amber { font-size: 12px; color: #F5C200; margin-top: 2px; }
+footer { position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; text-align: center; padding: 14px; font-size: 11px; color: rgba(255,255,255,0.2); font-family: 'DM Sans', sans-serif; }
+@media (max-width: 480px) { .card-wrap { max-width: 100%; } .card { padding: 28px 20px; } .tape { left: -40px; right: -40px; } }
+</style>
 </head>
 <body>
-
-<!-- ════════════════════════════════════
-     SCENE — Bear City Background Iframe
-     ════════════════════════════════════ -->
-<iframe
-  src="bear-city-bg.html"
-  style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:0;"
-  scrolling="no">
-</iframe>
-
-<!-- ════════════════════════════════════
-     PAGE LAYOUT
-     ════════════════════════════════════ -->
-<div class="layout">
-
-  <!-- Header -->
-  <header>
-    <div class="logo-mark"><img src="bear-mascot.png" height="32" style="border-radius:50%;"></div>
-    <span class="logo-text">ConstructionBear</span>
-  </header>
-
-  <!-- Main content -->
-  <main>
-    <div class="content">
-
-      <!-- Coming Soon badge -->
-      <div class="badge">
-        <div class="badge-dot-el badge-dot"></div>
-        Coming Soon
+<div class="bg"><div class="bg-img"></div><div class="bg-overlay"></div></div>
+<header>
+  <img class="header-bear" src="bear.png" alt="Bear">
+  <span class="header-brand">ConstructionBear</span>
+</header>
+<main>
+  <h1 class="headline">Construction documents,<br>built by Bear.</h1>
+  <div class="card-wrap">
+    <div class="card">
+      <!-- Tapes: z-index 1 within card — visible but below form content -->
+      <div class="tape tape-1">
+        <span class="tape-text">&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;</span>
       </div>
-
-      <!-- Headline -->
-      <h1>Construction documents,<br>built by Bear.</h1>
-
-      <!-- Sub -->
-      <p class="sub">Every document your jobsite needs, built instantly.</p>
-
-      <!-- One-liner -->
-      <p class="oneliner">Type a message. Get a professional RFI, submittal, change order, or invoice in seconds — no forms, no templates, just chat.</p>
-
-      <!-- Offer -->
-      <p class="offer">Sign up now and get 7 days free when we launch.</p>
-
-      <!-- Email capture card -->
-      <div class="card-wrap">
-
-        <!-- Caution tape drapes — hang over the card like a barrier rope -->
-        <!-- Top drape: hangs above the card, sagging slightly in the middle -->
-        <svg class="tape-drape tape-drape-top" viewBox="0 0 480 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <defs>
-            <pattern id="stripes-top" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <rect width="28" height="28" fill="#FFB800"/>
-              <rect width="14" height="28" fill="#1A1A1A"/>
-            </pattern>
-          </defs>
-          <!-- tape strip: top edge sags from y=4 at edges to y=16 at center; strip is 16px tall -->
-          <path d="M0,4 Q240,18 480,4 L480,20 Q240,34 0,20 Z" fill="url(#stripes-top)" opacity="0.95"/>
-          <!-- subtle shadow line at bottom edge -->
-          <path d="M0,20 Q240,34 480,20" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
-        </svg>
-
-        <!-- Bottom drape: hangs below the card, sagging slightly downward -->
-        <svg class="tape-drape tape-drape-bottom" viewBox="0 0 480 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <defs>
-            <pattern id="stripes-bot" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <rect width="28" height="28" fill="#FFB800"/>
-              <rect width="14" height="28" fill="#1A1A1A"/>
-            </pattern>
-          </defs>
-          <path d="M0,16 Q240,2 480,16 L480,32 Q240,18 0,32 Z" fill="url(#stripes-bot)" opacity="0.95"/>
-          <path d="M0,16 Q240,2 480,16" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
-        </svg>
-
-        <div class="card" id="card">
-
-          <!-- Form content -->
-          <div class="card-inner" id="form-content">
-            <div class="bear-icon">
-              <img src="bear-mascot.png" height="48" style="border-radius:50%; margin-bottom:10px;">
-            </div>
-
-            <div class="card-title">Get Early Access</div>
-            <div class="card-sub">Be first to know when Bear launches.</div>
-
-            <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email"/>
-            <div class="error-msg" id="error-msg"></div>
-            <button class="submit-btn" id="submit-btn" type="button">Get Early Access</button>
-          </div>
-
-          <!-- Success state (hidden initially) -->
-          <div class="success-state" id="success-state">
-            <img src="bear-mascot.png" height="52" style="border-radius:50%; margin-bottom:10px;">
-            <div class="success-title">You're on the list.</div>
-            <p class="success-body">We'll let you know the moment Bear is ready. Your 7 days free are waiting.</p>
-          </div>
-        </div>
+      <div class="tape tape-2">
+        <span class="tape-text">&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CAUTION&nbsp;&nbsp;</span>
       </div>
-
+      <!-- Form content: z-index 2 — above tapes -->
+      <div class="card-content" id="form-state">
+        <img class="card-bear" src="bear.png" alt="Bear">
+        <div class="card-title">Get 7 Days Free</div>
+        <div class="card-sub">Be first in. Launch offer — no credit card needed.</div>
+        <input class="card-input" type="text" id="name" placeholder="Your name" autocomplete="name">
+        <input class="card-input" type="email" id="email" placeholder="your@email.com" autocomplete="email">
+        <button class="card-btn" id="submit-btn" onclick="handleSubmit()">Claim My Free Week</button>
+      </div>
+      <!-- Success state: z-index 2 — also above tapes, shown after submit -->
+      <div class="success-content" id="success-state">
+        <img class="success-bear" src="bear.png" alt="Bear">
+        <div class="success-title">You're In. 🎉</div>
+        <div class="success-sub">We'll notify you the moment we go live.</div>
+        <div class="success-amber">Your 7 days free are waiting.</div>
+      </div>
     </div>
-  </main>
-
-  <!-- Footer -->
-  <footer>© 2026 ConstructionBear.AI — Built by Dove &amp; Bear Inc.</footer>
-
-</div>
-
+  </div>
+</main>
+<footer>© 2025 ConstructionBear.AI — Built by Dove &amp; Bear Inc.</footer>
 <script>
-  const API = (() => {
-    // Detect environment: if served via Vercel/prod, use the Railway API
-    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-      return 'http://localhost:3457';
-    }
-    return 'https://constructionbear-api.up.railway.app';
-  })();
+fetch('https://constructionbear-production.up.railway.app/api/waitlist/track-visit', { method: 'POST' }).catch(() => {});
 
-  const btn   = document.getElementById('submit-btn');
-  const input = document.getElementById('email-input');
-  const err   = document.getElementById('error-msg');
-  const form  = document.getElementById('form-content');
-  const succ  = document.getElementById('success-state');
-
-  function showError(msg) {
-    err.textContent = msg;
-    err.classList.add('visible');
-  }
-  function clearError() {
-    err.classList.remove('visible');
-  }
-
-  async function submit() {
-    clearError();
-    const email = input.value.trim();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showError('Please enter a valid email address.');
-      return;
-    }
-    btn.disabled = true;
-    btn.textContent = 'Joining…';
-    try {
-      const res = await fetch(`${API}/waitlist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showError(data.error || 'Something went wrong. Try again.');
-        btn.disabled = false;
-        btn.textContent = 'Get Early Access';
-        return;
-      }
-      // Success
-      form.style.display = 'none';
-      succ.classList.add('show');
-    } catch (e) {
-      showError('Network error. Please try again.');
-      btn.disabled = false;
-      btn.textContent = 'Get Early Access';
-    }
-  }
-
-  btn.addEventListener('click', submit);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+async function handleSubmit() {
+  const nameEl = document.getElementById('name');
+  const emailEl = document.getElementById('email');
+  const btn = document.getElementById('submit-btn');
+  const name = nameEl.value.trim();
+  const email = emailEl.value.trim();
+  if (!name) { nameEl.style.borderColor = 'rgba(255,80,80,0.7)'; nameEl.focus(); return; }
+  nameEl.style.borderColor = '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { emailEl.style.borderColor = 'rgba(255,80,80,0.7)'; emailEl.focus(); return; }
+  emailEl.style.borderColor = '';
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const res = await fetch('https://constructionbear-production.up.railway.app/api/waitlist', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email })
+    });
+    if (res.ok) {
+      document.getElementById('form-state').style.display = 'none';
+      const s = document.getElementById('success-state');
+      s.style.display = 'flex';
+      requestAnimationFrame(() => requestAnimationFrame(() => s.classList.add('visible')));
+    } else throw new Error();
+  } catch (err) { console.error('Waitlist submit error:', err); btn.textContent = 'Claim My Free Week'; btn.disabled = false; }
+}
+document.getElementById('name').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('email').focus(); });
+document.getElementById('email').addEventListener('keydown', e => { if (e.key === 'Enter') handleSubmit(); });
 </script>
 </body>
 </html>
