@@ -28,13 +28,13 @@ main { position: relative; z-index: 10; height: 100vh; display: flex; flex-direc
 .card-wrap { width: 100%; max-width: 400px; }
 /* Card is the stacking context — tapes live inside it at z-index 1, content at z-index 2 */
 .card { position: relative; z-index: 15; background: rgba(3,6,14,0.88); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); padding: 36px 32px; width: 100%; display: flex; flex-direction: column; align-items: center; overflow: visible; }
-.tape { position: absolute; left: -60px; right: -60px; height: 40px; background: repeating-linear-gradient(-45deg, #F5C200 0px, #F5C200 16px, #1a1200 16px, #1a1200 32px); display: flex; align-items: center; overflow: hidden; z-index: 1; box-shadow: 0 4px 18px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.4); pointer-events: none; }
+.tape { position: absolute; left: -60px; right: -60px; height: 40px; background: repeating-linear-gradient(-45deg, #F5C200 0px, #F5C200 16px, #1a1200 16px, #1a1200 32px); display: flex; align-items: center; overflow: hidden; z-index: 1; box-shadow: 0 2px 10px rgba(0,0,0,0.3); pointer-events: none; opacity: 0.35; }
 .tape-1 { top: 36px; transform: rotate(-6deg); }
 .tape-2 { bottom: 36px; transform: rotate(6deg); }
 .tape-text { white-space: nowrap; font-size: 11px; font-weight: 800; letter-spacing: 0.2em; color: #000; font-family: 'DM Sans', sans-serif; line-height: 40px; user-select: none; }
 /* All interactive content sits above the tapes */
 .card-content { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; }
-.card-bear { width: 80px; height: 80px; border-radius: 14px; object-fit: cover; margin-bottom: 14px; }
+.card-bear { width: 100px; height: 100px; border-radius: 16px; object-fit: cover; margin-bottom: 14px; }
 .card-title { font-family: 'Bebas Neue', cursive; font-size: 28px; color: #fff; letter-spacing: 0.04em; margin-bottom: 6px; }
 .card-sub { font-size: 13px; color: rgba(255,255,255,0.45); text-align: center; margin-bottom: 20px; line-height: 1.4; }
 .card-input { width: 100%; height: 48px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 0 14px; font-family: 'DM Sans', sans-serif; font-size: 15px; color: #fff; outline: none; margin-bottom: 12px; transition: border-color 0.2s; }
@@ -85,7 +85,6 @@ footer { position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; text-align:
         <img class="success-bear" src="bear.png" alt="Bear">
         <div class="success-title">You're In. 🎉</div>
         <div class="success-sub">We'll notify you the moment we go live.</div>
-        <div class="success-amber">Your 7 days free are waiting.</div>
       </div>
     </div>
   </div>
