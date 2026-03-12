@@ -83,7 +83,7 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [showSubModal, setShowSubModal] = useState(false);
   const { messages, loading, initialized, loadMessages, sendMessage, startNewChat,
-          activeSession, resumedSession, exitSession, pendingAttachment, setPendingAttachment } = useChatStore();
+          stopGeneration, activeSession, resumedSession, exitSession, pendingAttachment, setPendingAttachment } = useChatStore();
   const { toggleSidebar } = useUIStore();
   const { addDocument } = useDocStore();
   const { canCreateDoc } = useAuthStore();
@@ -93,6 +93,7 @@ export default function ChatScreen() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [showUploadSheet, setShowUploadSheet] = useState(false);
   const [pdfPreview, setPdfPreview] = useState(null); // { url, filename }
+  const [stopped, setStopped] = useState(false);
 
   // When viewing a past (read-only) session, show its messages instead
   const displayMessages = activeSession ? activeSession.messages : messages;
@@ -149,9 +150,14 @@ export default function ChatScreen() {
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
+    setStopped(false);
     try {
       const res = await sendMessage(text);
 
+      if (res?.stopped) {
+        setStopped(true);
+        return;
+      }
       // Server rejected save due to free plan limit
       if (res?.paywallRequired) {
         setShowSubModal(true);
@@ -297,8 +303,34 @@ export default function ChatScreen() {
         </div>
       </div>
 
-      {/* Input — three states: past session view, doc just completed, or normal */}
-      {(activeSession || docJustGenerated) ? (
+      {/* Input — four states: past session, doc completed, stopped, or normal */}
+      {stopped && !docJustGenerated && !activeSession ? (
+        <div className="safe-bottom bg-bear-bg border-t border-bear-border flex-shrink-0 px-4 py-4">
+          <div className="max-w-2xl mx-auto space-y-3">
+            <p className="text-center text-sm font-medium text-bear-text">Generation stopped. What would you like to do?</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setStopped(false); startNewChat(); }}
+                className="flex-1 flex items-center justify-center gap-2 bg-bear-surface border border-bear-border hover:border-bear-accent rounded-2xl px-4 py-3 text-sm font-semibold text-bear-text transition-colors active:scale-[0.98]"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Start Over
+              </button>
+              <button
+                onClick={() => setStopped(false)}
+                className="flex-1 flex items-center justify-center gap-2 bg-bear-accent hover:bg-bear-accent-hover rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-colors active:scale-[0.98]"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+                Continue from here
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (activeSession || docJustGenerated) ? (
         <div className="safe-bottom bg-bear-bg border-t border-bear-border flex-shrink-0">
           {docJustGenerated && generatedDocId && (
             <AttachmentsPanel docId={generatedDocId} />
@@ -373,21 +405,33 @@ export default function ChatScreen() {
               value={input}
               onChange={e => { setInput(e.target.value); autoResize(); }}
               onKeyDown={handleKey}
-              disabled={loading}
+              disabled={loading || uploadLoading}
               rows={1}
               className="flex-1 bg-bear-surface border border-bear-border rounded-2xl px-4 py-3 text-base text-bear-text placeholder-bear-muted focus:outline-none focus:border-bear-accent resize-none transition-colors leading-relaxed min-h-[44px]"
               style={{ fontSize: 16 }}
               placeholder={placeholder}
             />
-            <button
-              onClick={send}
-              disabled={!input.trim() || loading}
-              className="w-11 h-11 bg-bear-accent rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all"
-            >
-              <svg className="w-4 h-4 text-white rotate-90" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-              </svg>
-            </button>
+            {loading ? (
+              <button
+                onClick={() => { stopGeneration(); setStopped(true); }}
+                className="w-11 h-11 bg-red-500 hover:bg-red-600 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-95 transition-all"
+                title="Stop generation"
+              >
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="1" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={send}
+                disabled={!input.trim()}
+                className="w-11 h-11 bg-bear-accent rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all"
+              >
+                <svg className="w-4 h-4 text-white rotate-90" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       )}

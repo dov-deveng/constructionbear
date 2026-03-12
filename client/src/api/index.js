@@ -4,7 +4,7 @@ function getToken() {
   return localStorage.getItem('cb_token');
 }
 
-async function request(method, path, body, rawBody = false) {
+async function request(method, path, body, rawBody = false, signal) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -13,6 +13,7 @@ async function request(method, path, body, rawBody = false) {
     method,
     headers: rawBody ? { Authorization: headers.Authorization } : headers,
     body: body ? (rawBody ? body : JSON.stringify(body)) : undefined,
+    signal,
   });
 
   if (!res.ok) {
@@ -81,8 +82,8 @@ export const api = {
   getSession: (id) => request('GET', `/chat/sessions/${id}`),
   checkpointSession: (partial_doc_type) => request('POST', '/chat/sessions/checkpoint', { partial_doc_type }),
   deleteSession: (id) => request('DELETE', `/chat/sessions/${id}`),
-  sendMessage: (message, attachmentUrl, attachmentFilename, session_id) =>
-    request('POST', '/chat/message', { message, attachmentUrl, attachmentFilename, session_id }),
+  sendMessage: (message, attachmentUrl, attachmentFilename, session_id, signal) =>
+    request('POST', '/chat/message', { message, attachmentUrl, attachmentFilename, session_id }, false, signal),
 
   // Documents
   getDocuments: (params = {}) => {

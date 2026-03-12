@@ -46,6 +46,9 @@ export const useAuthStore = create((set, get) => ({
   },
 }));
 
+// Module-level abort controller — not in Zustand state (no re-render needed)
+let _abortController = null;
+
 export const useChatStore = create((set, get) => ({
   messages: [],
   loading: false,
@@ -74,12 +77,19 @@ export const useChatStore = create((set, get) => ({
       content: text,
       created_at: Math.floor(Date.now() / 1000),
     };
+    _abortController = new AbortController();
     set(s => ({ messages: [...s.messages, userMsg], loading: true }));
 
     try {
       const { pendingAttachment, resumedSession } = get();
       const sessionId = resumedSession?.session?.id || undefined;
-      const res = await api.sendMessage(text, pendingAttachment?.url, pendingAttachment?.filename, sessionId);
+      const res = await api.sendMessage(
+        text,
+        pendingAttachment?.url,
+        pendingAttachment?.filename,
+        sessionId,
+        _abortController.signal,
+      );
       const assistantMsg = {
         id: res.id,
         role: 'assistant',
@@ -94,12 +104,22 @@ export const useChatStore = create((set, get) => ({
       }
       return res;
     } catch (err) {
+      if (err.name === 'AbortError') {
+        // User stopped — keep the user message visible, just clear loading
+        set({ loading: false });
+        return { stopped: true };
+      }
       set(s => ({
         messages: s.messages.filter(m => m.id !== userMsg.id),
         loading: false,
       }));
       throw err;
     }
+  },
+
+  stopGeneration: () => {
+    _abortController?.abort();
+    set({ loading: false });
   },
 
   clearMessages: () => set({ messages: [] }),
