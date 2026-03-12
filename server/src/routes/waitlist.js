@@ -1,6 +1,6 @@
 import { Router } from 'express';
+import nodemailer from 'nodemailer';
 import { getDb } from '../db/schema.js';
-import { backupLeadToSheet } from '../sheets-backup.js';
 
 const router = Router();
 
@@ -15,6 +15,11 @@ const router = Router();
     user_agent TEXT
   )`);
 }
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: { user: process.env.BACKUP_EMAIL, pass: process.env.BACKUP_EMAIL_PASSWORD },
+});
 
 // POST /api/waitlist
 router.post('/', (req, res) => {
@@ -35,8 +40,17 @@ router.post('/', (req, res) => {
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || null;
   db.prepare('INSERT INTO waitlist (name, email, ip_address) VALUES (?, ?, ?)').run(cleanName, cleanEmail, ip);
 
-  // Fire-and-forget Sheets backup
-  backupLeadToSheet(cleanName, cleanEmail, new Date().toISOString());
+  // Fire-and-forget email backup
+  try {
+    transporter.sendMail({
+      from: process.env.BACKUP_EMAIL,
+      to: process.env.BACKUP_EMAIL,
+      subject: 'New ConstructionBear Lead',
+      text: `Name: ${cleanName}\nEmail: ${cleanEmail}\nTime: ${new Date().toISOString()}`,
+    }).catch(err => console.error('[email-backup] sendMail failed:', err.message));
+  } catch (err) {
+    console.error('[email-backup] failed:', err.message);
+  }
 
   res.status(201).json({ success: true });
 });
