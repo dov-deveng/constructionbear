@@ -187,4 +187,10 @@ export const api = {
   getSubStatus: () => request('GET', '/stripe/status'),
   createCheckout: (plan = 'pro') => request('POST', '/stripe/create-checkout', { plan }),
   createPortal: () => request('POST', '/stripe/create-portal'),
+
+  // Guest (unauthenticated)
+  guestChat: (message, messages) => request('POST', '/chat/guest', { message, messages }),
+  captureLead: (guest_session_id, document_type, collected_fields) =>
+    request('POST', '/leads', { guest_session_id, document_type, collected_fields }),
+  convertLead: (id, user_id) => request('PUT', `/leads/${id}/convert`, { user_id }),
 };

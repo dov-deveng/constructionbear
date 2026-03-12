@@ -606,13 +606,13 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
     }
   }
 
-  // Auto-extract project/contact info from user message (non-blocking)
-  extractAndSave(userId, companyId, userMessage, db).catch(console.error);
-
-  // Compress memory every 20 messages
-  const msgCount = db.prepare('SELECT COUNT(*) as n FROM chat_messages WHERE user_id = ?').get(userId).n;
-  if (msgCount > 0 && msgCount % 20 === 0) {
-    compressMemory(userId).catch(console.error);
+  // Auto-extract project/contact info and compress memory — skip for guest (no userId)
+  if (userId) {
+    extractAndSave(userId, companyId, userMessage, db).catch(console.error);
+    const msgCount = db.prepare('SELECT COUNT(*) as n FROM chat_messages WHERE user_id = ?').get(userId).n;
+    if (msgCount > 0 && msgCount % 20 === 0) {
+      compressMemory(userId).catch(console.error);
+    }
   }
 
   return { message: assistantMessage, generatedDoc };

@@ -5,23 +5,9 @@ import { useAuthStore } from './store/index.js';
 import AuthScreen from './screens/AuthScreen.jsx';
 import OnboardingScreen from './screens/OnboardingScreen.jsx';
 import AppShell from './screens/AppShell.jsx';
+import GuestShell from './screens/GuestShell.jsx';
 import VerifyEmail from './screens/VerifyEmail.jsx';
 import ResetPassword from './screens/ResetPassword.jsx';
-
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuthStore();
-  if (loading) return <SplashScreen />;
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
-}
-
-function OnboardingRoute({ children }) {
-  const { user, profile, loading } = useAuthStore();
-  if (loading) return <SplashScreen />;
-  if (!user) return <Navigate to="/login" replace />;
-  if (!profile?.onboarding_complete) return <Navigate to="/onboarding" replace />;
-  return children;
-}
 
 function SplashScreen() {
   return (
@@ -34,6 +20,24 @@ function SplashScreen() {
       </div>
     </div>
   );
+}
+
+// Logged-in users with completed onboarding → AppShell
+// Logged-in users without onboarding → OnboardingScreen
+// Guests → GuestShell
+function GuestOrAppRoute() {
+  const { user, profile, loading } = useAuthStore();
+  if (loading) return <SplashScreen />;
+  if (!user) return <GuestShell />;
+  if (!profile?.onboarding_complete) return <Navigate to="/onboarding" replace />;
+  return <AppShell />;
+}
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuthStore();
+  if (loading) return <SplashScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
 }
 
 export default function App() {
@@ -55,9 +59,7 @@ export default function App() {
         <Route path="/onboarding" element={
           <ProtectedRoute><OnboardingScreen /></ProtectedRoute>
         } />
-        <Route path="/*" element={
-          <OnboardingRoute><AppShell /></OnboardingRoute>
-        } />
+        <Route path="/*" element={<GuestOrAppRoute />} />
       </Routes>
     </BrowserRouter>
   );

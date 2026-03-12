@@ -83,8 +83,8 @@ router.get('/status', requireAuth, (req, res) => {
   const docCount = db.prepare('SELECT COUNT(*) as n FROM documents WHERE company_id = ?').get(req.companyId).n;
   const pricePerSeat = plan === 'business' ? 49.99 : plan === 'pro' ? 19.99 : 0;
 
-  // Free: 1 user, 1 doc; paid: unlimited
-  const canCreate = req.isAdmin || req.isTestAccount || plan === 'pro' || plan === 'business' || docCount < 1;
+  // Free: 2 docs total (1 guest conversion + 1 more); paid: unlimited
+  const canCreate = req.isAdmin || req.isTestAccount || plan === 'pro' || plan === 'business' || docCount < 2;
 
   res.json({
     status: plan,

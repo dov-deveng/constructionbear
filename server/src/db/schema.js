@@ -422,4 +422,20 @@ function initSchema(db) {
   try { db.exec(`ALTER TABLE chat_sessions ADD COLUMN partial_doc_type TEXT`); } catch {}
   // Existing sessions are all completed
   try { db.exec(`UPDATE chat_sessions SET status = 'completed' WHERE status IS NULL`); } catch {}
+
+  // Guest lead capture — tracks unauthenticated users who generated a document
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id TEXT PRIMARY KEY,
+        guest_session_id TEXT NOT NULL,
+        document_type TEXT,
+        collected_fields TEXT,
+        created_at INTEGER DEFAULT (unixepoch()),
+        converted INTEGER DEFAULT 0,
+        converted_user_id TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_leads_guest_session ON leads(guest_session_id);
+    `);
+  } catch { /* already exists */ }
 }

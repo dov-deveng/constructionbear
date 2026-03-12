@@ -36,6 +36,19 @@ const chatUpload = multer({
 
 const router = Router();
 
+// POST /chat/guest — unauthenticated chat for guest users (no DB persistence)
+router.post('/guest', async (req, res) => {
+  const { message, messages: history = [] } = req.body;
+  if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
+  try {
+    const { message: assistantMessage, generatedDoc } = await chat(null, message.trim(), history, null);
+    res.json({ id: uuidv4(), message: assistantMessage, generatedDoc: generatedDoc || null });
+  } catch (err) {
+    console.error('Guest chat error:', err);
+    res.status(500).json({ error: 'Chat failed. Please try again.' });
+  }
+});
+
 // POST /chat/upload — upload a file to use as a document base in chat
 router.post('/upload', requireAuth, chatUpload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -142,7 +155,7 @@ router.post('/message', requireAuth, async (req, res) => {
         const scopeId = req.companyId || req.userId;
         const scopeCol = req.companyId ? 'company_id' : 'user_id';
         const docCount = db.prepare(`SELECT COUNT(*) as n FROM documents WHERE ${scopeCol} = ?`).get(scopeId).n;
-        if (docCount >= 1) {
+        if (docCount >= 2) {
           paywallRequired = true;
         }
       }
