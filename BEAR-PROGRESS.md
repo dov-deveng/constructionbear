@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-03-12 — Coming Soon Landing Page
+
+### Files created / modified
+| File | Change |
+|------|--------|
+| `landing/index.html` | Standalone coming soon page — Bear City illustrated scene, email capture card |
+| `client/public/landing.html` | Copy of landing page served statically by Vercel |
+| `client/vercel.json` | Updated rewrites: `/` → landing, `/app` + `/app/*` → React SPA |
+| `client/src/App.jsx` | Added `basename="/app"` to BrowserRouter |
+| `server/src/routes/waitlist.js` | POST /waitlist, GET /waitlist/stats, GET /waitlist/admin |
+| `server/src/db/schema.js` | Added `waitlist` table (id, email, created_at, ip_address) |
+| `server/src/index.js` | Wired up waitlistRouter + /admin/waitlist redirect |
+
+### What's live
+- `constructionbear.dev/` → Bear City coming soon page with email capture
+- `constructionbear.dev/app` → Full React application
+- `POST /waitlist` → save email, return 409 on duplicate
+- `GET /waitlist/stats?key=BEAR_API_KEY` → total/today/week JSON
+- `GET /waitlist/admin?key=BEAR_API_KEY` → HTML admin table
+- `GET /admin/waitlist?key=BEAR_API_KEY` → same admin table (redirect)
+
+---
+
 ## 2026-03-12
 
 ### RFI Template Rebuild — match reference PDF (session 10)

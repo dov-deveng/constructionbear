@@ -49,7 +49,7 @@ export default function App() {
   if (loading) return <SplashScreen />;
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/app">
       <Routes>
         <Route path="/login" element={<AuthScreen mode="login" />} />
         <Route path="/register" element={<AuthScreen mode="register" />} />

@@ -442,4 +442,17 @@ function initSchema(db) {
       CREATE INDEX IF NOT EXISTS idx_leads_guest_session ON leads(guest_session_id);
     `);
   } catch { /* already exists */ }
+
+  // Landing page waitlist
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS waitlist (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        created_at INTEGER DEFAULT (unixepoch()),
+        ip_address TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_waitlist_email ON waitlist(email);
+    `);
+  } catch { /* already exists */ }
 }
