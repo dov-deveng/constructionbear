@@ -13,17 +13,24 @@ export default function AppShell() {
   const { user, company } = useAuthStore();
   const { sidebarOpen, activeView, closeSidebar } = useUIStore();
 
-  const bannerKey = company ? `cb_code_banner_${company.id}` : null;
-  const [codeBannerDismissed, setCodeBannerDismissed] = useState(
-    () => !bannerKey || !!localStorage.getItem(bannerKey)
-  );
+  const countKey = company ? `cb_code_banner_count_${company.id}` : null;
+  const [codeBannerDismissed, setCodeBannerDismissed] = useState(() => {
+    if (!countKey) return true;
+    return parseInt(localStorage.getItem(countKey) || '0', 10) >= 2;
+  });
   const [codeCopied, setCodeCopied] = useState(false);
 
-  // Show banner only to the company owner
+  // Show banner only to the company owner, max 2 times total
   const showCodeBanner = !codeBannerDismissed && company?.code && company?.owner_id === user?.id;
 
+  // Increment show count once per mount (when banner is visible)
+  useEffect(() => {
+    if (!countKey || codeBannerDismissed) return;
+    const count = parseInt(localStorage.getItem(countKey) || '0', 10);
+    localStorage.setItem(countKey, String(count + 1));
+  }, []);
+
   function dismissBanner() {
-    if (bannerKey) localStorage.setItem(bannerKey, '1');
     setCodeBannerDismissed(true);
   }
 
