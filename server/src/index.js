@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import cron from 'node-cron';
 import { runBackup } from './services/backup.js';
 import { getDb } from './db/schema.js';
+import bcrypt from 'bcryptjs';
 
 import authRouter from './routes/auth.js';
 import profileRouter from './routes/profile.js';
@@ -82,6 +83,22 @@ app.get('/api/admin/db-check', (req, res) => {
     res.json({ tables: tableList, users, documentCount: docCount });
   } catch (e) {
     res.json({ error: e.message });
+  }
+});
+// Temporary admin route — set password for existing user
+app.post('/api/admin/set-password', async (req, res) => {
+  const { key, email, password } = req.body;
+  if (key !== process.env.BEAR_API_KEY) return res.status(401).json({ error: 'unauthorized' });
+  if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+  try {
+    const db = getDb();
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
+    if (!user) return res.status(404).json({ error: 'user not found' });
+    const hash = await bcrypt.hash(password, 12);
+    db.prepare('UPDATE users SET password_hash = ?, email_verified = 1 WHERE id = ?').run(hash, user.id);
+    res.json({ success: true, email });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 app.use('/api/admin', adminRouter);
