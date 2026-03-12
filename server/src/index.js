@@ -27,7 +27,7 @@ const app = express();
 const PORT = process.env.PORT || 3457;
 
 // Stripe webhook needs raw body
-app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
 // Standard middleware
 const ALLOWED_ORIGINS = [
@@ -48,31 +48,31 @@ const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 const chatLimiter = rateLimit({ windowMs: 60 * 1000, max: 30 });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, skipSuccessfulRequests: true });
 app.use(limiter);
-app.use('/chat', chatLimiter);
-app.use('/auth/login', authLimiter);
-app.use('/auth/register', authLimiter);
+app.use('/api/chat', chatLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 
 // Static files
 app.use('/logos', express.static(path.join(process.cwd(), 'data/logos')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'data/uploads')));
 
 // Routes
-app.use('/auth', authRouter);
-app.use('/profile', profileRouter);
-app.use('/documents', documentsRouter);
-app.use('/projects', projectsRouter);
-app.use('/contacts', contactsRouter);
-app.use('/chat', chatRouter);
-app.use('/stripe', stripeRouter);
-app.use('/pdf', pdfRouter);
-app.use('/admin', adminRouter);
-app.use('/templates', templatesRouter);
-app.use('/documents/:docId/markups', markupsRouter);
-app.use('/documents/:docId/attachments', attachmentsRouter);
-app.use('/leads', leadsRouter);
-app.use('/waitlist', waitlistRouter);
-// Admin waitlist page (GET /admin/waitlist?key=...)
-app.get('/admin/waitlist', (req, res) => res.redirect(`/waitlist/admin?key=${req.query.key || ''}`));
+app.use('/api/auth', authRouter);
+app.use('/api/profile', profileRouter);
+app.use('/api/documents', documentsRouter);
+app.use('/api/projects', projectsRouter);
+app.use('/api/contacts', contactsRouter);
+app.use('/api/chat', chatRouter);
+app.use('/api/stripe', stripeRouter);
+app.use('/api/pdf', pdfRouter);
+// Waitlist admin must come BEFORE adminRouter (which has requireAuth middleware)
+app.use('/api/waitlist', waitlistRouter);
+app.get('/api/admin/waitlist', (req, res) => res.redirect(`/api/waitlist/admin?key=${req.query.key || ''}`));
+app.use('/api/admin', adminRouter);
+app.use('/api/templates', templatesRouter);
+app.use('/api/documents/:docId/markups', markupsRouter);
+app.use('/api/documents/:docId/attachments', attachmentsRouter);
+app.use('/api/leads', leadsRouter);
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'ConstructionBear API' }));

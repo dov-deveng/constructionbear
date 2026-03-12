@@ -16,71 +16,11 @@
 
     html, body {
       height: 100%;
-      background: var(--bg);
       color: white;
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
       overflow-x: hidden;
     }
 
-    /* ─── SCENE (fixed, full viewport background) ─── */
-    .scene {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      overflow: hidden;
-    }
-    .scene svg {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      inset: 0;
-    }
-
-    /* ─── CRANE ANIMATIONS ─── */
-    @keyframes crane1 {
-      0%, 100% { transform-origin: 50% 100%; transform: rotate(-7deg); }
-      50%       { transform-origin: 50% 100%; transform: rotate(7deg); }
-    }
-    @keyframes crane2 {
-      0%, 100% { transform-origin: 50% 100%; transform: rotate(-5deg); }
-      50%       { transform-origin: 50% 100%; transform: rotate(9deg); }
-    }
-    @keyframes crane3 {
-      0%, 100% { transform-origin: 50% 100%; transform: rotate(6deg); }
-      50%       { transform-origin: 50% 100%; transform: rotate(-8deg); }
-    }
-    .crane-arm-1 { animation: crane1 9s ease-in-out infinite; }
-    .crane-arm-2 { animation: crane2 11s ease-in-out infinite 2s; }
-    .crane-arm-3 { animation: crane3 8s ease-in-out infinite 4.5s; }
-
-    /* ─── SPARK / WELD ANIMATIONS ─── */
-    @keyframes sparkFlash {
-      0%, 88%, 100% { opacity: 0; }
-      90%, 95%      { opacity: 1; }
-    }
-    @keyframes sparkParticle {
-      0%   { opacity: 1; transform: translate(0, 0) scale(1); }
-      100% { opacity: 0; transform: translate(var(--sx,6px), var(--sy,-12px)) scale(0.2); }
-    }
-    .weld-glow   { animation: sparkFlash 2.4s ease-in-out infinite; }
-    .spark-p1    { animation: sparkFlash 2.4s ease-in-out infinite 0.05s; }
-    .spark-p2    { animation: sparkFlash 2.4s ease-in-out infinite 0.1s; }
-    .spark-p3    { animation: sparkFlash 2.4s ease-in-out infinite 0.15s; }
-
-    /* ─── WINDOW GLOW ─── */
-    @keyframes winGlow {
-      0%, 100% { opacity: 0.7; }
-      50%       { opacity: 1; }
-    }
-    @keyframes winFlicker {
-      0%, 100% { opacity: 0.5; }
-      45%       { opacity: 0.9; }
-      47%       { opacity: 0.3; }
-      49%       { opacity: 0.8; }
-    }
-    .win-glow    { animation: winGlow    3.5s ease-in-out infinite; }
-    .win-glow-2  { animation: winGlow    4.2s ease-in-out infinite 1s; }
-    .win-flicker { animation: winFlicker 5s   ease-in-out infinite 0.5s; }
 
     /* ─── STAR TWINKLE ─── */
     @keyframes twinkle {
@@ -88,36 +28,12 @@
       50%       { opacity: 0.15; }
     }
 
-    /* ─── LIGHT BEAM PULSE ─── */
-    @keyframes beamPulse {
-      0%, 100% { opacity: 0.22; }
-      50%       { opacity: 0.35; }
-    }
-    .beam-pulse { animation: beamPulse 3s ease-in-out infinite; }
-    .beam-pulse-2 { animation: beamPulse 4s ease-in-out infinite 1.5s; }
-
     /* ─── BEARING WAVE ─── */
     @keyframes bearWave {
       0%, 100% { transform: rotate(-10deg); }
       50%       { transform: rotate(15deg); }
     }
     .bear-arm-wave { animation: bearWave 1.2s ease-in-out infinite; transform-origin: 0% 50%; }
-
-    /* ─── CAUTION TAPE STRIPE (card) ─── */
-    .tape {
-      position: absolute;
-      background: repeating-linear-gradient(
-        -45deg,
-        #FFB800 0px, #FFB800 14px,
-        #0A0A0A  14px, #0A0A0A  28px
-      );
-      z-index: 2;
-      pointer-events: none;
-    }
-    .tape-top    { top: -7px;  left: -12px; right: -12px; height: 14px; transform: rotate(-1.4deg); }
-    .tape-bottom { bottom: -7px; left: -12px; right: -12px; height: 14px; transform: rotate(0.9deg); }
-    .tape-left   { left: -7px; top: -12px; bottom: -12px; width: 14px; transform: rotate(-0.7deg); }
-    .tape-right  { right: -7px; top: -12px; bottom: -12px; width: 14px; transform: rotate(1.3deg); }
 
     /* ─── BADGE ─── */
     @keyframes pulseDot {
@@ -155,6 +71,7 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 17px;
       line-height: 1;
+      overflow: hidden;
     }
     .logo-text {
       font-size: 16px;
@@ -238,6 +155,18 @@
       position: relative;
     }
 
+    /* ─── CAUTION TAPE DRAPES ─── */
+    .tape-drape {
+      position: absolute;
+      left: -50px;
+      width: 480px;
+      pointer-events: none;
+      z-index: 5;
+      display: block;
+    }
+    .tape-drape-top { top: -22px; }
+    .tape-drape-bottom { bottom: -22px; }
+
     .card {
       background: #0A0A0A;
       border-radius: 16px;
@@ -256,7 +185,6 @@
     .bear-icon {
       display: flex;
       justify-content: center;
-      margin-bottom: 14px;
     }
     .card-title {
       font-size: 18px;
@@ -328,7 +256,6 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .success-state.show { display: flex; }
-    .success-emoji { font-size: 52px; margin-bottom: 16px; }
     .success-title { font-size: 20px; font-weight: 600; color: white; margin-bottom: 8px; }
     .success-body  { font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.55; max-width: 280px; }
 
@@ -354,680 +281,13 @@
 <body>
 
 <!-- ════════════════════════════════════
-     SCENE — Bear City Under Construction
+     SCENE — Bear City Background Iframe
      ════════════════════════════════════ -->
-<div class="scene">
-<svg viewBox="0 0 1400 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <!-- Sky gradient -->
-    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#04040E"/>
-      <stop offset="55%"  stop-color="#080818"/>
-      <stop offset="100%" stop-color="#0E1020"/>
-    </linearGradient>
-
-    <!-- Horizon glow -->
-    <radialGradient id="horizonGlow" cx="50%" cy="100%" r="60%">
-      <stop offset="0%"   stop-color="#0A84FF" stop-opacity="0.13"/>
-      <stop offset="100%" stop-color="#0A84FF" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Ground gradient -->
-    <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#141418"/>
-      <stop offset="100%" stop-color="#0C0C10"/>
-    </linearGradient>
-
-    <!-- Amber flood light -->
-    <radialGradient id="floodL1" cx="50%" cy="0%" r="100%">
-      <stop offset="0%"   stop-color="#FFB800" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#FFB800" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="floodL2" cx="50%" cy="0%" r="100%">
-      <stop offset="0%"   stop-color="#FFB800" stop-opacity="0.2"/>
-      <stop offset="100%" stop-color="#FFB800" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="floodL3" cx="50%" cy="0%" r="100%">
-      <stop offset="0%"   stop-color="#FFB800" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#FFB800" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Blue neon window glow -->
-    <radialGradient id="blueWinGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#0A84FF" stop-opacity="0.6"/>
-      <stop offset="100%" stop-color="#0A84FF" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Weld spark glow -->
-    <radialGradient id="weldGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#FFE066" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#FF8C00" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Building glow at base (ambient light) -->
-    <radialGradient id="bldGlow" cx="50%" cy="100%" r="60%">
-      <stop offset="0%"   stop-color="#0A84FF" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#0A84FF" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Caution tape pattern -->
-    <pattern id="cautionTape" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-      <rect width="30" height="30" fill="#FFB800"/>
-      <rect y="0"  width="30" height="15" fill="#111111"/>
-    </pattern>
-  </defs>
-
-  <!-- ── SKY ── -->
-  <rect width="1400" height="800" fill="url(#skyGrad)"/>
-
-  <!-- ── STARS ── -->
-  <!-- Scatter of tiny stars in upper portion -->
-  <g opacity="1">
-    <!-- Row 1 — very top -->
-    <circle cx="80"  cy="35"  r="0.8" fill="white" opacity="0.7" style="animation: twinkle 4.1s ease-in-out infinite 0.3s; --op:0.7"/>
-    <circle cx="155" cy="18"  r="1.1" fill="white" opacity="0.8" style="animation: twinkle 3.6s ease-in-out infinite 1.1s; --op:0.8"/>
-    <circle cx="240" cy="52"  r="0.7" fill="white" opacity="0.5" style="animation: twinkle 5.2s ease-in-out infinite 0.7s; --op:0.5"/>
-    <circle cx="320" cy="22"  r="0.9" fill="white" opacity="0.6" style="animation: twinkle 3.9s ease-in-out infinite 2s;   --op:0.6"/>
-    <circle cx="440" cy="40"  r="0.8" fill="white" opacity="0.7" style="animation: twinkle 4.8s ease-in-out infinite 0.2s; --op:0.7"/>
-    <circle cx="560" cy="12"  r="1.2" fill="white" opacity="0.9" style="animation: twinkle 3.3s ease-in-out infinite 1.5s; --op:0.9"/>
-    <circle cx="660" cy="55"  r="0.7" fill="white" opacity="0.5" style="animation: twinkle 5.5s ease-in-out infinite 0.9s; --op:0.5"/>
-    <circle cx="780" cy="28"  r="1.0" fill="white" opacity="0.7" style="animation: twinkle 4.4s ease-in-out infinite 1.8s; --op:0.7"/>
-    <circle cx="900" cy="45"  r="0.8" fill="white" opacity="0.6" style="animation: twinkle 3.7s ease-in-out infinite 0.4s; --op:0.6"/>
-    <circle cx="1020" cy="20" r="1.1" fill="white" opacity="0.8" style="animation: twinkle 4.9s ease-in-out infinite 2.3s; --op:0.8"/>
-    <circle cx="1140" cy="38" r="0.7" fill="white" opacity="0.5" style="animation: twinkle 5.1s ease-in-out infinite 0.6s; --op:0.5"/>
-    <circle cx="1260" cy="15" r="0.9" fill="white" opacity="0.7" style="animation: twinkle 3.8s ease-in-out infinite 1.2s; --op:0.7"/>
-    <circle cx="1350" cy="50" r="1.0" fill="white" opacity="0.6" style="animation: twinkle 4.6s ease-in-out infinite 0.8s; --op:0.6"/>
-    <!-- Row 2 -->
-    <circle cx="40"   cy="80" r="0.8" fill="white" opacity="0.6" style="animation: twinkle 4.5s ease-in-out infinite 1.4s; --op:0.6"/>
-    <circle cx="190"  cy="95" r="0.7" fill="white" opacity="0.5" style="animation: twinkle 5.8s ease-in-out infinite 0.1s; --op:0.5"/>
-    <circle cx="280"  cy="70" r="1.0" fill="white" opacity="0.8" style="animation: twinkle 3.4s ease-in-out infinite 2.1s; --op:0.8"/>
-    <circle cx="400"  cy="85" r="0.8" fill="white" opacity="0.6" style="animation: twinkle 4.2s ease-in-out infinite 0.5s; --op:0.6"/>
-    <circle cx="510"  cy="68" r="0.9" fill="white" opacity="0.7" style="animation: twinkle 5.0s ease-in-out infinite 1.7s; --op:0.7"/>
-    <circle cx="620"  cy="90" r="0.7" fill="white" opacity="0.5" style="animation: twinkle 3.5s ease-in-out infinite 0.3s; --op:0.5"/>
-    <circle cx="730"  cy="72" r="1.1" fill="white" opacity="0.8" style="animation: twinkle 4.7s ease-in-out infinite 2.4s; --op:0.8"/>
-    <circle cx="840"  cy="88" r="0.8" fill="white" opacity="0.6" style="animation: twinkle 3.2s ease-in-out infinite 0.9s; --op:0.6"/>
-    <circle cx="960"  cy="65" r="0.9" fill="white" opacity="0.7" style="animation: twinkle 5.3s ease-in-out infinite 1.6s; --op:0.7"/>
-    <circle cx="1080" cy="82" r="0.7" fill="white" opacity="0.5" style="animation: twinkle 4.3s ease-in-out infinite 0.2s; --op:0.5"/>
-    <circle cx="1200" cy="75" r="1.0" fill="white" opacity="0.7" style="animation: twinkle 3.6s ease-in-out infinite 2.2s; --op:0.7"/>
-    <circle cx="1320" cy="92" r="0.8" fill="white" opacity="0.6" style="animation: twinkle 4.8s ease-in-out infinite 1.0s; --op:0.6"/>
-    <!-- Row 3 -->
-    <circle cx="100"  cy="120" r="0.8" fill="white" opacity="0.5" style="animation: twinkle 5.6s ease-in-out infinite 1.3s; --op:0.5"/>
-    <circle cx="230"  cy="135" r="0.7" fill="white" opacity="0.4" style="animation: twinkle 4.1s ease-in-out infinite 0.7s; --op:0.4"/>
-    <circle cx="360"  cy="110" r="0.9" fill="white" opacity="0.6" style="animation: twinkle 3.9s ease-in-out infinite 1.9s; --op:0.6"/>
-    <circle cx="490"  cy="128" r="0.8" fill="white" opacity="0.5" style="animation: twinkle 5.2s ease-in-out infinite 0.4s; --op:0.5"/>
-    <circle cx="600"  cy="105" r="1.0" fill="white" opacity="0.7" style="animation: twinkle 3.7s ease-in-out infinite 2.5s; --op:0.7"/>
-    <circle cx="700"  cy="140" r="0.7" fill="white" opacity="0.4" style="animation: twinkle 4.4s ease-in-out infinite 0.6s; --op:0.4"/>
-    <circle cx="820"  cy="118" r="0.8" fill="white" opacity="0.5" style="animation: twinkle 5.4s ease-in-out infinite 1.1s; --op:0.5"/>
-    <circle cx="940"  cy="130" r="0.9" fill="white" opacity="0.6" style="animation: twinkle 3.3s ease-in-out infinite 2.0s; --op:0.6"/>
-    <circle cx="1060" cy="112" r="0.7" fill="white" opacity="0.4" style="animation: twinkle 4.9s ease-in-out infinite 0.8s; --op:0.4"/>
-    <circle cx="1180" cy="125" r="1.0" fill="white" opacity="0.6" style="animation: twinkle 3.5s ease-in-out infinite 1.6s; --op:0.6"/>
-    <circle cx="1300" cy="108" r="0.8" fill="white" opacity="0.5" style="animation: twinkle 5.0s ease-in-out infinite 0.3s; --op:0.5"/>
-    <circle cx="1380" cy="135" r="0.7" fill="white" opacity="0.4" style="animation: twinkle 4.3s ease-in-out infinite 1.8s; --op:0.4"/>
-  </g>
-
-  <!-- ── HORIZON GLOW ── -->
-  <rect x="0" y="460" width="1400" height="340" fill="url(#horizonGlow)" opacity="0.9"/>
-
-  <!-- ══════════════════════════════
-       BUILDINGS
-       ══════════════════════════════ -->
-
-  <!-- Building A — far left background (small, complete) -->
-  <g opacity="0.6">
-    <rect x="-30" y="350" width="90" height="360" fill="#0E0E16"/>
-    <rect x="-30" y="350" width="90" height="2" fill="#1A1A26"/>
-    <!-- windows -->
-    <rect x="-16" y="370" width="12" height="8"  fill="#0A84FF" opacity="0.4" class="win-glow-2"/>
-    <rect x="-16" y="388" width="12" height="8"  fill="#0A84FF" opacity="0.3" class="win-glow"/>
-    <rect x="4"   y="370" width="12" height="8"  fill="#0A84FF" opacity="0.35"/>
-    <rect x="24"  y="370" width="12" height="8"  fill="#0A84FF" opacity="0.25" class="win-glow-2"/>
-    <rect x="4"   y="388" width="12" height="8"  fill="#0A84FF" opacity="0.3"/>
-    <rect x="24"  y="388" width="12" height="8"  fill="#0A84FF" opacity="0.4" class="win-glow"/>
-    <rect x="-16" y="406" width="12" height="8"  fill="#0A84FF" opacity="0.2"/>
-    <rect x="4"   y="406" width="12" height="8"  fill="#0A84FF" opacity="0.35" class="win-glow-2"/>
-  </g>
-
-  <!-- Building B — left main — STEEL FRAME under construction -->
-  <g>
-    <!-- Concrete base (solid lower half) -->
-    <rect x="80"  y="400" width="170" height="310" fill="#111118"/>
-    <rect x="80"  y="400" width="170" height="2"   fill="#1E1E28"/>
-    <!-- windows on solid base -->
-    <rect x="96"  y="418" width="20" height="12" fill="#0A84FF" opacity="0.5" class="win-glow"/>
-    <rect x="126" y="418" width="20" height="12" fill="#0A84FF" opacity="0.4"/>
-    <rect x="156" y="418" width="20" height="12" fill="#0A84FF" opacity="0.55" class="win-glow-2"/>
-    <rect x="96"  y="442" width="20" height="12" fill="#0A84FF" opacity="0.35"/>
-    <rect x="126" y="442" width="20" height="12" fill="#0A84FF" opacity="0.5" class="win-flicker"/>
-    <rect x="156" y="442" width="20" height="12" fill="#0A84FF" opacity="0.4" class="win-glow"/>
-    <rect x="96"  y="466" width="20" height="12" fill="#0A84FF" opacity="0.45"/>
-    <rect x="126" y="466" width="20" height="12" fill="#0A84FF" opacity="0.3" class="win-glow-2"/>
-    <rect x="156" y="466" width="20" height="12" fill="#0A84FF" opacity="0.5"/>
-    <!-- Steel frame upper section -->
-    <!-- Vertical columns -->
-    <rect x="82"  y="200" width="8"  height="200" fill="#1C1C26"/>
-    <rect x="115" y="220" width="7"  height="180" fill="#1C1C26"/>
-    <rect x="150" y="210" width="7"  height="190" fill="#1C1C26"/>
-    <rect x="182" y="200" width="8"  height="200" fill="#1C1C26"/>
-    <rect x="240" y="230" width="8"  height="170" fill="#1C1C26"/>
-    <!-- Horizontal beams -->
-    <rect x="82"  y="200" width="166" height="6"  fill="#242430"/>
-    <rect x="82"  y="240" width="166" height="5"  fill="#242430"/>
-    <rect x="82"  y="280" width="166" height="5"  fill="#242430"/>
-    <rect x="82"  y="320" width="166" height="5"  fill="#242430"/>
-    <rect x="82"  y="360" width="166" height="5"  fill="#242430"/>
-    <!-- Diagonal bracing -->
-    <line x1="82"  y1="200" x2="150" y2="280" stroke="#20202C" stroke-width="3"/>
-    <line x1="150" y1="200" x2="82"  y2="280" stroke="#20202C" stroke-width="3"/>
-    <line x1="150" y1="280" x2="248" y2="360" stroke="#20202C" stroke-width="3"/>
-    <line x1="248" y1="280" x2="150" y2="360" stroke="#20202C" stroke-width="3"/>
-    <!-- Partial floor slabs (incomplete) -->
-    <rect x="82"  y="393" width="166" height="8"  fill="#181822"/>
-    <rect x="82"  y="353" width="166" height="7"  fill="#181822" opacity="0.7"/>
-  </g>
-
-  <!-- Scaffolding on Building B (left face) -->
-  <g fill="none" stroke="#2A2A3A" stroke-width="2">
-    <!-- Vertical scaffold poles -->
-    <line x1="72" y1="200" x2="72" y2="540"/>
-    <line x1="55" y1="200" x2="55" y2="540"/>
-    <!-- Horizontal platforms -->
-    <line x1="50" y1="260" x2="82" y2="260"/>
-    <line x1="50" y1="320" x2="82" y2="320"/>
-    <line x1="50" y1="380" x2="82" y2="380"/>
-    <line x1="50" y1="440" x2="82" y2="440"/>
-    <!-- Platform boards -->
-    <rect x="50" y="256" width="32" height="6" fill="#1E1E28" stroke="none"/>
-    <rect x="50" y="316" width="32" height="6" fill="#1E1E28" stroke="none"/>
-    <rect x="50" y="376" width="32" height="6" fill="#1E1E28" stroke="none"/>
-    <rect x="50" y="436" width="32" height="6" fill="#1E1E28" stroke="none"/>
-  </g>
-
-  <!-- Building C — center-left — NEARLY COMPLETE (blue neon) -->
-  <g>
-    <rect x="280" y="110" width="200" height="600" fill="#0F0F1A"/>
-    <rect x="280" y="110" width="200" height="3"   fill="#1E2035"/>
-    <!-- Blue neon window grid -->
-    <g class="win-glow">
-      <rect x="298" y="130" width="28" height="16" fill="#0A84FF" opacity="0.65" rx="1"/>
-      <rect x="336" y="130" width="28" height="16" fill="#0A84FF" opacity="0.7"  rx="1"/>
-      <rect x="374" y="130" width="28" height="16" fill="#0A84FF" opacity="0.6"  rx="1"/>
-      <rect x="412" y="130" width="28" height="16" fill="#0A84FF" opacity="0.65" rx="1"/>
-    </g>
-    <g class="win-glow-2">
-      <rect x="298" y="158" width="28" height="16" fill="#0A84FF" opacity="0.7"  rx="1"/>
-      <rect x="336" y="158" width="28" height="16" fill="#0A84FF" opacity="0.55" rx="1"/>
-      <rect x="374" y="158" width="28" height="16" fill="#0A84FF" opacity="0.65" rx="1"/>
-      <rect x="412" y="158" width="28" height="16" fill="#0A84FF" opacity="0.7"  rx="1"/>
-    </g>
-    <g>
-      <rect x="298" y="186" width="28" height="16" fill="#0A84FF" opacity="0.6"  rx="1"/>
-      <rect x="336" y="186" width="28" height="16" fill="#0A84FF" opacity="0.7"  rx="1" class="win-flicker"/>
-      <rect x="374" y="186" width="28" height="16" fill="#0A84FF" opacity="0.5"  rx="1"/>
-      <rect x="412" y="186" width="28" height="16" fill="#0A84FF" opacity="0.65" rx="1" class="win-glow"/>
-    </g>
-    <g class="win-glow">
-      <rect x="298" y="214" width="28" height="16" fill="#0A84FF" opacity="0.55" rx="1"/>
-      <rect x="336" y="214" width="28" height="16" fill="#0A84FF" opacity="0.65" rx="1"/>
-      <rect x="374" y="214" width="28" height="16" fill="#0A84FF" opacity="0.7"  rx="1"/>
-      <rect x="412" y="214" width="28" height="16" fill="#0A84FF" opacity="0.5"  rx="1"/>
-    </g>
-    <g class="win-glow-2">
-      <rect x="298" y="242" width="28" height="16" fill="#0A84FF" opacity="0.65" rx="1"/>
-      <rect x="336" y="242" width="28" height="16" fill="#0A84FF" opacity="0.7"  rx="1"/>
-      <rect x="374" y="242" width="28" height="16" fill="#0A84FF" opacity="0.6"  rx="1"/>
-      <rect x="412" y="242" width="28" height="16" fill="#0A84FF" opacity="0.55" rx="1"/>
-    </g>
-    <!-- More rows at lower levels -->
-    <g>
-      <rect x="298" y="270" width="28" height="16" fill="#0A84FF" opacity="0.5" rx="1" class="win-glow"/>
-      <rect x="336" y="270" width="28" height="16" fill="#0A84FF" opacity="0.6" rx="1"/>
-      <rect x="374" y="270" width="28" height="16" fill="#0A84FF" opacity="0.45" rx="1" class="win-glow-2"/>
-      <rect x="412" y="270" width="28" height="16" fill="#0A84FF" opacity="0.6" rx="1"/>
-    </g>
-    <g class="win-glow-2">
-      <rect x="298" y="298" width="28" height="16" fill="#0A84FF" opacity="0.55" rx="1"/>
-      <rect x="336" y="298" width="28" height="16" fill="#0A84FF" opacity="0.65" rx="1"/>
-      <rect x="374" y="298" width="28" height="16" fill="#0A84FF" opacity="0.5"  rx="1"/>
-      <rect x="412" y="298" width="28" height="16" fill="#0A84FF" opacity="0.6"  rx="1"/>
-    </g>
-    <!-- Large lobby/ground-floor neon sign area -->
-    <rect x="310" y="640" width="160" height="60"  fill="#08080F"/>
-    <rect x="316" y="646" width="148" height="48"  fill="#0A84FF" opacity="0.08" rx="2"/>
-    <!-- Blue ambient building glow -->
-    <rect x="240" y="100" width="280" height="620" fill="url(#bldGlow)" opacity="0.5"/>
-  </g>
-
-  <!-- Scaffolding on Building C right face -->
-  <g fill="none" stroke="#2A2A3A" stroke-width="2">
-    <line x1="480" y1="110" x2="480" y2="460"/>
-    <line x1="498" y1="110" x2="498" y2="460"/>
-    <line x1="480" y1="180" x2="498" y2="180"/>
-    <line x1="480" y1="260" x2="498" y2="260"/>
-    <line x1="480" y1="340" x2="498" y2="340"/>
-    <line x1="480" y1="420" x2="498" y2="420"/>
-    <rect x="478" y="176" width="22" height="6" fill="#1A1A24" stroke="none"/>
-    <rect x="478" y="256" width="22" height="6" fill="#1A1A24" stroke="none"/>
-    <rect x="478" y="336" width="22" height="6" fill="#1A1A24" stroke="none"/>
-    <rect x="478" y="416" width="22" height="6" fill="#1A1A24" stroke="none"/>
-  </g>
-
-  <!-- Building D — center — MID-CONSTRUCTION -->
-  <g>
-    <!-- Solid lower portion -->
-    <rect x="540" y="280" width="155" height="430" fill="#0E0E18"/>
-    <!-- Frame upper portion -->
-    <rect x="545" y="180" width="8"  height="100" fill="#1C1C26"/>
-    <rect x="580" y="195" width="7"  height="85"  fill="#1C1C26"/>
-    <rect x="615" y="185" width="7"  height="95"  fill="#1C1C26"/>
-    <rect x="650" y="180" width="8"  height="100" fill="#1C1C26"/>
-    <rect x="685" y="190" width="7"  height="90"  fill="#1C1C26"/>
-    <rect x="545" y="180" width="147" height="5"  fill="#242430"/>
-    <rect x="545" y="220" width="147" height="5"  fill="#242430"/>
-    <rect x="545" y="260" width="147" height="5"  fill="#242430"/>
-    <!-- windows on solid part -->
-    <rect x="558" y="300" width="18" height="11" fill="#0A84FF" opacity="0.4" class="win-glow"/>
-    <rect x="586" y="300" width="18" height="11" fill="#0A84FF" opacity="0.35"/>
-    <rect x="614" y="300" width="18" height="11" fill="#0A84FF" opacity="0.45" class="win-glow-2"/>
-    <rect x="642" y="300" width="18" height="11" fill="#0A84FF" opacity="0.3"/>
-    <rect x="558" y="322" width="18" height="11" fill="#0A84FF" opacity="0.35"/>
-    <rect x="586" y="322" width="18" height="11" fill="#0A84FF" opacity="0.45" class="win-glow"/>
-    <rect x="614" y="322" width="18" height="11" fill="#0A84FF" opacity="0.3" class="win-flicker"/>
-    <rect x="642" y="322" width="18" height="11" fill="#0A84FF" opacity="0.4" class="win-glow-2"/>
-    <rect x="558" y="344" width="18" height="11" fill="#0A84FF" opacity="0.45"/>
-    <rect x="586" y="344" width="18" height="11" fill="#0A84FF" opacity="0.3" class="win-glow"/>
-    <rect x="614" y="344" width="18" height="11" fill="#0A84FF" opacity="0.35"/>
-    <rect x="642" y="344" width="18" height="11" fill="#0A84FF" opacity="0.45" class="win-glow-2"/>
-    <rect x="558" y="366" width="18" height="11" fill="#0A84FF" opacity="0.3"/>
-    <rect x="586" y="366" width="18" height="11" fill="#0A84FF" opacity="0.4" class="win-glow"/>
-    <rect x="614" y="366" width="18" height="11" fill="#0A84FF" opacity="0.35" class="win-glow-2"/>
-    <rect x="642" y="366" width="18" height="11" fill="#0A84FF" opacity="0.25"/>
-  </g>
-
-  <!-- Building E — right center — TALL STEEL FRAME -->
-  <g>
-    <rect x="740" y="160" width="145" height="550" fill="#0D0D17"/>
-    <!-- vertical frame lines (dark facade treatment) -->
-    <rect x="752" y="160" width="3" height="550" fill="#171720"/>
-    <rect x="780" y="160" width="3" height="550" fill="#171720"/>
-    <rect x="808" y="160" width="3" height="550" fill="#171720"/>
-    <rect x="836" y="160" width="3" height="550" fill="#171720"/>
-    <rect x="864" y="160" width="3" height="550" fill="#171720"/>
-    <!-- window columns -->
-    <g class="win-glow">
-      <rect x="757" y="180" width="18" height="10" fill="#0A84FF" opacity="0.5" rx="1"/>
-      <rect x="785" y="180" width="18" height="10" fill="#0A84FF" opacity="0.6" rx="1"/>
-      <rect x="813" y="180" width="18" height="10" fill="#0A84FF" opacity="0.45" rx="1"/>
-      <rect x="841" y="180" width="18" height="10" fill="#0A84FF" opacity="0.55" rx="1"/>
-    </g>
-    <g class="win-glow-2">
-      <rect x="757" y="202" width="18" height="10" fill="#0A84FF" opacity="0.4" rx="1"/>
-      <rect x="785" y="202" width="18" height="10" fill="#0A84FF" opacity="0.55" rx="1"/>
-      <rect x="813" y="202" width="18" height="10" fill="#0A84FF" opacity="0.5" rx="1"/>
-      <rect x="841" y="202" width="18" height="10" fill="#0A84FF" opacity="0.4" rx="1"/>
-    </g>
-    <g>
-      <rect x="757" y="224" width="18" height="10" fill="#0A84FF" opacity="0.55" rx="1" class="win-glow"/>
-      <rect x="785" y="224" width="18" height="10" fill="#0A84FF" opacity="0.4"  rx="1"/>
-      <rect x="813" y="224" width="18" height="10" fill="#0A84FF" opacity="0.6"  rx="1" class="win-glow-2"/>
-      <rect x="841" y="224" width="18" height="10" fill="#0A84FF" opacity="0.45" rx="1" class="win-flicker"/>
-    </g>
-    <g class="win-glow">
-      <rect x="757" y="246" width="18" height="10" fill="#0A84FF" opacity="0.45" rx="1"/>
-      <rect x="785" y="246" width="18" height="10" fill="#0A84FF" opacity="0.6"  rx="1"/>
-      <rect x="813" y="246" width="18" height="10" fill="#0A84FF" opacity="0.5"  rx="1"/>
-      <rect x="841" y="246" width="18" height="10" fill="#0A84FF" opacity="0.35" rx="1"/>
-    </g>
-    <g class="win-glow-2">
-      <rect x="757" y="268" width="18" height="10" fill="#0A84FF" opacity="0.5" rx="1"/>
-      <rect x="785" y="268" width="18" height="10" fill="#0A84FF" opacity="0.4" rx="1"/>
-      <rect x="813" y="268" width="18" height="10" fill="#0A84FF" opacity="0.55" rx="1"/>
-      <rect x="841" y="268" width="18" height="10" fill="#0A84FF" opacity="0.45" rx="1"/>
-    </g>
-    <!-- Scaffolding on left face -->
-    <g fill="none" stroke="#252535" stroke-width="2">
-      <line x1="730" y1="160" x2="730" y2="480"/>
-      <line x1="718" y1="160" x2="718" y2="480"/>
-      <line x1="718" y1="220" x2="740" y2="220"/>
-      <line x1="718" y1="300" x2="740" y2="300"/>
-      <line x1="718" y1="380" x2="740" y2="380"/>
-      <line x1="718" y1="460" x2="740" y2="460"/>
-      <rect x="716" y="216" width="26" height="6" fill="#1A1A24" stroke="none"/>
-      <rect x="716" y="296" width="26" height="6" fill="#1A1A24" stroke="none"/>
-      <rect x="716" y="376" width="26" height="6" fill="#1A1A24" stroke="none"/>
-      <rect x="716" y="456" width="26" height="6" fill="#1A1A24" stroke="none"/>
-    </g>
-  </g>
-
-  <!-- Building F — far right (background, partially visible) -->
-  <g opacity="0.7">
-    <rect x="920" y="220" width="120" height="490" fill="#0B0B15"/>
-    <rect x="930" y="240" width="16" height="9" fill="#0A84FF" opacity="0.4" rx="1" class="win-glow"/>
-    <rect x="952" y="240" width="16" height="9" fill="#0A84FF" opacity="0.35" rx="1"/>
-    <rect x="974" y="240" width="16" height="9" fill="#0A84FF" opacity="0.45" rx="1" class="win-glow-2"/>
-    <rect x="930" y="260" width="16" height="9" fill="#0A84FF" opacity="0.3"  rx="1"/>
-    <rect x="952" y="260" width="16" height="9" fill="#0A84FF" opacity="0.4"  rx="1" class="win-glow"/>
-    <rect x="974" y="260" width="16" height="9" fill="#0A84FF" opacity="0.35" rx="1"/>
-    <rect x="930" y="280" width="16" height="9" fill="#0A84FF" opacity="0.45" rx="1" class="win-glow-2"/>
-    <rect x="952" y="280" width="16" height="9" fill="#0A84FF" opacity="0.3"  rx="1"/>
-    <rect x="974" y="280" width="16" height="9" fill="#0A84FF" opacity="0.4"  rx="1" class="win-glow"/>
-  </g>
-
-  <!-- Building G — far right edge (barely visible) -->
-  <g opacity="0.4">
-    <rect x="1060" y="300" width="90" height="410" fill="#0C0C18"/>
-    <rect x="1070" y="320" width="14" height="8" fill="#0A84FF" opacity="0.35" rx="1"/>
-    <rect x="1090" y="320" width="14" height="8" fill="#0A84FF" opacity="0.3" rx="1"/>
-    <rect x="1110" y="320" width="14" height="8" fill="#0A84FF" opacity="0.4" rx="1"/>
-    <rect x="1070" y="340" width="14" height="8" fill="#0A84FF" opacity="0.3" rx="1"/>
-    <rect x="1090" y="340" width="14" height="8" fill="#0A84FF" opacity="0.35" rx="1"/>
-  </g>
-
-  <!-- ══════════════════════════════
-       CRANES
-       ══════════════════════════════ -->
-
-  <!-- CRANE 1 on Building B -->
-  <g class="crane-arm-1">
-    <!-- Tower -->
-    <rect x="154" y="100" width="10" height="100" fill="#1E2030"/>
-    <!-- Counter arm (left) -->
-    <rect x="110" y="100" width="55" height="7"  fill="#252835"/>
-    <!-- Main arm (right) -->
-    <rect x="164" y="100" width="130" height="7" fill="#252835"/>
-    <!-- Crane cab -->
-    <rect x="148" y="95"  width="22"  height="14" fill="#1A1C2A" rx="2"/>
-    <!-- Hook line -->
-    <line x1="250" y1="107" x2="250" y2="170" stroke="#2A2C3A" stroke-width="2"/>
-    <rect x="246" y="168" width="8" height="6" fill="#303244" rx="1"/>
-    <!-- Counter weight -->
-    <rect x="110" y="107" width="20" height="12" fill="#1A1C28"/>
-    <!-- Bear in crane cab (tiny silhouette) -->
-    <ellipse cx="159" cy="100" rx="5" ry="5" fill="#C8936A"/>
-    <ellipse cx="159" cy="97"  rx="4" ry="3.5" fill="#D4A07A"/>
-    <!-- hard hat -->
-    <ellipse cx="159" cy="94" rx="5" ry="2.5" fill="#FFB800"/>
-    <rect    cx="159" y="91" x="156" width="6"  height="3" fill="#FFB800"/>
-  </g>
-
-  <!-- CRANE 2 on Building C -->
-  <g class="crane-arm-2">
-    <!-- Tower -->
-    <rect x="370" y="50" width="10" height="62" fill="#1E2030"/>
-    <!-- Counter arm -->
-    <rect x="325" y="50" width="55" height="7"  fill="#252835"/>
-    <!-- Main arm -->
-    <rect x="380" y="50" width="160" height="7" fill="#252835"/>
-    <!-- Cab -->
-    <rect x="364" y="45" width="22" height="14"  fill="#1A1C2A" rx="2"/>
-    <!-- Hook line -->
-    <line x1="480" y1="57"  x2="480" y2="130" stroke="#2A2C3A" stroke-width="2"/>
-    <rect x="476" y="128" width="8"  height="6" fill="#303244" rx="1"/>
-    <!-- Counter weight -->
-    <rect x="325" y="57"  width="20" height="12" fill="#1A1C28"/>
-    <!-- Bear waving from cab -->
-    <ellipse cx="375" cy="50" rx="5" ry="5"   fill="#C8936A"/>
-    <ellipse cx="375" cy="47" rx="4" ry="3.5" fill="#D4A07A"/>
-    <!-- hard hat -->
-    <ellipse cx="375" cy="44" rx="5" ry="2.5" fill="#FFB800"/>
-    <rect x="372" y="41" width="6" height="3"  fill="#FFB800"/>
-    <!-- Waving arm -->
-    <g class="bear-arm-wave">
-      <line x1="380" y1="52" x2="390" y2="44" stroke="#C8936A" stroke-width="3" stroke-linecap="round"/>
-      <circle cx="390" cy="43" r="3" fill="#C8936A"/>
-    </g>
-  </g>
-
-  <!-- CRANE 3 on Building E -->
-  <g class="crane-arm-3">
-    <!-- Tower -->
-    <rect x="804" y="100" width="10" height="62" fill="#1E2030"/>
-    <!-- Counter arm -->
-    <rect x="760" y="100" width="55" height="7"  fill="#252835"/>
-    <!-- Main arm -->
-    <rect x="814" y="100" width="150" height="7" fill="#252835"/>
-    <!-- Cab -->
-    <rect x="798" y="95"  width="22"  height="14"  fill="#1A1C2A" rx="2"/>
-    <!-- Hook line -->
-    <line x1="910" y1="107" x2="910" y2="180" stroke="#2A2C3A" stroke-width="2"/>
-    <rect x="906" y="178" width="8"   height="6"  fill="#303244" rx="1"/>
-    <!-- Heavy concrete block on hook (being lifted) -->
-    <rect x="898" y="183" width="24"  height="14" fill="#1C1C24" rx="1"/>
-    <!-- Counter weight -->
-    <rect x="760" y="107" width="20"  height="12" fill="#1A1C28"/>
-    <!-- Bear in cab -->
-    <ellipse cx="809" cy="100" rx="5"  ry="5"   fill="#C8936A"/>
-    <ellipse cx="809" cy="97"  rx="4"  ry="3.5" fill="#D4A07A"/>
-    <ellipse cx="809" cy="94" rx="5" ry="2.5" fill="#FFB800"/>
-    <rect    x="806" y="91"  width="6" height="3" fill="#FFB800"/>
-  </g>
-
-  <!-- ══════════════════════════════
-       BEARS ON SCAFFOLDING
-       ══════════════════════════════ -->
-
-  <!-- Bear 1 — Building B scaffolding — WELDING -->
-  <g transform="translate(50, 310)">
-    <!-- Body -->
-    <ellipse cx="12" cy="12" rx="7" ry="8"   fill="#B8825E"/>
-    <!-- Head -->
-    <ellipse cx="12" cy="2"  rx="6" ry="5.5" fill="#C8936A"/>
-    <!-- Ears -->
-    <circle  cx="7"  cy="-2" r="2.5" fill="#C8936A"/>
-    <circle  cx="17" cy="-2" r="2.5" fill="#C8936A"/>
-    <!-- Face -->
-    <circle  cx="10" cy="2" r="1"   fill="#3A2010"/>
-    <circle  cx="14" cy="2" r="1"   fill="#3A2010"/>
-    <!-- Hard hat -->
-    <ellipse cx="12" cy="-3" rx="7"  ry="3"  fill="#FF6B00"/>
-    <rect    x="5"  y="-4"  width="14" height="3" fill="#FF6B00" rx="1"/>
-    <rect    x="4"  y="-2"  width="16" height="2" fill="#E55F00"/>
-    <!-- Welding arm -->
-    <line x1="19" y1="10" x2="30" y2="16" stroke="#B8825E" stroke-width="3" stroke-linecap="round"/>
-    <!-- Welding tool -->
-    <rect x="28" y="14" width="8" height="4" fill="#2A2A3A" rx="1"/>
-    <!-- WELD SPARK -->
-    <g class="weld-glow">
-      <circle cx="36" cy="17" r="6" fill="url(#weldGlow)" opacity="0.8"/>
-      <circle cx="36" cy="17" r="2" fill="#FFE066"/>
-    </g>
-    <g class="spark-p1">
-      <line x1="36" y1="17" x2="42" y2="10" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round"/>
-    </g>
-    <g class="spark-p2">
-      <line x1="36" y1="17" x2="40" y2="24" stroke="#FFB800" stroke-width="1.5" stroke-linecap="round"/>
-    </g>
-    <g class="spark-p3">
-      <line x1="36" y1="17" x2="30" y2="22" stroke="#FF8C00" stroke-width="1"   stroke-linecap="round"/>
-      <line x1="36" y1="17" x2="44" y2="18" stroke="#FFE066" stroke-width="1"   stroke-linecap="round"/>
-    </g>
-    <!-- Welding mask glare -->
-    <ellipse cx="12" cy="2" rx="4" ry="3" fill="#1A3050" opacity="0.6" class="weld-glow"/>
-  </g>
-
-  <!-- Bear 2 — Building C scaffolding — CARRYING A BEAM -->
-  <g transform="translate(478, 256)">
-    <!-- Body -->
-    <ellipse cx="10" cy="12" rx="7"  ry="8"   fill="#B8825E"/>
-    <!-- Head -->
-    <ellipse cx="10" cy="2"  rx="6"  ry="5.5" fill="#C8936A"/>
-    <!-- Ears -->
-    <circle  cx="5"  cy="-2" r="2.5" fill="#C8936A"/>
-    <circle  cx="15" cy="-2" r="2.5" fill="#C8936A"/>
-    <!-- Eyes -->
-    <circle  cx="8"  cy="2"  r="1"   fill="#3A2010"/>
-    <circle  cx="12" cy="2"  r="1"   fill="#3A2010"/>
-    <!-- Hard hat -->
-    <ellipse cx="10" cy="-3" rx="7"  ry="3"   fill="#FFB800"/>
-    <rect    x="3"  y="-4"  width="14" height="3" fill="#FFB800" rx="1"/>
-    <rect    x="2"  y="-2"  width="16" height="2" fill="#E5A500"/>
-    <!-- Arms up holding beam -->
-    <line x1="3"  y1="10" x2="-6" y2="2"  stroke="#B8825E" stroke-width="3" stroke-linecap="round"/>
-    <line x1="17" y1="10" x2="26" y2="2"  stroke="#B8825E" stroke-width="3" stroke-linecap="round"/>
-    <!-- Steel beam being carried -->
-    <rect x="-12" y="-2" width="48" height="5" fill="#2A2A3C" rx="1"/>
-    <line x1="-12" y1="0" x2="36" y2="0" stroke="#3A3A4C" stroke-width="1"/>
-  </g>
-
-  <!-- ══════════════════════════════
-       FLOOD LIGHTS
-       ══════════════════════════════ -->
-
-  <!-- Flood light beam 1 (near Building B) -->
-  <g class="beam-pulse">
-    <polygon points="160,680 120,480 200,480" fill="url(#floodL1)"/>
-  </g>
-  <!-- Flood light pole 1 -->
-  <rect x="157" y="630" width="5" height="55" fill="#1E1E28"/>
-  <rect x="150" y="626" width="19" height="8"  fill="#2A2A38" rx="2"/>
-
-  <!-- Flood light beam 2 (near Building C) -->
-  <g class="beam-pulse-2">
-    <polygon points="430,680 390,480 470,480" fill="url(#floodL2)"/>
-  </g>
-  <rect x="427" y="630" width="5" height="55" fill="#1E1E28"/>
-  <rect x="420" y="626" width="19" height="8"  fill="#2A2A38" rx="2"/>
-
-  <!-- Flood light beam 3 (near Building E) -->
-  <g class="beam-pulse">
-    <polygon points="830,680 790,480 870,480" fill="url(#floodL3)"/>
-  </g>
-  <rect x="827" y="630" width="5" height="55" fill="#1E1E28"/>
-  <rect x="820" y="626" width="19" height="8"  fill="#2A2A38" rx="2"/>
-
-  <!-- ══════════════════════════════
-       STREET LEVEL
-       ══════════════════════════════ -->
-
-  <!-- Ground / street -->
-  <rect x="0" y="700" width="1400" height="100" fill="url(#groundGrad)"/>
-  <!-- Street lines -->
-  <rect x="0" y="698" width="1400" height="3" fill="#1A1A24"/>
-  <!-- Center line dashes -->
-  <rect x="0"   y="718" width="80" height="3" fill="#2A2A34" rx="1"/>
-  <rect x="120" y="718" width="80" height="3" fill="#2A2A34" rx="1"/>
-  <rect x="240" y="718" width="80" height="3" fill="#2A2A34" rx="1"/>
-  <rect x="360" y="718" width="80" height="3" fill="#2A2A34" rx="1"/>
-  <rect x="480" y="718" width="80" height="3" fill="#2A2A34" rx="1"/>
-  <rect x="600" y="718" width="80" height="3" fill="#2A2A34" rx="1"/>
-  <rect x="720" y="718" width="80" height="3" fill="#2A2A34" rx="1"/>
-  <rect x="840" y="718" width="80" height="3" fill="#2A2A34" rx="1"/>
-
-  <!-- CONCRETE MIXER TRUCK (street level, near center-left) -->
-  <g transform="translate(200, 690)">
-    <!-- Cab -->
-    <rect x="0"   y="-40" width="55" height="40" fill="#1C1C2A" rx="3"/>
-    <!-- Windshield -->
-    <rect x="8"   y="-36" width="36" height="22" fill="#0A1525" rx="2" opacity="0.9"/>
-    <!-- Headlights -->
-    <circle cx="5"  cy="-14" r="5" fill="#FFE8A0" opacity="0.9"/>
-    <circle cx="50" cy="-14" r="5" fill="#FFE8A0" opacity="0.9"/>
-    <!-- Headlight beams -->
-    <polygon points="0,-14 -30,-5 -30,-22" fill="#FFE8A0" opacity="0.08"/>
-    <polygon points="55,-14 85,-5 85,-22" fill="#FFE8A0" opacity="0.08"/>
-    <!-- Truck body (chassis) -->
-    <rect x="55"  y="-28" width="85" height="28" fill="#181822" rx="2"/>
-    <!-- Concrete drum -->
-    <ellipse cx="100" cy="-34" rx="25" ry="22" fill="#1E1E2C"/>
-    <ellipse cx="100" cy="-34" rx="22" ry="19" fill="#161622" stroke="#282830" stroke-width="2"/>
-    <!-- Drum spiral lines -->
-    <path d="M78,-28 Q88,-50 108,-40 Q128,-30 118,-16" fill="none" stroke="#252530" stroke-width="2"/>
-    <path d="M82,-34 Q92,-52 112,-42" fill="none" stroke="#252530" stroke-width="2"/>
-    <!-- Exhaust pipe -->
-    <rect x="52" y="-46" width="5" height="18" fill="#1A1A24"/>
-    <!-- Wheels -->
-    <circle cx="20"  cy="0"  r="12" fill="#0C0C14"/>
-    <circle cx="20"  cy="0"  r="7"  fill="#141420"/>
-    <circle cx="20"  cy="0"  r="3"  fill="#1E1E2C"/>
-    <circle cx="115" cy="0"  r="12" fill="#0C0C14"/>
-    <circle cx="115" cy="0"  r="7"  fill="#141420"/>
-    <circle cx="115" cy="0"  r="3"  fill="#1E1E2C"/>
-    <circle cx="135" cy="0"  r="12" fill="#0C0C14"/>
-    <circle cx="135" cy="0"  r="7"  fill="#141420"/>
-    <circle cx="135" cy="0"  r="3"  fill="#1E1E2C"/>
-  </g>
-
-  <!-- CONSTRUCTION BARRIERS (orange/yellow barriers) -->
-  <!-- Barrier group 1 -->
-  <g transform="translate(470, 690)">
-    <rect x="0"   y="-28" width="30" height="28" fill="#E05000" rx="2"/>
-    <rect x="0"   y="-28" width="30" height="8"  fill="#FFB800"/>
-    <rect x="0"   y="-14" width="30" height="6"  fill="#FFB800"/>
-    <rect x="8"   y="-28" width="4"  height="28" fill="#CC4400" opacity="0.5"/>
-    <rect x="16"  y="-28" width="4"  height="28" fill="#CC4400" opacity="0.5"/>
-    <rect x="0"   y="0"   width="30" height="4"  fill="#181822"/>
-    <rect x="30"  y="-28" width="28" height="28" fill="#E05000" rx="2"/>
-    <rect x="30"  y="-28" width="28" height="8"  fill="#FFB800"/>
-    <rect x="30"  y="-14" width="28" height="6"  fill="#FFB800"/>
-    <rect x="30"  y="0"   width="28" height="4"  fill="#181822"/>
-    <rect x="60"  y="-28" width="30" height="28" fill="#E05000" rx="2"/>
-    <rect x="60"  y="-28" width="30" height="8"  fill="#FFB800"/>
-    <rect x="60"  y="-14" width="30" height="6"  fill="#FFB800"/>
-    <rect x="60"  y="0"   width="30" height="4"  fill="#181822"/>
-  </g>
-
-  <!-- Barrier group 2 -->
-  <g transform="translate(750, 690)" opacity="0.9">
-    <rect x="0"  y="-28" width="28" height="28" fill="#E05000" rx="2"/>
-    <rect x="0"  y="-28" width="28" height="8"  fill="#FFB800"/>
-    <rect x="0"  y="-14" width="28" height="6"  fill="#FFB800"/>
-    <rect x="0"  y="0"   width="28" height="4"  fill="#181822"/>
-    <rect x="30" y="-28" width="28" height="28" fill="#E05000" rx="2"/>
-    <rect x="30" y="-28" width="28" height="8"  fill="#FFB800"/>
-    <rect x="30" y="-14" width="28" height="6"  fill="#FFB800"/>
-    <rect x="30" y="0"   width="28" height="4"  fill="#181822"/>
-    <rect x="60" y="-28" width="28" height="28" fill="#E05000" rx="2"/>
-    <rect x="60" y="-28" width="28" height="8"  fill="#FFB800"/>
-    <rect x="60" y="-14" width="28" height="6"  fill="#FFB800"/>
-    <rect x="60" y="0"   width="28" height="4"  fill="#181822"/>
-  </g>
-
-  <!-- CAUTION TAPE FENCE across street -->
-  <g opacity="0.7">
-    <!-- Post 1 -->
-    <rect x="450" y="658" width="4" height="42" fill="#1E1E28"/>
-    <circle cx="452" cy="656" r="4" fill="#FFB800"/>
-    <!-- Post 2 -->
-    <rect x="520" y="658" width="4" height="42" fill="#1E1E28"/>
-    <circle cx="522" cy="656" r="4" fill="#FFB800"/>
-    <!-- Post 3 -->
-    <rect x="590" y="658" width="4" height="42" fill="#1E1E28"/>
-    <circle cx="592" cy="656" r="4" fill="#FFB800"/>
-    <!-- Caution tape strung between posts -->
-    <path d="M452,668 Q487,672 522,668 Q556,664 590,668" fill="none" stroke="#FFB800" stroke-width="3"/>
-    <path d="M452,676 Q487,680 522,676 Q556,672 590,676" fill="none" stroke="#111111" stroke-width="2"/>
-    <path d="M452,684 Q487,688 522,684 Q556,680 590,684" fill="none" stroke="#FFB800" stroke-width="3"/>
-  </g>
-
-  <!-- Scattered debris / lumber at ground level -->
-  <rect x="630" y="692" width="60" height="6"  fill="#1A1210" rx="1" transform="rotate(-2,660,695)"/>
-  <rect x="640" y="698" width="45" height="5"  fill="#1A1210" rx="1" transform="rotate(1,662,700)"/>
-  <rect x="350" y="694" width="35" height="5"  fill="#1A1210" rx="1" transform="rotate(-3,367,696)"/>
-
-  <!-- Porta-potty (far left) -->
-  <g transform="translate(35, 660)" opacity="0.8">
-    <rect x="0"  y="0"  width="32" height="40" fill="#162244" rx="2"/>
-    <rect x="0"  y="0"  width="32" height="5"  fill="#0E1830"/>
-    <rect x="6"  y="6"  width="20" height="14" fill="#0A1020" rx="1"/>
-    <rect x="10" y="30" width="12" height="10" fill="#0A1020" rx="1"/>
-    <rect x="15" y="28" width="2"  height="12" fill="#0E1830"/>
-  </g>
-
-  <!-- Ground-level ambient glow pools from flood lights -->
-  <ellipse cx="163" cy="710" rx="80"  ry="20" fill="#FFB800" opacity="0.07" class="beam-pulse"/>
-  <ellipse cx="432" cy="710" rx="80"  ry="20" fill="#FFB800" opacity="0.06" class="beam-pulse-2"/>
-  <ellipse cx="832" cy="710" rx="80"  ry="20" fill="#FFB800" opacity="0.06" class="beam-pulse"/>
-  <!-- Blue ambient from building C -->
-  <ellipse cx="380" cy="720" rx="130" ry="25" fill="#0A84FF" opacity="0.05" class="win-glow"/>
-
-  <!-- City-wide atmospheric overlay (slight dark vignette) -->
-  <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
-    <stop offset="0%"   stop-color="transparent"/>
-    <stop offset="100%" stop-color="#04040E" stop-opacity="0.5"/>
-  </radialGradient>
-  <rect width="1400" height="800" fill="url(#vignette)" pointer-events="none"/>
-
-</svg>
-</div>
+<iframe
+  src="bear-city-bg.html"
+  style="position:fixed;inset:0;width:100%;height:100%;border:none;z-index:0;"
+  scrolling="no">
+</iframe>
 
 <!-- ════════════════════════════════════
      PAGE LAYOUT
@@ -1036,7 +296,7 @@
 
   <!-- Header -->
   <header>
-    <div class="logo-mark">🐻</div>
+    <div class="logo-mark"><img src="bear-mascot.png" height="32" style="border-radius:50%;"></div>
     <span class="logo-text">ConstructionBear</span>
   </header>
 
@@ -1064,41 +324,40 @@
 
       <!-- Email capture card -->
       <div class="card-wrap">
+
+        <!-- Caution tape drapes — hang over the card like a barrier rope -->
+        <!-- Top drape: hangs above the card, sagging slightly in the middle -->
+        <svg class="tape-drape tape-drape-top" viewBox="0 0 480 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <pattern id="stripes-top" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="28" height="28" fill="#FFB800"/>
+              <rect width="14" height="28" fill="#1A1A1A"/>
+            </pattern>
+          </defs>
+          <!-- tape strip: top edge sags from y=4 at edges to y=16 at center; strip is 16px tall -->
+          <path d="M0,4 Q240,18 480,4 L480,20 Q240,34 0,20 Z" fill="url(#stripes-top)" opacity="0.95"/>
+          <!-- subtle shadow line at bottom edge -->
+          <path d="M0,20 Q240,34 480,20" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
+        </svg>
+
+        <!-- Bottom drape: hangs below the card, sagging slightly downward -->
+        <svg class="tape-drape tape-drape-bottom" viewBox="0 0 480 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <pattern id="stripes-bot" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="28" height="28" fill="#FFB800"/>
+              <rect width="14" height="28" fill="#1A1A1A"/>
+            </pattern>
+          </defs>
+          <path d="M0,16 Q240,2 480,16 L480,32 Q240,18 0,32 Z" fill="url(#stripes-bot)" opacity="0.95"/>
+          <path d="M0,16 Q240,2 480,16" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>
+        </svg>
+
         <div class="card" id="card">
-          <!-- Caution tape corners -->
-          <div class="tape tape-top"></div>
-          <div class="tape tape-bottom"></div>
-          <div class="tape tape-left"></div>
-          <div class="tape tape-right"></div>
 
           <!-- Form content -->
           <div class="card-inner" id="form-content">
             <div class="bear-icon">
-              <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Bear body -->
-                <ellipse cx="26" cy="35" rx="14" ry="12" fill="#C8936A"/>
-                <!-- Bear head -->
-                <circle cx="26" cy="20" r="13" fill="#D4A07A"/>
-                <!-- Ears -->
-                <circle cx="14" cy="10" r="5" fill="#D4A07A"/>
-                <circle cx="14" cy="10" r="3" fill="#C8836A"/>
-                <circle cx="38" cy="10" r="5" fill="#D4A07A"/>
-                <circle cx="38" cy="10" r="3" fill="#C8836A"/>
-                <!-- Eyes -->
-                <circle cx="21" cy="20" r="2.5" fill="#2A1408"/>
-                <circle cx="31" cy="20" r="2.5" fill="#2A1408"/>
-                <circle cx="22" cy="19" r="0.8" fill="white" opacity="0.6"/>
-                <circle cx="32" cy="19" r="0.8" fill="white" opacity="0.6"/>
-                <!-- Snout -->
-                <ellipse cx="26" cy="24" rx="4.5" ry="3" fill="#C07858"/>
-                <ellipse cx="26" cy="23" rx="2"   ry="1.2" fill="#2A1408"/>
-                <!-- Hard Hat -->
-                <ellipse cx="26" cy="10" rx="16" ry="6" fill="#FFB800"/>
-                <rect x="10" y="7" width="32" height="6" fill="#FFB800" rx="2"/>
-                <rect x="8"  y="10" width="36" height="4" fill="#E5A500" rx="1"/>
-                <!-- Hat brim -->
-                <rect x="6" y="13" width="40" height="3" fill="#FFB800" rx="1"/>
-              </svg>
+              <img src="bear-mascot.png" height="48" style="border-radius:50%; margin-bottom:10px;">
             </div>
 
             <div class="card-title">Get Early Access</div>
@@ -1111,7 +370,7 @@
 
           <!-- Success state (hidden initially) -->
           <div class="success-state" id="success-state">
-            <div class="success-emoji">🐻‍❄️</div>
+            <img src="bear-mascot.png" height="52" style="border-radius:50%; margin-bottom:10px;">
             <div class="success-title">You're on the list.</div>
             <p class="success-body">We'll let you know the moment Bear is ready. Your 7 days free are waiting.</p>
           </div>
