@@ -4,6 +4,27 @@
 
 ## 2026-03-12
 
+### RFI Template Rebuild — match reference PDF (session 10)
+
+**Reference:** `RFI 002 - Coral Ridge Renovation.pdf`
+
+| Section | Change |
+|---------|--------|
+| Header grid Row 2 | "Drawing ID" → "Reference Drawing" |
+| Added: Cost Impact row | "No anticipated cost impact" or "May impact cost — details below" |
+| Added: Addressed To block | name, company, email; additional recipient; CC — all in one block |
+| Added: Due Date / Priority row | Urgent = 3 days, Routine = 14 days; urgency auto-detected from conversation |
+| Response block | Light green header (AIA_GREEN) — matches reference exactly |
+| Responding party row | Light green header — matches reference |
+| Schema updated | 20 fields: project_location, project_id, reference_drawing, spec_section, cost_impact, cost_impact_details, addressed_to_company, addressed_to_email, additional_recipient, additional_recipient_company, cc, is_urgent, due_date |
+| Conversation flow | 11-step ordered collection in system prompt; urgency auto-detected; submitted_by/date/rfi_number auto-filled |
+
+**Files changed:**
+- `server/src/routes/pdf.js` — full RFI case rebuild
+- `server/src/services/ai.js` — RFI schema + RFI conversation flow prompt
+
+---
+
 ### SS3 / SS7 Gap Fixes — SaveGateModal + Guest Header (session 10)
 
 **Gaps found vs. original spec and fixed:**

@@ -789,6 +789,7 @@ async function renderDoc(doc, profile) {
 
       // ── RFI — AIA-accurate layout ──────────────────────────────────────────
       case 'rfi': {
+        const AIA_GREEN = rgb(0.851, 0.918, 0.827); // light green for response block headers
         let y = aiaDocHeader(page, fonts, profile, 'Request For Information', 18, false);
         y -= 8;
 
@@ -797,70 +798,152 @@ async function renderDoc(doc, profile) {
         const c2 = [Math.floor(W / 2), W - Math.floor(W / 2)];
         const c1 = [W];
 
-        // Row 1+2: project info grid
+        // Due date logic: urgent = 3 days, default = 14 days
+        const isUrgent = c.is_urgent === true || c.is_urgent === 'true' || String(c.is_urgent).toLowerCase() === 'yes';
+        function rfiDateOffset(days) {
+          const d = new Date(); d.setDate(d.getDate() + days);
+          return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+        }
+        const dueDateVal = c.due_date || rfiDateOffset(isUrgent ? 3 : 14);
+        const dateVal = c.date || rfiDateOffset(0);
+        const rfiNum = c.rfi_number || c.doc_number || '';
+
+        // Row 1: Project Name | RFI Number | Date of Request
         y = aiaBlock(page, fonts, y, [
           {
             headers: ['Project Name', 'RFI Number', 'Date of Request'],
-            values:  [c.project_name || '', c.rfi_number || c.doc_number || '', c.date || ''],
+            values:  [c.project_name || '', rfiNum, dateVal],
             colWidths: c3, dataH: 24,
           },
+        ]);
+
+        // Row 2: Project Location | Project ID | Reference Drawing
+        y = aiaBlock(page, fonts, y, [
           {
-            headers: ['Project Location', 'Project ID', 'Drawing ID'],
-            values:  [c.project_location || c.project_address || '', c.project_id || '', c.drawing_id || c.drawing_number || ''],
+            headers: ['Project Location', 'Project ID', 'Reference Drawing'],
+            values:  [
+              c.project_location || c.project_address || '',
+              c.project_id || '',
+              c.reference_drawing || c.drawing_id || c.drawing_number || '',
+            ],
             colWidths: c3, dataH: 24,
           },
         ]);
         y -= 10;
 
-        // Row 3: overview + spec section
+        // Row 3: RFI Overview / Section Referenced (label per reference: "RFI Overview / Section(s) Referenced")
         y = aiaBlock(page, fonts, y, [
           {
             headers: ['RFI Overview', 'Section(s) Referenced'],
-            values:  [c.overview || c.subject || c.title || '', c.sections_referenced || c.spec_section || c.specification_section || ''],
-            colWidths: c2, dataH: 50,
+            values:  [
+              c.overview || c.subject || c.title || '',
+              c.spec_section || c.sections_referenced || c.specification_section || '',
+            ],
+            colWidths: c2, dataH: 52,
           },
         ]);
         y -= 10;
 
-        // Row 4: request / clarification (tall)
+        // Row 4: Request / Clarification Required (tall)
         y = aiaBlock(page, fonts, y, [
           {
             headers: ['Request / Clarification Required'],
             values:  [c.question || c.description || c.request || c.clarification || c.text || ''],
-            colWidths: c1, dataH: 80,
+            colWidths: c1, dataH: 85,
           },
         ]);
         y -= 10;
 
-        // Row 5: requesting party signature row
-        const requestingParty = c.submitted_by || c.requesting_party || c.from_contact_name || c.from_name || c.from_company || c.contractor || '';
+        // Row 5: Cost Impact
+        const costImpactVal = c.cost_impact || 'No anticipated cost impact';
+        const costDetails = c.cost_impact_details || '';
+        const costDisplayVal = costDetails ? `${costImpactVal}\n${costDetails}` : costImpactVal;
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Cost Impact'],
+            values:  [costDisplayVal],
+            colWidths: c1, dataH: costDetails ? 40 : 24,
+          },
+        ]);
+        y -= 10;
+
+        // Row 6: Addressed To (name | company | email)
+        const addrName = c.addressed_to || '';
+        const addrCo   = c.addressed_to_company || '';
+        const addrEmail = c.addressed_to_email || '';
+        const addrToDisplay = [addrName, addrCo, addrEmail].filter(Boolean).join('  |  ');
+
+        // Additional recipient
+        const addlName = c.additional_recipient || '';
+        const addlCo   = c.additional_recipient_company || '';
+        const addlDisplay = addlName ? [addlName, addlCo].filter(Boolean).join('  |  ') : '';
+
+        // CC
+        const ccVal = c.cc || '';
+
+        const recipientLines = [addrToDisplay, addlDisplay, ccVal ? `CC: ${ccVal}` : ''].filter(Boolean).join('\n');
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Addressed To'],
+            values:  [recipientLines],
+            colWidths: c1, dataH: addlDisplay || ccVal ? 52 : 28,
+          },
+        ]);
+        y -= 10;
+
+        // Row 7: Due Date (shows urgency)
+        y = aiaBlock(page, fonts, y, [
+          {
+            headers: ['Response Required By', isUrgent ? 'Priority' : 'Status'],
+            values:  [dueDateVal, isUrgent ? 'URGENT' : 'Routine'],
+            colWidths: c2, dataH: 22,
+          },
+        ]);
+        y -= 10;
+
+        // Row 8: Requesting party signature
+        const requestingParty = c.submitted_by || c.requesting_party || c.from_contact_name || profile?.owner_name || profile?.company_name || '';
         y = aiaBlock(page, fonts, y, [
           {
             headers: ['Name of Requesting Party', 'Signature', 'Date of Request'],
-            values:  [requestingParty, '', c.date || ''],
+            values:  [requestingParty, '', dateVal],
             colWidths: c3, dataH: 28,
           },
         ]);
         y -= 10;
 
-        // Row 6: response (tall, empty if no response yet)
-        y = aiaBlock(page, fonts, y, [
-          {
-            headers: ['Response'],
-            values:  [c.response || ''],
-            colWidths: c1, dataH: 80,
-          },
-        ]);
+        // Row 9: Response (green header, tall — for recipient to fill)
+        // Temporarily swap AIA_BLUE to AIA_GREEN for this block by drawing manually
+        const { regular: rReg, bold: rBold } = fonts;
+        const NEAR_BLACK_R = rgb(0.08, 0.08, 0.08);
+        const HDR_H_R = 18;
+        // green header
+        page.drawRectangle({ x: AIA_MAR, y: y - HDR_H_R, width: W, height: HDR_H_R, color: AIA_GREEN, borderColor: AIA_BORD, borderWidth: 0.5 });
+        page.drawText('Response', { x: AIA_MAR + 5, y: y - HDR_H_R + 5, size: 8.5, font: rBold, color: NEAR_BLACK_R });
+        y -= HDR_H_R;
+        // white data cell
+        page.drawRectangle({ x: AIA_MAR, y: y - 80, width: W, height: 80, color: WHITE, borderColor: AIA_BORD, borderWidth: 0.5 });
+        y -= 80;
         y -= 10;
 
-        // Row 7: responding party signature row
-        aiaBlock(page, fonts, y, [
-          {
-            headers: ['Name of Responding Party', 'Signature', 'Date of Response'],
-            values:  ['', '', ''],
-            colWidths: c3, dataH: 28,
-          },
-        ]);
+        // Row 10: Responding party signature (green header)
+        const c3w = c3;
+        const sigHeaders = ['Name of Responding Party', 'Signature', 'Date of Response'];
+        // green header row
+        let cx10 = AIA_MAR;
+        for (let i = 0; i < 3; i++) {
+          page.drawRectangle({ x: cx10, y: y - HDR_H_R, width: c3w[i], height: HDR_H_R, color: AIA_GREEN, borderColor: AIA_BORD, borderWidth: 0.5 });
+          page.drawText(sigHeaders[i], { x: cx10 + 5, y: y - HDR_H_R + 5, size: 8.5, font: rBold, color: NEAR_BLACK_R });
+          cx10 += c3w[i];
+        }
+        y -= HDR_H_R;
+        // white data row
+        cx10 = AIA_MAR;
+        for (let i = 0; i < 3; i++) {
+          page.drawRectangle({ x: cx10, y: y - 28, width: c3w[i], height: 28, color: WHITE, borderColor: AIA_BORD, borderWidth: 0.5 });
+          cx10 += c3w[i];
+        }
+
         break;
       }
 

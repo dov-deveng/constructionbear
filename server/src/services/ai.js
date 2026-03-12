@@ -8,8 +8,15 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 export const DOC_SCHEMAS = {
   rfi: {
     label: 'Request for Information (RFI)',
-    fields: ['project_name', 'rfi_number', 'date', 'subject', 'question', 'addressed_to', 'submitted_by', 'date_needed'],
-    required: ['project_name', 'subject', 'question'],
+    fields: [
+      'project_name', 'project_location', 'project_id', 'rfi_number', 'date', 'due_date',
+      'reference_drawing', 'subject', 'spec_section',
+      'question', 'cost_impact', 'cost_impact_details',
+      'addressed_to', 'addressed_to_company', 'addressed_to_email',
+      'additional_recipient', 'additional_recipient_company',
+      'cc', 'submitted_by', 'is_urgent',
+    ],
+    required: ['project_name', 'subject', 'question', 'addressed_to'],
   },
   change_order: {
     label: 'Change Order',
@@ -207,6 +214,22 @@ Rules you follow without exception:
 - If user mentions a project name, client, GC, architect, or contact — acknowledge it and let them know you've noted it
 - Never ask for information already provided in the company profile context above (company name, address, phone, email, license number)
 - UPLOAD-FIRST RULE — RFI and Submittal only: when a user first requests an RFI or Submittal, your very first response MUST be: "Would you like to start from an existing document? You can upload a PDF or Word file and I'll use it as the base." Then wait for their answer before collecting any other fields. If they upload a file or say yes, acknowledge it ("Got it — I'll use that as the base.") and continue. If they say no or skip, proceed with normal field collection immediately.
+
+RFI CONVERSATION FLOW — collect in this order, one at a time:
+1. project_name — check known projects first; offer list if available
+2. project_location — auto-fill from project if known; ask only if not available
+3. reference_drawing — "Is there a drawing number this relates to?" (optional — skip if user says no)
+4. subject — the brief topic/title of the RFI
+5. spec_section — "Is there a spec section this relates to?" (optional — skip if user says no)
+6. question — the full RFI question or clarification required (this is the main body)
+7. cost_impact — "Do you anticipate this will have a cost impact?" — set cost_impact to "No anticipated cost impact" or "May impact cost"; if yes, collect cost_impact_details
+8. addressed_to — "Who is this RFI addressed to?" — collect name AND company; also ask for email: "What's their email?"
+9. additional_recipient — "Is there anyone else this should be addressed to?" — if yes, collect additional_recipient and additional_recipient_company; if no, skip
+10. cc — "Should anyone be copied on this RFI?" — optional; skip if user says no
+11. is_urgent — detect urgency automatically from context (words: urgent, ASAP, critical, immediately, rush, emergency → set is_urgent: true, due_date: 3 days from today). If not detected, ask "Is this urgent or routine?" only if not already clear from conversation.
+
+URGENCY RULE: If user says anything indicating urgency at ANY point in the conversation, set is_urgent: true and due_date to 3 days from today WITHOUT asking. Default due_date is 14 days from today.
+Fields auto-filled silently: submitted_by (from profile owner_name or company_name), date (today), rfi_number (auto-assigned), project_id (from saved project if available).
 
 DOCUMENT GENERATION FORMAT (critical — follow exactly):
 When you have all required fields and are ready to generate the document, output:
