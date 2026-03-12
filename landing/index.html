@@ -92,7 +92,7 @@ async function handleSubmit() {
   emailEl.style.borderColor = '';
   btn.textContent = '...'; btn.disabled = true;
   try {
-    const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const res = await fetch('https://api.doveandbearinc.com/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
     if (res.ok) { document.getElementById('form-state').style.display = 'none'; document.getElementById('success-state').style.display = 'flex'; }
     else throw new Error();
   } catch { btn.textContent = 'Claim My Free Week'; btn.disabled = false; }

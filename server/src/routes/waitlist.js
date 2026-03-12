@@ -107,4 +107,19 @@ router.get('/admin', (req, res) => {
 </html>`);
 });
 
+// GET /waitlist/csv — download all emails as CSV
+router.get('/csv', (req, res) => {
+  const key = req.query.key || req.headers['x-api-key'];
+  if (!process.env.BEAR_API_KEY || key !== process.env.BEAR_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const db = getDb();
+  const rows = db.prepare('SELECT email, created_at FROM waitlist ORDER BY created_at DESC').all();
+  const fmt = ts => new Date(ts * 1000).toISOString();
+  const csv = ['email,signed_up', ...rows.map(r => `${r.email},${fmt(r.created_at)}`)].join('\n');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="waitlist.csv"');
+  res.send(csv);
+});
+
 export default router;
