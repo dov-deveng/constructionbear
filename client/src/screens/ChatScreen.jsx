@@ -7,6 +7,7 @@ import ChatFileViewer from '../components/ChatFileViewer.jsx';
 import AttachmentsPanel from '../components/AttachmentsPanel.jsx';
 import ImageUploadSheet from '../components/ImageUploadSheet.jsx';
 import ComposeButton from '../components/ComposeButton.jsx';
+import PdfPreviewModal from '../components/PdfPreviewModal.jsx';
 import clsx from 'clsx';
 
 // ── Context-aware placeholder rules (Task 12) ─────────────────────────────────
@@ -91,6 +92,7 @@ export default function ChatScreen() {
   const textareaRef = useRef(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [showUploadSheet, setShowUploadSheet] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState(null); // { url, filename }
 
   // When viewing a past (read-only) session, show its messages instead
   const displayMessages = activeSession ? activeSession.messages : messages;
@@ -116,6 +118,19 @@ export default function ChatScreen() {
   useEffect(() => { if (!initialized) loadMessages(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayMessages, loading]);
   useEffect(() => { if (!loading && !activeSession && !docJustGenerated) inputRef.current?.focus(); }, [loading, activeSession, docJustGenerated]);
+
+  // Auto-open PDF preview when a document is freshly generated
+  const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+  useEffect(() => {
+    if (docJustGenerated && generatedDocId && !pdfPreview) {
+      const last = [...messages].reverse().find(m => m.role === 'assistant');
+      const doc = last?.metadata?.generatedDoc;
+      const docFilename = doc?.title
+        ? `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`
+        : 'document.pdf';
+      setPdfPreview({ url: `${BASE_URL}/pdf/${generatedDocId}`, filename: docFilename });
+    }
+  }, [docJustGenerated, generatedDocId]);
 
   function autoResize() {
     const el = textareaRef.current;
@@ -293,6 +308,23 @@ export default function ChatScreen() {
             {docJustGenerated && (
               <p className="text-center text-xs text-bear-muted">Document saved to your library and Recent chats.</p>
             )}
+            {/* PDF Preview button */}
+            {docJustGenerated && generatedDocId && (
+              <button
+                onClick={() => {
+                  const last = [...messages].reverse().find(m => m.role === 'assistant');
+                  const doc = last?.metadata?.generatedDoc;
+                  const fname = doc?.title ? `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf` : 'document.pdf';
+                  setPdfPreview({ url: `${BASE_URL}/pdf/${generatedDocId}`, filename: fname });
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-bear-surface border border-bear-border hover:border-bear-accent rounded-2xl px-4 py-3 text-sm font-semibold text-bear-text transition-colors active:scale-[0.98]"
+              >
+                <svg className="w-4 h-4 text-bear-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Preview PDF
+              </button>
+            )}
             <button
               onClick={() => {
                 if (!activeSession && !canCreateDoc()) { setShowSubModal(true); return; }
@@ -372,6 +404,14 @@ export default function ChatScreen() {
         <ImageUploadSheet
           onSend={handleSheetSend}
           onClose={() => setShowUploadSheet(false)}
+        />
+      )}
+
+      {pdfPreview && (
+        <PdfPreviewModal
+          pdfUrl={pdfPreview.url}
+          filename={pdfPreview.filename}
+          onClose={() => setPdfPreview(null)}
         />
       )}
     </div>

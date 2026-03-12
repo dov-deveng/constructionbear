@@ -5,6 +5,7 @@ import DocumentRenderer from '../components/DocumentRenderer.jsx';
 import { api } from '../api/index.js';
 import clsx from 'clsx';
 import ComposeButton from '../components/ComposeButton.jsx';
+import PdfPreviewModal from '../components/PdfPreviewModal.jsx';
 
 // Field definitions per doc type (mirrors server DOC_SCHEMAS)
 const DOC_FIELDS = {
@@ -721,14 +722,23 @@ function DocViewer({ doc, onClose, onDelete, onUpdate, currentUserId, isAdmin })
   const [downloading, setDownloading] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [currentDoc, setCurrentDoc] = React.useState(doc);
+  const [pdfPreview, setPdfPreview] = React.useState(null);
 
   const isUpload = currentDoc.type === 'upload';
   const filePath = isUpload ? currentDoc.content?.file_path : null;
   const fileUrl = filePath ? `${API_BASE}${filePath}` : null;
 
+  function handlePreviewPdf() {
+    if (isUpload && fileUrl) {
+      setPdfPreview({ url: fileUrl, filename: currentDoc.title || 'document.pdf' });
+    } else {
+      const fname = `${currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+      setPdfPreview({ url: `${API_BASE}/pdf/${currentDoc.id}`, filename: fname });
+    }
+  }
+
   async function handleDownload() {
     if (isUpload && fileUrl) {
-      // Direct file download for uploads
       const a = document.createElement('a');
       a.href = fileUrl;
       a.download = currentDoc.title || 'document.pdf';
@@ -772,6 +782,11 @@ function DocViewer({ doc, onClose, onDelete, onUpdate, currentUserId, isAdmin })
                 </svg>
               </button>
             )}
+            <button onClick={handlePreviewPdf} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface text-bear-muted hover:text-bear-accent transition-colors" title="Preview PDF">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
             <button onClick={handleDownload} disabled={downloading} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-bear-surface text-bear-muted hover:text-bear-accent transition-colors disabled:opacity-40" title="Download">
               {downloading
                 ? <div className="w-4 h-4 border-2 border-bear-accent/30 border-t-bear-accent rounded-full animate-spin" />
@@ -816,6 +831,14 @@ function DocViewer({ doc, onClose, onDelete, onUpdate, currentUserId, isAdmin })
           </div>
         )}
       </div>
+
+      {pdfPreview && (
+        <PdfPreviewModal
+          pdfUrl={pdfPreview.url}
+          filename={pdfPreview.filename}
+          onClose={() => setPdfPreview(null)}
+        />
+      )}
     </div>
   );
 }
