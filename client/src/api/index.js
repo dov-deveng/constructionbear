@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : '/api';
+const _b = import.meta.env.VITE_API_URL || ''; const BASE = _b ? (_b.endsWith('/api') ? _b : _b.replace(/\/+$/, '') + '/api') : '/api';
 
 function getToken() {
   return localStorage.getItem('cb_token');
