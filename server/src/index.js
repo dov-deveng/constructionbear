@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
 import cron from 'node-cron';
 import { runBackup } from './services/backup.js';
+import { getDb } from './db/schema.js';
 
 import authRouter from './routes/auth.js';
 import profileRouter from './routes/profile.js';
@@ -68,6 +69,21 @@ app.use('/api/pdf', pdfRouter);
 // Waitlist admin must come BEFORE adminRouter (which has requireAuth middleware)
 app.use('/api/waitlist', waitlistRouter);
 app.get('/api/admin/waitlist', (req, res) => res.redirect(`/api/waitlist/admin?key=${req.query.key || ''}`));
+
+// Temporary diagnostic route — remove after DB state confirmed
+app.get('/api/admin/db-check', (req, res) => {
+  const key = req.query.key;
+  if (key !== process.env.BEAR_API_KEY) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    const db = getDb();
+    const users = db.prepare('SELECT id, email, email_verified, created_at FROM users LIMIT 20').all();
+    const docCount = db.prepare('SELECT COUNT(*) as count FROM documents').get();
+    const tableList = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+    res.json({ tables: tableList, users, documentCount: docCount });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
 app.use('/api/admin', adminRouter);
 app.use('/api/templates', templatesRouter);
 app.use('/api/documents/:docId/markups', markupsRouter);
