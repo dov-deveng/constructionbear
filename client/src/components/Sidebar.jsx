@@ -48,7 +48,7 @@ const BOTTOM_NAV = [
 export default function Sidebar() {
   const { user, profile, subscription, logout } = useAuthStore();
   const { activeView, setView } = useUIStore();
-  const { sessions, inProgressSessions, activeSession, resumedSession, loadSessions, openSession, exitSession, deleteSession } = useChatStore();
+  const { sessions, inProgressSessions, activeSession, resumedSession, loadSessions, openSession, exitSession, deleteSession, startNewChat } = useChatStore();
   const isAdmin = user?.is_admin;
   const [search, setSearch] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -80,8 +80,23 @@ export default function Sidebar() {
         </div>
       </div>
 
+      {/* New Chat button */}
+      <div className="px-3 pt-3">
+        <button
+          onClick={() => { startNewChat(); setView('chat'); }}
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-bear-muted hover:text-bear-text hover:bg-bear-border/50 transition-colors"
+        >
+          <span className="w-6 h-6 rounded-full bg-bear-border/60 flex items-center justify-center flex-shrink-0">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </span>
+          New chat
+        </button>
+      </div>
+
       {/* Search */}
-      <div className="px-3 pt-3 pb-1">
+      <div className="px-3 pt-2 pb-1">
         <div className="relative">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-bear-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
