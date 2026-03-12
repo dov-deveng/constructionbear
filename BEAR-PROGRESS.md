@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-03-12 — App Branch + Separate Vercel Deployment
+
+| Item | Detail |
+|------|--------|
+| `app` branch | Created from main, `client/vercel.json` = SPA-only routing |
+| Vercel project | `constructionbear-app` |
+| App URL | `constructionbear-app.vercel.app` — auto-deploys from `app` branch |
+| Landing URL | `constructionbear.dev` — auto-deploys from `main` branch |
+| Workflow | Feature work on `app` branch → push → auto-deploys to constructionbear-app.vercel.app |
+
+---
+
 ## 2026-03-12 — Coming Soon Landing Page
 
 ### Files created / modified
