@@ -1,19 +1,64 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/index.js';
 import { useAuthStore } from '../store/index.js';
 
 const ROLES = ['Owner', 'Project Manager', 'Superintendent', 'Office Manager', 'Estimator', 'Other'];
 const COMPANY_TYPES = ['General Contractor', 'Subcontractor', 'Owner/Developer', 'Architect', 'Engineer', 'Other'];
 
-const SELECT_CLS = 'w-full bg-bear-bg border border-bear-border rounded-xl px-4 py-3 text-bear-text text-sm outline-none focus:border-bear-accent transition-colors appearance-none';
-const INPUT_CLS = 'w-full bg-bear-bg border border-bear-border rounded-xl px-4 py-3 text-bear-text text-sm placeholder-bear-muted outline-none focus:border-bear-accent transition-colors';
+const INPUT = {
+  style: {
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    padding: '14px 16px',
+    fontSize: 16,
+    color: '#fff',
+    width: '100%',
+    outline: 'none',
+    boxSizing: 'border-box',
+    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+  },
+};
 
-// SS3 — 3-screen Save Gate Modal
-// Screen 1: Value hook (email + password, min 8 chars)
-// Screen 2: Company setup (name required + optional fields)
-// Screen 3: Success / transition to AppShell
+function Field({ type = 'text', placeholder, value, onChange, autoFocus }) {
+  return (
+    <input
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      autoFocus={autoFocus}
+      style={INPUT.style}
+      onFocus={e => { e.target.style.borderColor = '#0A84FF'; }}
+      onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+    />
+  );
+}
+
+function SelectField({ placeholder, value, onChange, options }) {
+  return (
+    <select
+      value={value}
+      onChange={onChange}
+      style={{
+        ...INPUT.style,
+        appearance: 'none',
+        color: value ? '#fff' : 'rgba(255,255,255,0.35)',
+      }}
+      onFocus={e => { e.target.style.borderColor = '#0A84FF'; }}
+      onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+    >
+      <option value="" style={{ color: '#999', background: '#1C1C1E' }}>{placeholder}</option>
+      {options.map(o => <option key={o} value={o} style={{ color: '#fff', background: '#1C1C1E' }}>{o}</option>)}
+    </select>
+  );
+}
+
+// Change 4 — Save modal styled to match the app
 export default function SaveGateModal({ guestSession, generatedDoc, onClose }) {
-  const [screen, setScreen] = useState(1); // 1 | 2 | 3
+  const navigate = useNavigate();
+  const [screen, setScreen] = useState(1);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -29,30 +74,22 @@ export default function SaveGateModal({ guestSession, generatedDoc, onClose }) {
     e.preventDefault();
     if (!email.trim() || !password.trim()) { setError('Email and password are required.'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     try {
       const res = await api.register(email.trim(), password);
-      // Store token directly — do NOT call useAuthStore.login() yet
-      // (that would trigger App.jsx re-render → redirect before company setup)
       localStorage.setItem('cb_token', res.token);
       setScreen(2);
     } catch (err) {
       setError(err.message || 'Registration failed. Try a different email.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   async function submitCompanySetup(skip = false) {
     if (!skip && !companyName.trim()) { setError('Company name is required.'); return; }
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     try {
-      // Create company (required)
       await api.createCompany((companyName || 'My Company').trim());
 
-      // Save optional profile fields
       const profileUpdates = {};
       if (role) profileUpdates.role = role;
       if (companyType) profileUpdates.company_type = companyType;
@@ -63,216 +100,163 @@ export default function SaveGateModal({ guestSession, generatedDoc, onClose }) {
         try { await api.updateProfile(profileUpdates); } catch { /* non-fatal */ }
       }
 
-      // Save the generated doc to the new account
       if (generatedDoc?.isStructured && generatedDoc?.content) {
         try {
           await api.createDocument({
-            type: generatedDoc.type,
-            title: generatedDoc.title,
+            type: generatedDoc.type, title: generatedDoc.title,
             project_name: generatedDoc.content?.project_name || generatedDoc.content?.project || null,
-            content: generatedDoc.content,
-            status: 'draft',
+            content: generatedDoc.content, status: 'draft',
           });
         } catch { /* non-fatal */ }
       }
 
-      // Mark lead as converted
       if (guestSession?.leadId) {
         try { await api.convertLead(guestSession.leadId, null); } catch { /* non-fatal */ }
       }
 
-      // Clear guest session
       localStorage.removeItem('cb_guest_session');
-
-      // Now fully initialize auth store — triggers App.jsx re-render → AppShell
       await useAuthStore.getState().init();
       setScreen(3);
     } catch (err) {
       setError(err.message || 'Failed to set up company. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
+  const overlay = { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' };
+  const sheet = { background: '#1C1C1E', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 480, maxHeight: '95vh', overflowY: 'auto', padding: '28px 24px 40px', boxSizing: 'border-box', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-bear-surface w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
+    <div style={overlay}>
+      <div style={sheet}>
         {/* Progress dots */}
-        <div className="flex justify-center gap-1.5 pt-5 pb-2 flex-shrink-0">
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 24 }}>
           {[1, 2, 3].map(n => (
-            <div key={n} className={`h-1.5 rounded-full transition-all duration-300 ${
-              n === screen ? 'w-6 bg-bear-accent' : n < screen ? 'w-1.5 bg-bear-accent/40' : 'w-1.5 bg-bear-border'
-            }`} />
+            <div key={n} style={{
+              height: 6, borderRadius: 3, transition: 'all 0.3s',
+              width: n === screen ? 24 : 6,
+              background: n === screen ? '#0A84FF' : n < screen ? 'rgba(10,132,255,0.4)' : 'rgba(255,255,255,0.15)',
+            }} />
           ))}
         </div>
 
-        <div className="px-6 pb-8 pt-2 overflow-y-auto">
-          {screen === 1 && (
-            <>
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 bg-bear-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-bear-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h2 className="text-bear-text font-bold text-xl mb-1">Your document is ready.</h2>
-                <p className="text-bear-muted text-sm">
-                  Create a free account to save it, access it anytime, and generate unlimited documents.
-                </p>
+        {screen === 1 && (
+          <>
+            {/* Bear icon */}
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ width: 56, height: 56, background: 'rgba(10,132,255,0.15)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <img src="/bear.png" alt="Bear" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
-
-              <form onSubmit={handleRegister} className="space-y-3">
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className={INPUT_CLS}
-                  autoFocus
-                />
-                <input
-                  type="password"
-                  placeholder="Password (min 8 characters)"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className={INPUT_CLS}
-                />
-                {error && <p className="text-red-400 text-xs">{error}</p>}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-bear-accent hover:bg-bear-accent/90 disabled:opacity-50 text-white font-semibold py-3.5 rounded-xl transition-colors text-sm"
-                  style={{ height: '52px' }}
-                >
-                  {loading ? 'Creating account…' : 'Save and Create Account'}
-                </button>
-              </form>
-
-              <div className="mt-4 text-center space-y-2">
-                <button
-                  onClick={() => window.location.href = '/login'}
-                  className="text-bear-muted text-xs hover:text-bear-text transition-colors"
-                >
-                  Already have an account? Sign in
-                </button>
-                <div>
-                  <button
-                    onClick={onClose}
-                    className="text-bear-muted/50 text-xs hover:text-bear-muted transition-colors"
-                  >
-                    Continue without saving
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {screen === 2 && (
-            <>
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 bg-bear-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-bear-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <h2 className="text-bear-text font-bold text-xl mb-1">Tell us about your company</h2>
-                <p className="text-bear-muted text-sm">
-                  This information will auto-fill your documents so you never have to enter it twice.
-                </p>
-              </div>
-
-              <form onSubmit={e => { e.preventDefault(); submitCompanySetup(false); }} className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Company name *"
-                  value={companyName}
-                  onChange={e => setCompanyName(e.target.value)}
-                  className={INPUT_CLS}
-                  autoFocus
-                />
-                <div className="relative">
-                  <select
-                    value={role}
-                    onChange={e => setRole(e.target.value)}
-                    className={SELECT_CLS + ' text-' + (role ? 'bear-text' : 'bear-muted')}
-                  >
-                    <option value="">Your role (optional)</option>
-                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div className="relative">
-                  <select
-                    value={companyType}
-                    onChange={e => setCompanyType(e.target.value)}
-                    className={SELECT_CLS + ' text-' + (companyType ? 'bear-text' : 'bear-muted')}
-                  >
-                    <option value="">Company type (optional)</option>
-                    {COMPANY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <input
-                  type="tel"
-                  placeholder="Phone number (optional)"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  className={INPUT_CLS}
-                />
-                <input
-                  type="text"
-                  placeholder="License number (optional)"
-                  value={licenseNumber}
-                  onChange={e => setLicenseNumber(e.target.value)}
-                  className={INPUT_CLS}
-                />
-                <input
-                  type="text"
-                  placeholder="Company address (optional)"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  className={INPUT_CLS}
-                />
-                {error && <p className="text-red-400 text-xs">{error}</p>}
-                <button
-                  type="submit"
-                  disabled={loading || !companyName.trim()}
-                  className="w-full bg-bear-accent hover:bg-bear-accent/90 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
-                >
-                  {loading ? 'Saving…' : 'Save and Go to Dashboard'}
-                </button>
-              </form>
-
-              <div className="mt-3 text-center">
-                <button
-                  onClick={() => submitCompanySetup(true)}
-                  disabled={loading}
-                  className="text-bear-muted text-xs hover:text-bear-text transition-colors"
-                >
-                  Skip for now
-                </button>
-              </div>
-            </>
-          )}
-
-          {screen === 3 && (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-bear-text font-bold text-xl mb-2">You're in.</h2>
-              <p className="text-bear-muted text-sm mb-6">
-                Your document has been saved. Bear is ready to work.
+              <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: '0 0 6px' }}>Save your document</h2>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, margin: 0 }}>
+                Create a free account to access it anytime
               </p>
+            </div>
+
+            <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Field type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} autoFocus />
+              <Field type="password" placeholder="Password (min 8 characters)" value={password} onChange={e => setPassword(e.target.value)} />
+              {error && <p style={{ color: '#FF453A', fontSize: 13, margin: 0 }}>{error}</p>}
               <button
-                onClick={onClose}
-                className="w-full bg-bear-accent hover:bg-bear-accent/90 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+                type="submit"
+                disabled={loading}
+                style={{ background: '#0A84FF', color: '#fff', border: 'none', borderRadius: 12, height: 52, fontSize: 16, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1, fontFamily: 'inherit' }}
               >
-                Go to Dashboard
+                {loading ? 'Creating account…' : 'Save and Create Account'}
+              </button>
+            </form>
+
+            {/* Google OAuth */}
+            <button
+              onClick={() => { window.location.href = `${import.meta.env.VITE_API_URL || ''}/auth/google?redirect_after_login=true`; }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', height: 48, marginTop: 10, background: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 500, color: '#1a1a1a', cursor: 'pointer', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              </svg>
+              Continue with Google
+            </button>
+
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <button
+                onClick={() => navigate('/login')}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Already have an account? Sign in
               </button>
             </div>
-          )}
-        </div>
+            <div style={{ textAlign: 'center', marginTop: 8 }}>
+              <button
+                onClick={onClose}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Continue without saving
+              </button>
+            </div>
+          </>
+        )}
+
+        {screen === 2 && (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ width: 56, height: 56, background: 'rgba(10,132,255,0.15)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <img src="/bear.png" alt="Bear" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </div>
+              <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: '0 0 6px' }}>Tell us about your company</h2>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, margin: 0 }}>
+                This information will auto-fill your documents so you never have to enter it twice.
+              </p>
+            </div>
+
+            <form onSubmit={e => { e.preventDefault(); submitCompanySetup(false); }} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Field placeholder="Company name *" value={companyName} onChange={e => setCompanyName(e.target.value)} autoFocus />
+              <SelectField placeholder="Your role (optional)" value={role} onChange={e => setRole(e.target.value)} options={ROLES} />
+              <SelectField placeholder="Company type (optional)" value={companyType} onChange={e => setCompanyType(e.target.value)} options={COMPANY_TYPES} />
+              <Field type="tel" placeholder="Phone number (optional)" value={phone} onChange={e => setPhone(e.target.value)} />
+              <Field placeholder="License number (optional)" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} />
+              <Field placeholder="Company address (optional)" value={address} onChange={e => setAddress(e.target.value)} />
+              {error && <p style={{ color: '#FF453A', fontSize: 13, margin: 0 }}>{error}</p>}
+              <button
+                type="submit"
+                disabled={loading || !companyName.trim()}
+                style={{ background: '#0A84FF', color: '#fff', border: 'none', borderRadius: 12, height: 52, fontSize: 16, fontWeight: 600, cursor: (loading || !companyName.trim()) ? 'not-allowed' : 'pointer', opacity: (loading || !companyName.trim()) ? 0.5 : 1, fontFamily: 'inherit' }}
+              >
+                {loading ? 'Saving…' : 'Save and Go to Dashboard'}
+              </button>
+            </form>
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <button
+                onClick={() => submitCompanySetup(true)}
+                disabled={loading}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Skip for now
+              </button>
+            </div>
+          </>
+        )}
+
+        {screen === 3 && (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ width: 64, height: 64, background: 'rgba(52,199,89,0.12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#34C759" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 600, margin: '0 0 8px' }}>You're in.</h2>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15, margin: '0 0 24px' }}>
+              Your document has been saved. Bear is ready to work.
+            </p>
+            <button
+              onClick={onClose}
+              style={{ background: '#0A84FF', color: '#fff', border: 'none', borderRadius: 12, height: 52, fontSize: 16, fontWeight: 600, cursor: 'pointer', width: '100%', fontFamily: 'inherit' }}
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
