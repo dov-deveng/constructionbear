@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bear City</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #04080F; }
+
+    .scene { position: fixed; inset: 0; }
+    .bg-image { position: absolute; inset: 0; background: url('bear-city.png') center center / cover no-repeat; }
+    .fx { position: absolute; inset: 0; pointer-events: none; }
+
+    /* BEAR CITY SIGN GLOW */
+    .fx-sign {
+      position: absolute;
+      top: 29%; left: 37%; width: 26%; height: 9%;
+      border-radius: 4px;
+      animation: signPulse 2.8s ease-in-out infinite;
+    }
+    @keyframes signPulse {
+      0%,100% { box-shadow: 0 0 20px 10px rgba(10,132,255,0.3), 0 0 50px 25px rgba(10,132,255,0.12); }
+      50%      { box-shadow: 0 0 35px 18px rgba(10,132,255,0.52), 0 0 80px 40px rgba(10,132,255,0.22); }
+    }
+
+    /* WELDING SPARK */
+    .fx-spark {
+      position: absolute;
+      top: 73%; left: 19.5%;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: white;
+      animation: sparkCore 0.55s ease-in-out infinite;
+    }
+    .fx-spark-glow {
+      position: absolute;
+      top: 72.2%; left: 18.8%;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      animation: sparkGlow 0.55s ease-in-out infinite;
+    }
+    @keyframes sparkCore {
+      0%,100% { opacity:1; transform:scale(1); box-shadow:0 0 4px 2px #fff,0 0 10px 5px #FFD700; }
+      30%      { opacity:0.2; transform:scale(0.5); box-shadow:none; }
+      60%      { opacity:1; transform:scale(1.5); box-shadow:0 0 6px 3px #fff,0 0 16px 8px #FFB800; }
+    }
+    @keyframes sparkGlow {
+      0%,100% { box-shadow:0 0 20px 10px rgba(255,180,0,0.35); opacity:0.8; }
+      30%      { box-shadow:none; opacity:0; }
+      60%      { box-shadow:0 0 30px 16px rgba(255,160,0,0.5); opacity:1; }
+    }
+
+    /* SPARK RAYS */
+    .fx-ray { position:absolute; background:rgba(255,210,0,0.75); border-radius:2px; transform-origin:bottom center; }
+    .fx-ray1 { top:69.5%; left:20.1%; width:2px; height:20px; animation:ray 0.55s ease-in-out infinite; }
+    .fx-ray2 { top:71%; left:21.5%; width:2px; height:16px; transform:rotate(45deg); animation:ray 0.55s ease-in-out infinite 0.12s; }
+    .fx-ray3 { top:72%; left:18%; width:2px; height:14px; transform:rotate(-40deg); animation:ray 0.55s ease-in-out infinite 0.06s; }
+    @keyframes ray {
+      0%,100% { opacity:0.7; }
+      40%      { opacity:0.1; transform:scaleY(0.3); }
+    }
+
+    /* CRANE WARNING LIGHTS */
+    .fx-crane { position:absolute; width:9px; height:9px; border-radius:50%; background:#ff3300; animation:craneBlink 1.3s ease-in-out infinite; }
+    .fx-crane.c1 { top:19.5%; left:10.5%; }
+    .fx-crane.c2 { top:13.5%; left:81.5%; animation-delay:0.65s; }
+    .fx-crane.c3 { top:16%; left:28%; width:7px; height:7px; animation-delay:0.3s; }
+    @keyframes craneBlink {
+      0%,42%,58%,100% { opacity:1; box-shadow:0 0 8px 4px rgba(255,50,0,0.7); }
+      48%,52%          { opacity:0.05; box-shadow:none; }
+    }
+
+    /* HELICOPTER STROBE */
+    .fx-heli { position:absolute; top:6.5%; left:72%; width:7px; height:7px; border-radius:50%; background:white; animation:heliStrobe 0.45s ease-in-out infinite; }
+    @keyframes heliStrobe {
+      0%,100% { opacity:1; box-shadow:0 0 6px 3px rgba(255,255,255,0.7); }
+      50%      { opacity:0.1; box-shadow:none; }
+    }
+
+    /* LIGHTS */
+    .fx-light { position:absolute; border-radius:50%; animation:lightGlow var(--d,3s) ease-in-out infinite; animation-delay:var(--dl,0s); }
+    @keyframes lightGlow {
+      0%,100% { opacity:0.8; transform:scale(1); }
+      50%      { opacity:1; transform:scale(1.15); }
+    }
+    .fx-light.l1 { top:79.5%;left:44.5%;width:14px;height:14px;background:rgba(255,220,100,0.95);box-shadow:0 0 10px 5px rgba(255,195,60,0.55),0 0 25px 12px rgba(255,170,0,0.2);--d:3.5s;--dl:0s; }
+    .fx-light.l2 { top:77%;left:52.5%;width:11px;height:11px;background:rgba(255,220,100,0.9);box-shadow:0 0 8px 4px rgba(255,195,60,0.5),0 0 20px 10px rgba(255,170,0,0.15);--d:4s;--dl:1.2s; }
+    .fx-light.l3 { top:57.5%;left:54%;width:11px;height:8px;border-radius:4px;background:rgba(210,235,255,0.9);box-shadow:0 0 12px 6px rgba(180,215,255,0.4);--d:5s;--dl:0.5s; }
+    .fx-light.l4 { top:65.5%;left:7%;width:9px;height:7px;border-radius:3px;background:rgba(255,248,190,0.95);box-shadow:0 0 10px 5px rgba(255,235,130,0.4);--d:6s;--dl:0.2s; }
+    .fx-light.l5 { top:65.5%;left:10.5%;width:9px;height:7px;border-radius:3px;background:rgba(255,248,190,0.95);box-shadow:0 0 10px 5px rgba(255,235,130,0.4);--d:6s;--dl:0.4s; }
+
+    /* WINDOW FLICKERS */
+    .fx-win { position:absolute; background:rgba(160,205,255,0.55); border-radius:1px; animation:winFlicker var(--d) var(--dl) ease-in-out infinite; }
+    @keyframes winFlicker {
+      0%,87%,100%{opacity:var(--on);}
+      89%{opacity:0;}91%{opacity:var(--on);}93%{opacity:0;}96%{opacity:var(--on);}
+    }
+  </style>
+</head>
+<body>
+  <div class="scene">
+    <div class="bg-image"></div>
+    <div class="fx">
+      <div class="fx-sign"></div>
+      <div class="fx-spark"></div>
+      <div class="fx-spark-glow"></div>
+      <div class="fx-ray fx-ray1"></div>
+      <div class="fx-ray fx-ray2"></div>
+      <div class="fx-ray fx-ray3"></div>
+      <div class="fx-crane c1"></div>
+      <div class="fx-crane c2"></div>
+      <div class="fx-crane c3"></div>
+      <div class="fx-heli"></div>
+      <div class="fx-light l1"></div>
+      <div class="fx-light l2"></div>
+      <div class="fx-light l3"></div>
+      <div class="fx-light l4"></div>
+      <div class="fx-light l5"></div>
+      <div id="windows"></div>
+    </div>
+  </div>
+
+  <script>
+    const wins = document.getElementById('windows');
+    [
+      {t:37,l:4},{t:40,l:6},{t:43,l:4},{t:46,l:7},
+      {t:35,l:15},{t:39,l:18},{t:42,l:16},
+      {t:34,l:24},{t:37,l:27},{t:41,l:25},
+      {t:42,l:43},{t:45,l:46},{t:48,l:44},
+      {t:38,l:56},{t:41,l:59},{t:44,l:57},
+      {t:35,l:67},{t:38,l:70},{t:42,l:68},
+      {t:37,l:79},{t:40,l:82},{t:43,l:79},
+      {t:36,l:87},{t:39,l:90},{t:43,l:88},
+    ].forEach(p => {
+      const w = document.createElement('div');
+      w.className = 'fx-win';
+      w.style.cssText = `top:${p.t+Math.random()*2}%;left:${p.l+Math.random()*2}%;width:${5+Math.random()*7}px;height:${4+Math.random()*5}px;--d:${5+Math.random()*10}s;--dl:${Math.random()*8}s;--on:${(0.35+Math.random()*0.45).toFixed(2)};`;
+      wins.appendChild(w);
+    });
+  </script>
+</body>
+</html>
