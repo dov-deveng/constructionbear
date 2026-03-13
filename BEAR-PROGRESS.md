@@ -1,57 +1,72 @@
 # BEAR-PROGRESS.md
 
 ## Current Status
-Phase: 1 — Conversation Engine
-Step completed: 1 of 3
+Phase: 0 — Mobile Optimization + PWA
+Step completed: 8 of 8 — awaiting Dov confirmation on real iPhone
 Last updated: 2026-03-13
 
 ---
 
-## Phase 1 — Conversation Engine
+## Phase 0 — Mobile Optimization + PWA
 
-### Step 1 — Strip markdown from Bear responses + fix tone ✅
-**Completed:** 2026-03-13
-**Files changed:** `server/src/services/ai.js`
+### Steps
+- [x] Step 1 — Viewport: added `maximum-scale=1` to prevent iOS zoom on input tap
+- [x] Step 2 — PWA manifest: `client/public/manifest.json` created, linked in index.html
+- [x] Step 3 — Service worker: `client/public/sw.js` created, registered in index.html
+- [x] Step 4 — Chat mobile layout: `100dvh` on html/body, `overscroll-behavior: none`, `-webkit-overflow-scrolling: touch`
+- [x] Step 5 — Touch targets: global CSS covers all buttons via nav/header selectors, all btn-* classes min-h-[44px]
+- [x] Step 6 — Document preview: PdfPreviewModal already has overflow-x-auto, safe-area bottom bar, constrained page widths
+- [x] Step 7 — Performance: no console.log in production code, bear.png images have explicit sizing (no layout shift)
+- [x] Step 8 — Safe area insets: global left/right on body, top handled per-component via .safe-top, .safe-bottom updated
 
-What changed in SYSTEM_PROMPT:
-- Replaced tone section — removed "Happy to help", "Got it", "Understood", acknowledge-before-acting instruction
-- Added explicit CRITICAL rule: no **, no *, no #, no -, no numbered lists, no headers in chat responses, ever
-- Voice examples now match MVP-PLAN style — short, direct, no filler
-- "Start collecting immediately, no preamble" replaces "acknowledge and confirm first"
+### Files changed
+- `client/index.html` — viewport maximum-scale=1, manifest link, apple-mobile-web-app-title fix, SW registration
+- `client/public/manifest.json` — created
+- `client/public/sw.js` — created
+- `client/src/index.css` — 100dvh, overscroll-behavior: none, -webkit-overflow-scrolling: touch, safe area left/right on body
 
-### Step 2 — Cross-document memory (verify + harden) ⬜
-Memory system exists (chat_memory table, summary injected into system prompt). Need to verify it's actually building context correctly across sessions and that Bear uses it to pull project/company info on doc 3-4 instead of asking again.
-
-### Step 3 — Context pulling from prior docs on same project ⬜
-Projects and contacts are already loaded into system prompt. Need to verify Bear references prior docs when same project is detected and confirms rather than re-asking.
+### Definition of Done — confirm on iPhone:
+- [ ] Installable from Safari via Add to Home Screen
+- [ ] Opens full screen with no browser chrome
+- [ ] Chat input stays above keyboard when typing
+- [ ] No zoom on any input field tap
+- [ ] Document preview readable and scrollable
+- [ ] Every button tappable without precision
+- [ ] App loads under 3 seconds on LTE
+- [ ] Confirmed by Dov before Phase 1 is marked complete
 
 ---
 
-## Phase Completion Gate
-Phase 1 is done when:
-- Bear never outputs markdown in chat (test manually)
-- By doc 3-4, Bear is pulling company/project context automatically
-- Dov confirms it works before we move to Phase 2
+## Phase 1 — Conversation Engine (pending Phase 0 confirmation)
+
+### Step 1 — Strip markdown + fix tone ✅ (2026-03-13)
+- Files: `server/src/services/ai.js`
+
+### Step 2 — Context and contact auto-use (in progress, needs testing)
+- Known contacts auto-filled during document collection
+- Project assumption bug fixed
+- extractCollectedFields: Haiku call per turn extracts already-answered fields
+- detectCollectionSession: scans user messages for doc type
+- buildFieldsStateInjection: injects precise state (have/need) into system prompt
+- Strict schema rule: Bear only asks for fields in current document's schema
+- Files: `server/src/services/ai.js`, `server/src/routes/chat.js`
+
+### Step 3 — Verify context pulling on doc 3-4 ⬜
 
 ---
 
 ## Completed Phases
-None yet.
+None confirmed yet.
 
 ---
 
 ## Prior Work (pre-MVP-PLAN framework)
-See git log for full history. Key items already built:
 - RFI, Submittal, Change Order, Invoice PDF renderers
-- Memory system (chat_memory table + summary injection)
-- Profile auto-population (company name, address, license, etc.)
-- Project/contact auto-save from chat
+- Memory system (chat_memory + summary injection)
+- Profile auto-population, project/contact auto-save
 - Guest session flow + SaveGateModal
-- Paywall (SubscriptionModal, free doc limit enforcement)
-- Image upload + markup editor
-- Document attachments (multi-page PDF)
-- Mobile UI optimization
+- Paywall (SubscriptionModal, free doc limit)
+- Image upload + markup editor, document attachments
 - Google OAuth redirect flow
 - Persistent in-progress chats
 - Coming soon landing page + waitlist
-- App branch → constructionbear-app.vercel.app
