@@ -1,7 +1,7 @@
 # BEAR-PROGRESS.md
 
 ## Current Status
-Phase: 2 — Guest Flow + Account Creation ✅ (built, awaiting end-to-end confirmation)
+Phase: 3 — Document Preview in Chat ✅ (built, awaiting confirmation)
 Last updated: 2026-03-13
 
 ---
@@ -84,9 +84,44 @@ File: `client/src/components/SaveGateModal.jsx`
 
 ---
 
+## Phase 3 — Document Preview in Chat ✅
+
+### Step 1 — DocumentContent named export ✅
+File: `client/src/components/DocumentRenderer.jsx`
+- Added `export function DocumentContent({ doc })` — renders typed content without outer wrapper div, for embedding
+
+### Step 2 — InlineDocPreview component ✅
+File: `client/src/components/DocumentCard.jsx`
+- Full-width card: type badge header, DocumentContent body (340px max scroll), action button
+- Auth users: "Preview PDF" button opens PdfPreviewModal via callback
+- Guest users: "Save to Library" button triggers SaveGateModal
+
+### Step 3 — ChatScreen MessageBubble restructured ✅
+File: `client/src/screens/ChatScreen.jsx`
+- Text bubble and doc preview are now separate rows — doc preview is full-width with 36px left indent (aligns with bear messages)
+- Removed auto-PDF-modal on doc generation — replaced with openDocPdf callback passed to MessageBubble
+- InlineDocPreview replaces DocumentCard inline
+
+### Step 4 — GuestShell message rendering restructured ✅
+File: `client/src/screens/GuestShell.jsx`
+- Same pattern: text bubble in constrained row, doc preview full-width below
+- InlineDocPreview replaces InlineDocCard
+
+---
+
+## Phase 3 Definition of Done — confirm manually:
+- [ ] Doc preview renders inline in chat with type-specific fields (not just collapsible text)
+- [ ] "Preview PDF" button visible and functional for auth users after doc generation
+- [ ] "Save to Library" button visible in doc card for guest users
+- [ ] Chat input locked after doc generation (already worked before — confirm still works)
+- [ ] Preview is scrollable if content exceeds 340px height
+
+---
+
 ## Completed Phases
 - Phase 0 built (awaiting iPhone confirmation)
 - Phase 1 built (awaiting Dov confirmation)
+- Phase 2 built (awaiting end-to-end confirmation)
 
 ---
 
