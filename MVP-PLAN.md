@@ -144,6 +144,20 @@ Every conversation is saved with a session_id. Recent tab shows last 10 conversa
 
 Phases execute in strict order. Bear does not move to the next phase until the current one is confirmed working by Dov.
 
+**Phase 0 — Mobile Optimization + PWA**
+This phase must be completed and confirmed working on a real iPhone before any other phase begins. Everything else builds on top of this.
+
+Step 1 — Viewport and input fixes: set viewport meta to prevent zoom on input focus.
+Step 2 — PWA manifest: make app installable from Safari via Add to Home Screen.
+Step 3 — Service worker: cache app shell, network-first for API calls, cache-first for static assets.
+Step 4 — Chat interface mobile layout: fixed input bar above keyboard, 100dvh container, safe-area padding, auto-scroll.
+Step 5 — Touch targets: every interactive element minimum 44x44px.
+Step 6 — Document preview mobile: horizontally scrollable, sticky action buttons, 60vh max height.
+Step 7 — Performance: lazy images, no layout shift, under 3 seconds on LTE, no console.log in production.
+Step 8 — Safe area insets global: body padding for notch and Dynamic Island.
+
+Definition of done: installable from Safari, full screen standalone, input above keyboard, no zoom on tap, readable preview, all buttons tappable, loads under 3s, confirmed on real iPhone by Dov.
+
 **Phase 1 — Conversation engine**
 Remove all markdown from Bear's chat responses. Implement memory that builds across documents. Implement context pulling from prior documents on same project.
 
