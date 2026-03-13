@@ -3,10 +3,22 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import rateLimit from 'express-rate-limit';
 import cron from 'node-cron';
 import { runBackup } from './services/backup.js';
 import { getDb } from './db/schema.js';
+
+// One-time migration: copy old DB into volume if volume path is empty
+(function migrateDb() {
+  const volumePath = '/app/data/constructionbear.db';
+  const oldPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../data/constructionbear.db');
+  if (!fs.existsSync(volumePath) && fs.existsSync(oldPath)) {
+    fs.mkdirSync('/app/data', { recursive: true });
+    fs.copyFileSync(oldPath, volumePath);
+    console.log('[migration] DB copied from', oldPath, 'to', volumePath);
+  }
+})();
 import bcrypt from 'bcryptjs';
 
 import authRouter from './routes/auth.js';

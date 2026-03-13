@@ -16,6 +16,9 @@ const router = Router();
   )`);
 }
 
+if (!process.env.BACKUP_EMAIL || !process.env.BACKUP_EMAIL_PASSWORD) {
+  console.warn('[email-backup] BACKUP_EMAIL or BACKUP_EMAIL_PASSWORD not set — email backup disabled');
+}
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: process.env.BACKUP_EMAIL, pass: process.env.BACKUP_EMAIL_PASSWORD },
@@ -42,15 +45,14 @@ router.post('/', (req, res) => {
   db.prepare('INSERT INTO waitlist (name, email, ip_address) VALUES (?, ?, ?)').run(cleanName, cleanEmail, ip);
 
   // Fire-and-forget email backup
-  try {
+  if (process.env.BACKUP_EMAIL && process.env.BACKUP_EMAIL_PASSWORD) {
     transporter.sendMail({
       from: process.env.BACKUP_EMAIL,
       to: process.env.BACKUP_EMAIL,
       subject: 'New ConstructionBear Lead',
       text: `Name: ${cleanName}\nEmail: ${cleanEmail}\nTime: ${new Date().toISOString()}`,
-    }).catch(err => console.error('[email-backup] sendMail failed:', err.message));
-  } catch (err) {
-    console.error('[email-backup] failed:', err.message);
+    }).then(() => console.log('[email-backup] sent for', cleanEmail))
+      .catch(err => console.error('[email-backup] sendMail failed:', err));
   }
 
   res.status(201).json({ success: true });
