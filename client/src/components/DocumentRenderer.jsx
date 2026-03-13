@@ -714,6 +714,17 @@ const RENDERERS = {
   upload: UploadRenderer,
 };
 
+// Renders document content without outer wrapper — for embedding in InlineDocPreview
+export function DocumentContent({ doc }) {
+  const content = doc.content || {};
+  if (typeof content === 'string' || typeof content.text === 'string') {
+    const text = typeof content === 'string' ? content : content.text;
+    return <RawTextFallback text={text} />;
+  }
+  const Renderer = RENDERERS[doc.type];
+  return Renderer ? <Renderer c={content} /> : <RawTextFallback text={JSON.stringify(content, null, 2)} />;
+}
+
 export default function DocumentRenderer({ doc }) {
   const content = doc.content || {};
 

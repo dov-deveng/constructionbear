@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/index.js';
-import { InlineDocCard } from '../components/DocumentCard.jsx';
+import { InlineDocPreview } from '../components/DocumentCard.jsx';
 import SaveGateModal from '../components/SaveGateModal.jsx';
 
 function uuidv4() {
@@ -142,7 +142,7 @@ export default function GuestShell() {
     el.style.height = Math.min(el.scrollHeight, 140) + 'px';
   }
 
-  function selectDoc(prompt) { setInput(prompt); textareaRef.current?.focus(); }
+  function selectDoc(prompt) { send(prompt); }
 
   async function send(overrideText) {
     const text = (overrideText ?? input).trim();
@@ -247,34 +247,39 @@ export default function GuestShell() {
         )}
 
         {session.messages.map(msg => (
-          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'assistant' && (
-              <div className="w-7 h-7 bg-bear-accent rounded-lg flex items-center justify-center flex-shrink-0 mr-2 mt-0.5">
-                <img src="/bear.png" alt="Bear" className="w-5 h-5 object-contain" />
+          <div key={msg.id} className="space-y-3">
+            {/* Text bubble row */}
+            <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.role === 'assistant' && (
+                <div className="w-7 h-7 bg-bear-accent rounded-lg flex items-center justify-center flex-shrink-0 mr-2 mt-0.5">
+                  <img src="/bear.png" alt="Bear" className="w-5 h-5 object-contain" />
+                </div>
+              )}
+              <div className="max-w-[85%] space-y-2">
+                <div className={`rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-bear-accent text-white rounded-tr-sm'
+                    : 'bg-bear-surface text-bear-text rounded-tl-sm'
+                }`}>
+                  {msg.content}
+                </div>
+                {msg.isUpsell && (
+                  <button
+                    onClick={() => setShowSaveModal(true)}
+                    className="text-xs font-semibold px-4 py-2 rounded-xl text-white transition-opacity hover:opacity-90"
+                    style={{ background: '#0A84FF' }}
+                  >
+                    Create Free Account
+                  </button>
+                )}
+              </div>
+            </div>
+            {/* Doc preview — full width, indented to align with bear messages */}
+            {msg.generatedDoc && msg.role === 'assistant' && (
+              <div style={{ paddingLeft: 36 }}>
+                <InlineDocPreview doc={msg.generatedDoc} onSave={() => setShowSaveModal(true)} />
               </div>
             )}
-            <div className="max-w-[85%] space-y-3">
-              <div className={`rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
-                msg.role === 'user'
-                  ? 'bg-bear-accent text-white rounded-tr-sm'
-                  : 'bg-bear-surface text-bear-text rounded-tl-sm'
-              }`}>
-                {msg.content}
-              </div>
-              {/* Change 5 — upsell CTA as chat bubble button */}
-              {msg.isUpsell && (
-                <button
-                  onClick={() => setShowSaveModal(true)}
-                  className="text-xs font-semibold px-4 py-2 rounded-xl text-white transition-opacity hover:opacity-90"
-                  style={{ background: '#0A84FF' }}
-                >
-                  Create Free Account
-                </button>
-              )}
-              {msg.generatedDoc && (
-                <InlineDocCard doc={msg.generatedDoc} onSave={() => setShowSaveModal(true)} />
-              )}
-            </div>
           </div>
         ))}
 

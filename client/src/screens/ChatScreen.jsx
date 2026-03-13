@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useChatStore, useUIStore, useDocStore, useAuthStore } from '../store/index.js';
 import { api } from '../api/index.js';
-import DocumentCard from '../components/DocumentCard.jsx';
+import { InlineDocPreview } from '../components/DocumentCard.jsx';
 import SubscriptionModal from '../components/SubscriptionModal.jsx';
 import ChatFileViewer from '../components/ChatFileViewer.jsx';
 import AttachmentsPanel from '../components/AttachmentsPanel.jsx';
@@ -120,18 +120,16 @@ export default function ChatScreen() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayMessages, loading]);
   useEffect(() => { if (!loading && !activeSession && !docJustGenerated) inputRef.current?.focus(); }, [loading, activeSession, docJustGenerated]);
 
-  // Auto-open PDF preview when a document is freshly generated
   const BASE_URL = import.meta.env.VITE_API_URL || '/api';
-  useEffect(() => {
-    if (docJustGenerated && generatedDocId && !pdfPreview) {
-      const last = [...messages].reverse().find(m => m.role === 'assistant');
-      const doc = last?.metadata?.generatedDoc;
-      const docFilename = doc?.title
-        ? `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`
-        : 'document.pdf';
-      setPdfPreview({ url: `${BASE_URL}/pdf/${generatedDocId}`, filename: docFilename });
-    }
-  }, [docJustGenerated, generatedDocId]);
+
+  function openDocPdf(doc) {
+    const fname = doc?.title
+      ? `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`
+      : 'document.pdf';
+    const id = doc?.savedDocId || generatedDocId;
+    if (!id) return;
+    setPdfPreview({ url: `${BASE_URL}/pdf/${id}`, filename: fname });
+  }
 
   function autoResize() {
     const el = textareaRef.current;
@@ -295,7 +293,7 @@ export default function ChatScreen() {
 
         <div className="space-y-4 max-w-2xl mx-auto">
           {displayMessages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} onSaveDoc={activeSession ? null : saveDocument} />
+            <MessageBubble key={msg.id} message={msg} onSaveDoc={activeSession ? null : saveDocument} onPreviewPdf={openDocPdf} />
           ))}
 
           {loading && <TypingIndicator />}
@@ -463,12 +461,12 @@ export default function ChatScreen() {
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-function MessageBubble({ message, onSaveDoc }) {
+function MessageBubble({ message, onSaveDoc, onPreviewPdf }) {
   const isUser = message.role === 'user';
-  const doc        = message.metadata?.generatedDoc;
+  const doc = message.metadata?.generatedDoc;
   const uploadedFile = message.metadata?.uploadedFile;
 
-  // Strip XML doc tags from display text; also hide the auto-upload message text
+  // Strip XML doc tags from display text
   const displayText = message.content
     .replace(/<document[^>]*>[\s\S]*?<\/document>/g, '')
     .trim();
@@ -489,24 +487,33 @@ function MessageBubble({ message, onSaveDoc }) {
   }
 
   return (
-    <div className={clsx('flex gap-2 animate-fade-in', isUser ? 'justify-end' : 'justify-start')}>
-      {!isUser && (
-        <div className="w-7 h-7 bg-bear-accent rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-          <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
+    <div className="animate-fade-in space-y-3">
+      {/* Text bubble row */}
+      {displayText && (
+        <div className={clsx('flex gap-2', isUser ? 'justify-end' : 'justify-start')}>
+          {!isUser && (
+            <div className="w-7 h-7 bg-bear-accent rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+              <img src="/bear.png" alt="Bear" className="w-full h-full object-contain" />
+            </div>
+          )}
+          <div className="max-w-xs sm:max-w-sm lg:max-w-md">
+            <div className={isUser ? 'bubble-user' : 'bubble-bear'}>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{displayText}</p>
+            </div>
+          </div>
         </div>
       )}
-      <div className={clsx('max-w-xs sm:max-w-sm lg:max-w-md space-y-2', isUser && 'items-end flex flex-col')}>
-        {displayText && (
-          <div className={isUser ? 'bubble-user' : 'bubble-bear'}>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{displayText}</p>
-          </div>
-        )}
-        {doc && (
-          <div className="w-full max-w-sm">
-            <DocumentCard doc={doc} inline onSave={onSaveDoc ? () => onSaveDoc(doc) : null} />
-          </div>
-        )}
-      </div>
+
+      {/* Doc preview — full width, indented to align with bear messages */}
+      {doc && !isUser && (
+        <div style={{ paddingLeft: 36 }}>
+          <InlineDocPreview
+            doc={doc}
+            onSave={onSaveDoc ? () => onSaveDoc(doc) : null}
+            onPreviewPdf={doc.savedDocId && onPreviewPdf ? () => onPreviewPdf(doc) : null}
+          />
+        </div>
+      )}
     </div>
   );
 }

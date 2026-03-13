@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
+import { DocumentContent } from './DocumentRenderer.jsx';
 
 const TYPE_LABELS = {
   rfi: 'RFI',
@@ -29,6 +30,54 @@ function formatDate(ts) {
   if (!ts) return '';
   const d = new Date(ts * 1000);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Full inline document preview — shown in chat after generation (Phase 3)
+export function InlineDocPreview({ doc, onSave, onPreviewPdf }) {
+  const typeKey = doc.type || 'other';
+  return (
+    <div className="rounded-2xl border border-bear-border overflow-hidden animate-slide-up w-full" style={{ background: '#111116' }}>
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-bear-border flex items-center gap-2.5">
+        <span className={clsx('doc-badge border flex-shrink-0', TYPE_COLORS[typeKey] || TYPE_COLORS.other)}>
+          {TYPE_LABELS[typeKey] || 'Document'}
+        </span>
+        <p className="text-sm font-semibold text-bear-text flex-1 truncate">{doc.title}</p>
+        <svg className="w-4 h-4 text-bear-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </div>
+
+      {/* Document content */}
+      <div className="overflow-y-auto scrollbar-thin p-4" style={{ maxHeight: 340 }}>
+        <DocumentContent doc={doc} />
+      </div>
+
+      {/* Action */}
+      {(onSave || onPreviewPdf) && (
+        <div className="px-4 py-3 border-t border-bear-border">
+          {onPreviewPdf ? (
+            <button
+              onClick={onPreviewPdf}
+              className="w-full flex items-center justify-center gap-2 bg-bear-surface border border-bear-border hover:border-bear-accent rounded-xl px-4 py-2.5 text-sm font-semibold text-bear-text transition-colors active:scale-[0.99]"
+            >
+              <svg className="w-4 h-4 text-bear-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Preview PDF
+            </button>
+          ) : (
+            <button
+              onClick={onSave}
+              className="w-full btn-primary text-sm py-2.5"
+            >
+              Save to Library
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Inline card (shown in chat after document generation)
