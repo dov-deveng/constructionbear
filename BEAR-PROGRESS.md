@@ -1,7 +1,7 @@
 # BEAR-PROGRESS.md
 
 ## Current Status
-Phase: 1 — Conversation Engine (in progress — awaiting Dov confirmation)
+Phase: 2 — Guest Flow + Account Creation ✅ (built, awaiting end-to-end confirmation)
 Last updated: 2026-03-13
 
 ---
@@ -50,12 +50,43 @@ Tested: full change order flow completes cleanly in 7 turns with no loops or re-
 - [ ] Bear never uses markdown in chat
 - [ ] By doc 2-3, Bear uses known project name and contacts without re-asking
 - [ ] No field re-asking loops during document creation
-- [ ] Confirmed by Dov before Phase 2 begins
+
+---
+
+## Phase 2 — Guest Flow + Account Creation ✅
+
+### Step 1 — Doc bubble auto-send ✅
+File: `client/src/screens/GuestShell.jsx`
+- selectDoc() now calls send(prompt) directly — no more input fill + manual send
+
+### Step 2 — Name/email/phone as mandatory second question ✅
+File: `server/src/services/ai.js`
+- GUEST SESSION prompt block: first question = project name, second question = "What's your name, email, and phone number?" (always, every doc type)
+- Never uses "for our records" framing — asks because the doc needs a submitting party
+
+### Step 3 — Leads DB stores contact info explicitly ✅
+Files: `server/src/db/schema.js`, `server/src/routes/leads.js`
+- schema.js: added name/email/phone columns to leads table
+- leads.js: extractContactFields() pulls contact from any collected_fields key variant
+- INSERT + UPDATE both write name/email/phone directly — no JSON parsing needed to query
+
+### Step 4 — SaveGateModal onboarding fix ✅
+File: `client/src/components/SaveGateModal.jsx`
+- Added onboarding_complete: true to profileUpdates — new users route to AppShell, not OnboardingScreen
+
+---
+
+## Phase 2 Definition of Done — confirm manually:
+- [ ] Click doc bubble → sends immediately, no manual send required
+- [ ] Bear's second message is always "What's your name, email, and phone number?"
+- [ ] Lead record in DB has name/email/phone populated after doc generation
+- [ ] Save to Library → SaveGateModal → signup → lands in AppShell with doc in library
 
 ---
 
 ## Completed Phases
 - Phase 0 built (awaiting iPhone confirmation)
+- Phase 1 built (awaiting Dov confirmation)
 
 ---
 
