@@ -99,22 +99,21 @@ export default function ChatScreen() {
   const displayMessages = activeSession ? activeSession.messages : messages;
   const placeholder = useMemo(() => getPlaceholder(messages), [messages]);
 
-  // True when the most recent assistant message has a completed, session-saved document
+  // True when ANY assistant message in this session has a completed, session-saved document.
+  // Stays true even after confirmation messages are added (unlike checking only the last message).
   const docJustGenerated = useMemo(() => {
     if (activeSession || !messages.length) return false;
-    const last = [...messages].reverse().find(m => m.role === 'assistant');
-    return !!(last?.metadata?.generatedDoc?.sessionId);
+    return messages.some(m => m.role === 'assistant' && m.metadata?.generatedDoc?.sessionId);
   }, [messages, activeSession]);
 
   // resumedSession banner: shown at top of chat when user is continuing an in-progress session
   const isResumed = !!resumedSession && !activeSession;
 
-  // The savedDocId of the most recently generated document (for AttachmentsPanel)
+  // The savedDocId of the generated document in this session (for AttachmentsPanel + PDF preview)
   const generatedDocId = useMemo(() => {
-    if (!docJustGenerated) return null;
-    const last = [...messages].reverse().find(m => m.role === 'assistant');
-    return last?.metadata?.generatedDoc?.savedDocId || null;
-  }, [messages, docJustGenerated]);
+    const msg = messages.find(m => m.role === 'assistant' && m.metadata?.generatedDoc?.savedDocId);
+    return msg?.metadata?.generatedDoc?.savedDocId || null;
+  }, [messages]);
 
   useEffect(() => { if (!initialized) loadMessages(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayMessages, loading]);
