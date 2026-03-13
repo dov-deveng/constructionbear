@@ -206,9 +206,11 @@ router.post('/message', requireAuth, async (req, res) => {
 
       // Auto-link or auto-create project
       let projectId = null;
-      if (projectName && req.companyId) {
-        const proj = db.prepare('SELECT id FROM projects WHERE company_id = ? AND name = ? COLLATE NOCASE AND deleted_at IS NULL LIMIT 1')
-          .get(req.companyId, projectName);
+      if (projectName) {
+        const scopeCol = req.companyId ? 'company_id' : 'user_id';
+        const scopeId = req.companyId || req.userId;
+        const proj = db.prepare(`SELECT id FROM projects WHERE ${scopeCol} = ? AND name = ? COLLATE NOCASE AND deleted_at IS NULL LIMIT 1`)
+          .get(scopeId, projectName);
         if (proj) {
           projectId = proj.id;
         } else {
@@ -217,7 +219,7 @@ router.post('/message', requireAuth, async (req, res) => {
           db.prepare(`
             INSERT INTO projects (id, user_id, company_id, name, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, 'active', unixepoch(), unixepoch())
-          `).run(projectId, req.userId, req.companyId, projectName);
+          `).run(projectId, req.userId, req.companyId || null, projectName);
         }
       }
 

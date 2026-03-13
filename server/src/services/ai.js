@@ -178,6 +178,9 @@ How you work:
 4. After generating, ask: "Want me to save it, or any changes needed?"
 5. If the user provides project or contact information, note it and continue
 
+PROJECT RULE — CRITICAL:
+Never silently assume which project a document is for. The user must state the project in the current conversation. If they haven't, ask "What project is this for?" even if you have known projects on file. The only exception: if the user explicitly confirms a project you suggest (e.g. you ask "Is this for Beachside?" and they say yes). Do not use a known project as a default without the user saying so.
+
 Document types you handle:
 - RFI (AIA G716)
 - Submittal Cover Sheet
@@ -659,8 +662,8 @@ NEVER say "I need this to reach you", "for our records", "to save your informati
 }
 
 async function extractAndSave(userId, companyId, userMessage, db) {
-  // Only extract if message is long enough to contain real info
-  if (userMessage.trim().length < 20) return;
+  // Only extract if message has enough content — lowered threshold to catch short project/contact mentions
+  if (userMessage.trim().length < 4) return;
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
@@ -703,22 +706,38 @@ async function extractAndSave(userId, companyId, userMessage, db) {
     }
   }
 
-  // Save new contacts; link to project if project was mentioned in same message
+  // Save new contacts; link to project — use current message's project, or fall back to most recent project
   if (Array.isArray(extracted.contacts)) {
+    // If no project in this message, find the user's most recently touched project as fallback
+    let fallbackProjectId = linkedProjectId;
+    if (!fallbackProjectId) {
+      const recent = db.prepare(`SELECT id FROM projects WHERE ${scopeCol} = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 1`).get(scopeId);
+      if (recent) fallbackProjectId = recent.id;
+    }
+
     for (const c of extracted.contacts) {
       if (!c.name) continue;
       const existing = db.prepare(`SELECT id, project_id FROM contacts WHERE ${scopeCol} = ? AND name = ? COLLATE NOCASE LIMIT 1`)
         .get(scopeId, c.name);
       if (existing) {
-        if (linkedProjectId && !existing.project_id) {
-          db.prepare('UPDATE contacts SET project_id = ? WHERE id = ?').run(linkedProjectId, existing.id);
+        // Update project link if missing; also add to project_contacts junction
+        const projectToLink = linkedProjectId || fallbackProjectId;
+        if (projectToLink && !existing.project_id) {
+          db.prepare('UPDATE contacts SET project_id = ? WHERE id = ?').run(projectToLink, existing.id);
+        }
+        if (projectToLink) {
+          db.prepare(`INSERT OR IGNORE INTO project_contacts (project_id, contact_id) VALUES (?, ?)`).run(projectToLink, existing.id);
         }
       } else {
+        const newContactId = uuidv4();
         db.prepare(`
           INSERT INTO contacts (id, user_id, company_id, project_id, name, company, role, email, phone)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(uuidv4(), userId, companyId || null, linkedProjectId, c.name, c.company || null, c.role || null,
+        `).run(newContactId, userId, companyId || null, fallbackProjectId, c.name, c.company || null, c.role || null,
           c.email || null, c.phone || null);
+        if (fallbackProjectId) {
+          db.prepare(`INSERT OR IGNORE INTO project_contacts (project_id, contact_id) VALUES (?, ?)`).run(fallbackProjectId, newContactId);
+        }
       }
     }
   }
