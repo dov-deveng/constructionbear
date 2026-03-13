@@ -623,7 +623,7 @@ NEVER say "I need this to reach you", "for our records", "to save your informati
   const messages = [...conversationHistory, { role: 'user', content: userMessage }];
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 2048,
     system: systemPrompt,
     messages,
