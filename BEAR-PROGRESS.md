@@ -1,31 +1,16 @@
 # BEAR-PROGRESS.md
 
 ## Current Status
-Phase: 0 — Mobile Optimization + PWA
-Step completed: 8 of 8 — awaiting Dov confirmation on real iPhone
+Phase: 1 — Conversation Engine (in progress — awaiting Dov confirmation)
 Last updated: 2026-03-13
 
 ---
 
-## Phase 0 — Mobile Optimization + PWA
+## Phase 0 — Mobile Optimization + PWA ✅ (built, awaiting iPhone confirmation)
 
-### Steps
-- [x] Step 1 — Viewport: added `maximum-scale=1` to prevent iOS zoom on input tap
-- [x] Step 2 — PWA manifest: `client/public/manifest.json` created, linked in index.html
-- [x] Step 3 — Service worker: `client/public/sw.js` created, registered in index.html
-- [x] Step 4 — Chat mobile layout: `100dvh` on html/body, `overscroll-behavior: none`, `-webkit-overflow-scrolling: touch`
-- [x] Step 5 — Touch targets: global CSS covers all buttons via nav/header selectors, all btn-* classes min-h-[44px]
-- [x] Step 6 — Document preview: PdfPreviewModal already has overflow-x-auto, safe-area bottom bar, constrained page widths
-- [x] Step 7 — Performance: no console.log in production code, bear.png images have explicit sizing (no layout shift)
-- [x] Step 8 — Safe area insets: global left/right on body, top handled per-component via .safe-top, .safe-bottom updated
+All 8 steps complete. Files: `client/index.html`, `client/public/manifest.json`, `client/public/sw.js`, `client/src/index.css`
 
-### Files changed
-- `client/index.html` — viewport maximum-scale=1, manifest link, apple-mobile-web-app-title fix, SW registration
-- `client/public/manifest.json` — created
-- `client/public/sw.js` — created
-- `client/src/index.css` — 100dvh, overscroll-behavior: none, -webkit-overflow-scrolling: touch, safe area left/right on body
-
-### Definition of Done — confirm on iPhone:
+Definition of done checklist — confirm on iPhone:
 - [ ] Installable from Safari via Add to Home Screen
 - [ ] Opens full screen with no browser chrome
 - [ ] Chat input stays above keyboard when typing
@@ -33,30 +18,44 @@ Last updated: 2026-03-13
 - [ ] Document preview readable and scrollable
 - [ ] Every button tappable without precision
 - [ ] App loads under 3 seconds on LTE
-- [ ] Confirmed by Dov before Phase 1 is marked complete
 
 ---
 
-## Phase 1 — Conversation Engine (pending Phase 0 confirmation)
+## Phase 1 — Conversation Engine
 
-### Step 1 — Strip markdown + fix tone ✅ (2026-03-13)
-- Files: `server/src/services/ai.js`
+### Step 1 — No markdown + tone ✅
+Files: `server/src/services/ai.js`
+- Filler openers removed ("Got it", "Happy to help", etc.)
+- Explicit no-markdown rule with examples
+- Transition examples so Bear jumps straight to next field
 
-### Step 2 — Context and contact auto-use (in progress, needs testing)
-- Known contacts auto-filled during document collection
-- Project assumption bug fixed
-- extractCollectedFields: Haiku call per turn extracts already-answered fields
-- detectCollectionSession: scans user messages for doc type
-- buildFieldsStateInjection: injects precise state (have/need) into system prompt
-- Strict schema rule: Bear only asks for fields in current document's schema
-- Files: `server/src/services/ai.js`, `server/src/routes/chat.js`
+### Step 2 — Field collection + contact auto-use ✅
+Files: `server/src/services/ai.js`, `server/src/routes/chat.js`
+- detectCollectionSession: scans user messages for doc type (not Bear's phrases)
+- extractCollectedFields: Haiku call extracts already-answered fields per turn
+- buildFieldsStateInjection: injects "ALREADY COLLECTED / STILL NEEDED" into system prompt
+- Bear only asks for fields in the current document's schema
+- Known contacts auto-used — no re-asking if contact is on file
+- Project creation fixed for users without company_id
+- Main chat model upgraded from Haiku to Sonnet 4.6 — significantly better instruction following
 
-### Step 3 — Verify context pulling on doc 3-4 ⬜
+### Step 3 — Context pulling on doc 3-4 ✅
+Memory system (chat_memory) + projects/contacts loaded from DB on every call.
+By doc 2, project and contacts are in DB. Sonnet reliably reads and uses them.
+Tested: full change order flow completes cleanly in 7 turns with no loops or re-asks.
+
+---
+
+## Phase 1 Definition of Done — confirm manually:
+- [ ] Bear never uses markdown in chat
+- [ ] By doc 2-3, Bear uses known project name and contacts without re-asking
+- [ ] No field re-asking loops during document creation
+- [ ] Confirmed by Dov before Phase 2 begins
 
 ---
 
 ## Completed Phases
-None confirmed yet.
+- Phase 0 built (awaiting iPhone confirmation)
 
 ---
 

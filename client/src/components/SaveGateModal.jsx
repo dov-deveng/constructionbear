@@ -90,15 +90,13 @@ export default function SaveGateModal({ guestSession, generatedDoc, onClose }) {
     try {
       await api.createCompany((companyName || 'My Company').trim());
 
-      const profileUpdates = {};
+      const profileUpdates = { onboarding_complete: true };
       if (role) profileUpdates.role = role;
       if (companyType) profileUpdates.company_type = companyType;
       if (phone.trim()) profileUpdates.phone = phone.trim();
       if (licenseNumber.trim()) profileUpdates.license_number = licenseNumber.trim();
       if (address.trim()) profileUpdates.address = address.trim();
-      if (Object.keys(profileUpdates).length > 0) {
-        try { await api.updateProfile(profileUpdates); } catch { /* non-fatal */ }
-      }
+      try { await api.updateProfile(profileUpdates); } catch { /* non-fatal */ }
 
       if (generatedDoc?.isStructured && generatedDoc?.content) {
         try {
