@@ -180,6 +180,7 @@ How you work:
 
 PROJECT RULE — CRITICAL:
 Never silently assume which project a document is for. The user must state the project in the current conversation. If they haven't, ask "What project is this for?" even if you have known projects on file. The only exception: if the user explicitly confirms a project you suggest (e.g. you ask "Is this for Beachside?" and they say yes). Do not use a known project as a default without the user saying so.
+When collecting a document, only ask for information that is a field in that document's schema. Do not ask for project address, location, or other project details unless they are an explicit field in the document you are creating.
 
 Document types you handle:
 - RFI (AIA G716)
@@ -284,48 +285,70 @@ Return a JSON object with this structure (omit fields not mentioned, return null
 
 Only extract clearly stated information. Do not infer or guess. Return null for "project" if no project info found. Return empty array for "contacts" if no contacts found. Return ONLY valid JSON.`;
 
-// ── Context realignment: detect in-progress collection session ─────────────────
-// Scans recent conversation history to find if Bear has started collecting fields
-// for a specific document type but hasn't completed it yet.
-// Returns { type, label, required, exchangesSince } or null.
+// ── Active document collection tracking ───────────────────────────────────────
+// Detects if the user is mid-collection for a document by scanning USER messages
+// for a document type request. Does NOT rely on Bear's phrasing.
 
-const COLLECTION_TRIGGERS = [
-  "i'll prepare", "i'll put together", "let me prepare", "let me put together",
-  "put together a", "prepare a", "prepare your", "preparing a", "preparing your",
-  "working on your", "to complete your", "need a few more", "couple more details",
-  "quick question", "one more thing", "just need", "a few questions",
-];
+// Common aliases users say when requesting each doc type
+const DOC_TYPE_ALIASES = {
+  change_order:    ['change order', 'co ', 'c.o.'],
+  rfi:             ['rfi', 'request for information', 'request for info'],
+  submittal:       ['submittal', 'submittals'],
+  invoice:         ['invoice'],
+  pay_app:         ['pay app', 'pay application', 'g702', 'g703', 'payment application'],
+  lien_waiver:     ['lien waiver', 'lien release'],
+  daily_report:    ['daily report', 'field report', 'daily field'],
+  punch_list:      ['punch list'],
+  notice_to_proceed: ['notice to proceed', 'ntp'],
+  transmittal:     ['transmittal'],
+  subcontract:     ['subcontract', 'sub agreement'],
+  warranty_letter: ['warranty letter', 'warranty'],
+  rfp:             ['rfp', 'request for proposal'],
+  ccd:             ['ccd', 'construction change directive'],
+  meeting_minutes: ['meeting minutes', 'minutes'],
+  notice_to_owner: ['notice to owner'],
+  schedule_of_values: ['schedule of values', 'sov'],
+  certified_payroll: ['certified payroll'],
+  substantial_completion: ['substantial completion', 'certificate of substantial'],
+  closeout_checklist: ['closeout', 'close-out', 'close out checklist'],
+};
 
 function detectCollectionSession(conversationHistory) {
   if (!conversationHistory || conversationHistory.length < 2) return null;
 
-  const recent = conversationHistory.slice(-12);
+  const recent = conversationHistory.slice(-20);
 
-  // If the last assistant message already generated a document, no active session
+  // No active session if a document was already generated
   for (let i = recent.length - 1; i >= 0; i--) {
     if (recent[i].role === 'assistant' && recent[i].content.includes('<document type=')) {
       return null;
     }
   }
 
-  // Scan backwards through assistant messages for a collection session start
-  for (let i = recent.length - 1; i >= 0; i--) {
+  // Scan USER messages (not assistant) for a document type request
+  for (let i = 0; i < recent.length; i++) {
     const msg = recent[i];
-    if (msg.role !== 'assistant') continue;
-
+    if (msg.role !== 'user') continue;
     const content = msg.content.toLowerCase();
-    const hasTrigger = COLLECTION_TRIGGERS.some(t => content.includes(t));
-    if (!hasTrigger) continue;
 
-    // Check which doc type this message mentions
-    for (const [type, schema] of Object.entries(DOC_SCHEMAS)) {
-      const label = schema.label.toLowerCase();
-      const typeWords = type.replace(/_/g, ' ');
-      if (content.includes(label) || content.includes(typeWords)) {
-        // Count full exchanges (user+assistant pairs) since this point
+    // Check aliases first (more specific)
+    for (const [type, aliases] of Object.entries(DOC_TYPE_ALIASES)) {
+      if (aliases.some(alias => content.includes(alias))) {
+        const schema = DOC_SCHEMAS[type];
+        if (!schema) continue;
         const messagesAfter = recent.length - 1 - i;
         const exchangesSince = Math.floor(messagesAfter / 2);
-        return { type, label: schema.label, required: schema.required, exchangesSince };
+        return { type, label: schema.label, required: schema.required, fields: schema.fields, exchangesSince };
+      }
+    }
+
+    // Fallback: check schema labels
+    for (const [type, schema] of Object.entries(DOC_SCHEMAS)) {
+      const label = schema.label.toLowerCase();
+      if (content.includes(label)) {
+        const messagesAfter = recent.length - 1 - i;
+        const exchangesSince = Math.floor(messagesAfter / 2);
+        return { type, label: schema.label, required: schema.required, fields: schema.fields, exchangesSince };
       }
     }
   }
@@ -333,29 +356,54 @@ function detectCollectionSession(conversationHistory) {
   return null;
 }
 
-// Inject required fields checklist for any active collection session (Task 10)
-function buildRequiredFieldsInjection(session) {
+// Extract field values already collected from conversation history using Haiku
+async function extractCollectedFields(docType, conversationHistory) {
+  if (!conversationHistory || conversationHistory.length < 2) return {};
+  const schema = DOC_SCHEMAS[docType];
+  if (!schema) return {};
+
+  const recent = conversationHistory.slice(-20);
+  const historyText = recent.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      system: `You extract document field values from a conversation. Document type: ${docType}. Fields: ${schema.fields.join(', ')}. Scan the conversation and return a JSON object with field names as keys and values the user has already provided. Return null for fields not yet provided. Return ONLY valid JSON, no explanation.`,
+      messages: [{ role: 'user', content: historyText }],
+    });
+    const text = response.content[0].text.replace(/```json\n?|\n?```/g, '').trim();
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
+// Build a focused injection showing exactly what Bear has and what it still needs
+function buildFieldsStateInjection(session, collectedFields) {
   if (!session) return '';
   const schema = DOC_SCHEMAS[session.type];
   if (!schema) return '';
-  return `
 
-ACTIVE COLLECTION SESSION — ${session.label.toUpperCase()}:
-Required fields you MUST collect before generating: ${schema.required.join(', ')}
-Confirm you have a non-empty value for EVERY field above before outputting <document>. If any are missing, ask for the next missing one before generating.`;
-}
+  const have = Object.entries(collectedFields).filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '');
+  const missingRequired = session.required.filter(f => !collectedFields[f] || String(collectedFields[f]).trim() === '');
 
-// Build a realignment injection when the session has drifted (Task 9)
-function buildRealignmentInjection(session) {
-  if (!session || session.exchangesSince < 2) return '';
-  return `
+  let injection = `\n\nACTIVE DOCUMENT: ${session.label}`;
+  injection += `\nALLOWED FIELDS FOR THIS DOCUMENT: ${schema.fields.join(', ')}`;
+  injection += `\nDO NOT ask for any information not in the allowed fields list above.`;
 
-REALIGNMENT REQUIRED — ACTIVE COLLECTION SESSION:
-You are currently collecting information for a ${session.label}. This session has been active for ${session.exchangesSince} exchanges. If the last user message did not provide one of the required fields (${session.required.join(', ')}), you MUST redirect the conversation back before responding to anything else.
+  if (have.length > 0) {
+    injection += `\n\nALREADY COLLECTED — do NOT ask for these again:\n${have.map(([k, v]) => `  ${k}: "${v}"`).join('\n')}`;
+  }
 
-Use this exact approach: acknowledge their message briefly in one sentence, then immediately redirect: "Before we get to that — I still need [specific missing field] to complete your ${session.label}. Can you give me that first?"
+  if (missingRequired.length > 0) {
+    injection += `\n\nSTILL NEEDED (required): ${missingRequired.join(', ')}`;
+    injection += `\nAsk for the next missing required field only. Do not re-ask for anything in ALREADY COLLECTED.`;
+  } else {
+    injection += `\n\nALL REQUIRED FIELDS COLLECTED. Generate the document now without asking again.`;
+  }
 
-Do not answer off-topic questions, provide general advice, or discuss anything else until the required fields are collected or the user explicitly asks to cancel the document.`;
+  return injection;
 }
 
 // ── Date auto-population (Task 11) ────────────────────────────────────────────
@@ -563,17 +611,12 @@ NEVER say "I need this to reach you", "for our records", "to save your informati
     systemPrompt += `\n\nContext from previous conversations:\n${memory.summary}`;
   }
 
-  // Task 10: inject required fields checklist for any active collection session
+  // Detect active document collection session and inject precise field state
   const collectionSession = detectCollectionSession(conversationHistory);
-  const requiredFieldsInjection = buildRequiredFieldsInjection(collectionSession);
-  if (requiredFieldsInjection) {
-    systemPrompt += requiredFieldsInjection;
-  }
-
-  // Task 9: inject realignment directive if session has drifted
-  const realignmentInjection = buildRealignmentInjection(collectionSession);
-  if (realignmentInjection) {
-    systemPrompt += realignmentInjection;
+  if (collectionSession) {
+    const collectedFields = await extractCollectedFields(collectionSession.type, conversationHistory);
+    const fieldsInjection = buildFieldsStateInjection(collectionSession, collectedFields);
+    systemPrompt += fieldsInjection;
   }
 
   // Build messages array
