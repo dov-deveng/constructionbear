@@ -553,6 +553,7 @@ NEVER say "I need this to reach you", "for our records", "to save your informati
 
   if (contacts.length > 0) {
     systemPrompt += `\nKnown contacts: ${contacts.map(c => `${c.name}${c.company ? ` @ ${c.company}` : ''}${c.role ? ` (${c.role})` : ''}`).join('; ')}`;
+    systemPrompt += `\nCRITICAL — USE KNOWN CONTACTS: Before asking for any person's name, company, or role (owner, GC, architect, contractor, engineer, etc.), check the Known contacts list above. If a match exists, use it silently — do NOT ask. Only ask if no match is found. When the user says "owner" or "GC" or any role, look it up in Known contacts first.`;
   }
 
   if (memory?.summary) {
