@@ -128,13 +128,16 @@ export const useChatStore = create((set, get) => ({
 
   // Start a fresh chat — checkpoint any in-progress untagged messages first
   startNewChat: async () => {
-    const { messages } = get();
-    if (messages.length > 0) {
-      // Save current untagged messages as in_progress session before clearing
+    const { messages, resumedSession } = get();
+    if (resumedSession) {
+      // Session is already saved in DB as in_progress — just clear UI state
+      // No checkpoint needed; the session will remain in the In Progress sidebar
+    } else if (messages.length > 0) {
+      // Fresh untagged conversation — save it as an in_progress session before clearing
       await api.checkpointSession().catch(() => {});
     }
     set({ messages: [], initialized: true, activeSession: null, resumedSession: null, pendingAttachment: null });
-    get().loadSessions();
+    await get().loadSessions();
   },
 
   loadSessions: async (search) => {
@@ -146,14 +149,21 @@ export const useChatStore = create((set, get) => ({
 
   openSession: async (id) => {
     try {
+      // Checkpoint any current fresh (untagged) messages before switching sessions
+      const { messages: currentMessages, resumedSession: currentResumed } = get();
+      if (!currentResumed && currentMessages.length > 0) {
+        await api.checkpointSession().catch(() => {});
+      }
+
       const { session, messages } = await api.getSession(id);
       if (session.status === 'in_progress') {
-        // Resume: load messages into active state, allow sending
+        // Resume: load full message history into state so conversation is visible
         set({ messages, initialized: true, activeSession: null, resumedSession: { session, messages }, pendingAttachment: null });
       } else {
-        // View only
+        // View only — don't overwrite messages state (keep fresh chat intact if any)
         set({ activeSession: { session, messages }, resumedSession: null });
       }
+      get().loadSessions();
     } catch {}
   },
 

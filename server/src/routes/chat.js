@@ -131,12 +131,19 @@ router.post('/sessions/checkpoint', requireAuth, (req, res) => {
 
   if (!untagged.n) return res.json({ saved: false });
 
-  // Don't create a duplicate if there's already an in_progress session with no messages
+  // Use the first user message as the session title for a meaningful sidebar label
+  const firstMsg = db.prepare(`
+    SELECT content FROM chat_messages
+    WHERE user_id = ? AND session_id IS NULL AND role = 'user'
+    ORDER BY created_at ASC LIMIT 1
+  `).get(req.userId);
+  const title = firstMsg?.content?.slice(0, 60) || 'In Progress';
+
   const sessionId = uuidv4();
   db.prepare(`
     INSERT INTO chat_sessions (id, user_id, company_id, status, partial_doc_type, title)
-    VALUES (?, ?, ?, 'in_progress', ?, 'In Progress')
-  `).run(sessionId, req.userId, req.companyId || null, partial_doc_type || null);
+    VALUES (?, ?, ?, 'in_progress', ?, ?)
+  `).run(sessionId, req.userId, req.companyId || null, partial_doc_type || null, title);
 
   db.prepare(`UPDATE chat_messages SET session_id = ? WHERE user_id = ? AND session_id IS NULL`)
     .run(sessionId, req.userId);
