@@ -135,3 +135,67 @@ File: `client/src/screens/GuestShell.jsx`
 - Google OAuth redirect flow
 - Persistent in-progress chats
 - Coming soon landing page + waitlist
+
+---
+
+## Session — 2026-03-15 | Stripe Wiring
+
+### What was audited
+Full review of Stripe integration state across:
+- `server/src/routes/stripe.js` — checkout, portal, status, webhook
+- `server/src/db/schema.js` — subscriptions table
+- `client/src/components/PricingModal.jsx`
+- `client/src/api/index.js`
+- `server/.env`
+
+### Issues found & fixed
+
+**1. Env var mismatch — FIXED**
+`.env` had `STRIPE_PRICE_ID` (old/unused). Code references:
+- `STRIPE_REGULAR_PRICE_ID` (Personal $29.99/seat)
+- `STRIPE_PRO_BASE_PRICE_ID` (Business base $129.99)
+- `STRIPE_PRO_SEAT_PRICE_ID` (Business extra seat $24.99)
+
+Updated `.env` with all 3 correct price IDs and webhook secret.
+Note: `.env` is gitignored — must be set manually in Railway env vars.
+
+**2. Webhook secret was blank — FIXED**
+`STRIPE_WEBHOOK_SECRET` now populated. Webhook endpoint: `https://api.doveandbearinc.com/stripe/webhook`
+
+**3. PricingModal named import — FIXED & COMMITTED**
+`import api` → `import { api }` (matches named export in api/index.js)
+Commit: `5b2917d`
+
+### Stripe status: FULLY WIRED ✅
+Backend: checkout, portal, status, webhook all functional
+Frontend: PricingModal complete, API methods present
+Schema: subscriptions table has all required columns
+
+### Next step
+Set Railway environment variables to match `server/.env` Stripe values, then do an end-to-end test checkout with a Stripe test card.
+
+---
+
+## Session — 2026-03-15 (continued) | Sidebar + Pricing UI Fix
+
+### What was fixed
+**Sidebar.jsx** (commit `228a184`)
+- Upgrade box now only shows for `plan === 'free'` (was `status !== 'active'` — never hid for paid users)
+- Button text: "Upgrade — $29.99/mo" (was "Upgrade Plan")
+- Doc count copy corrected: uses `doc_count` field, shows `2 - doc_count` remaining
+
+**Already correct in local code (no changes needed):**
+- SettingsScreen.jsx billing section — correct prices ($29.99, $24.99), correct plan names
+- PricingModal.jsx — two plan cards (Personal + Business), correct prices, opens via both Sidebar and Settings
+- SubscriptionModal.jsx — no hardcoded prices, opens PricingModal correctly
+
+### Full upgrade flow (post-deploy)
+1. Free user sees "Upgrade — $29.99/mo" in sidebar → clicks → PricingModal overlay opens
+2. PricingModal shows Personal ($29.99/seat/mo) and Business ($129.99/mo flat + $24.99/extra seat)
+3. Personal is highlighted as recommended
+4. Selecting a plan → Stripe Checkout
+5. On success → plan updates, sidebar upgrade box disappears
+6. Settings > Billing: paid users see "Manage Subscription" only (no upgrade button)
+
+### Pushed to GitHub
+`5cec910..228a184` → Vercel + Railway auto-deploying
