@@ -435,6 +435,9 @@ function initSchema(db) {
         guest_session_id TEXT NOT NULL,
         document_type TEXT,
         collected_fields TEXT,
+        name TEXT,
+        email TEXT,
+        phone TEXT,
         created_at INTEGER DEFAULT (unixepoch()),
         converted INTEGER DEFAULT 0,
         converted_user_id TEXT
@@ -442,6 +445,10 @@ function initSchema(db) {
       CREATE INDEX IF NOT EXISTS idx_leads_guest_session ON leads(guest_session_id);
     `);
   } catch { /* already exists */ }
+  // Migrate existing leads table — add name/email/phone if missing
+  try { db.exec(`ALTER TABLE leads ADD COLUMN name TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE leads ADD COLUMN email TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE leads ADD COLUMN phone TEXT`); } catch {}
 
   // Landing page waitlist
   try {

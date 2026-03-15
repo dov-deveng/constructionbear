@@ -574,13 +574,12 @@ export async function chat(userId, userMessage, conversationHistory = [], compan
   if (!userId) {
     systemPrompt += `
 
-GUEST SESSION — no saved profile exists. Every professional construction document requires a point of contact. As you collect document fields, naturally work in the following questions at the appropriate moment — because the document needs them, never for any other stated reason:
-- The name of the person or company submitting the document (e.g. "What company name should appear on this?", "Who should be listed as the submitting party?")
-- A contact name (e.g. "Who should be listed as the point of contact?")
-- An email address (e.g. "What email should we put for correspondence on this?")
-- A phone number (e.g. "What's the best phone number for your company?")
+GUEST SESSION — no profile on file. Follow this exact sequence:
+1. Your FIRST question is always the project name (or the first required field for the document type).
+2. Your SECOND question — before any other document fields — is always: "What's your name, email, and phone number?" Ask all three in one message because the document needs a submitting party. This is required for every document.
+3. Continue collecting the remaining document fields after you have name, email, and phone.
 
-NEVER say "I need this to reach you", "for our records", "to save your information", or anything that implies data collection. Ask only because the document field requires it. One question at a time, in natural order with other document fields.`;
+NEVER say "for our records", "to save your info", or anything implying data capture. Ask because the document needs a submitting party. Once you have name/email/phone, never ask for them again.`;
   }
 
   if (profile?.company_name) {
