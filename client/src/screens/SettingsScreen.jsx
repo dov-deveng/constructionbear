@@ -44,7 +44,7 @@ export default function SettingsScreen() {
   }
 
   const [portalLoading, setPortalLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(null); // 'pro' | 'business' | null
+  const [checkoutLoading, setCheckoutLoading] = useState(null); // 'regular' | 'pro' | null
 
   async function handleManage() {
     setPortalLoading(true);
@@ -178,23 +178,25 @@ export default function SettingsScreen() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-semibold text-bear-text capitalize">
-                  {billing?.plan === 'pro' ? 'Pro Plan' : billing?.plan === 'business' ? 'Business Plan' : 'Free Plan'}
+                  {billing?.plan === 'regular' ? 'Regular Plan' : billing?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
                 </p>
                 <p className="text-xs text-bear-muted mt-0.5">
                   {billing?.plan === 'free'
-                    ? `${billing?.doc_count || 0}/1 free document used`
-                    : `${billing?.seats || 1} seat${(billing?.seats || 1) !== 1 ? 's' : ''} · $${billing?.price_per_seat?.toFixed(2)}/seat/mo`}
+                    ? `${billing?.doc_count || 0}/2 free documents used`
+                    : billing?.plan === 'regular'
+                    ? `${billing?.monthly_doc_count || 0}/100 docs this month · ${billing?.seats || 1} seat${(billing?.seats || 1) !== 1 ? 's' : ''} · $29.99/seat/mo`
+                    : `${billing?.seats || 1} seat${(billing?.seats || 1) !== 1 ? 's' : ''} · 5 included + $24.99/extra · Unlimited docs`}
                 </p>
                 {billing?.plan !== 'free' && billing?.total_monthly > 0 && (
                   <p className="text-xs font-semibold text-bear-accent mt-1">${billing.total_monthly.toFixed(2)}/month total</p>
                 )}
               </div>
               <span className={`text-xs font-semibold px-2 py-1 rounded-full shrink-0 ${
-                billing?.plan === 'pro' || billing?.plan === 'business'
+                billing?.plan === 'regular' || billing?.plan === 'pro'
                   ? 'bg-emerald-500/15 text-emerald-400'
                   : 'bg-bear-border text-bear-muted'
               }`}>
-                {billing?.plan === 'pro' ? 'Pro' : billing?.plan === 'business' ? 'Business' : 'Free'}
+                {billing?.plan === 'regular' ? 'Regular' : billing?.plan === 'pro' ? 'Pro' : 'Free'}
               </span>
             </div>
 
@@ -202,18 +204,18 @@ export default function SettingsScreen() {
             {isOwner && billing?.plan === 'free' && (
               <div className="space-y-2">
                 <button
-                  onClick={() => { setCheckoutLoading('pro'); api.createCheckout('pro').then(r => r.url && (window.location.href = r.url)).catch(e => alert(e.message)).finally(() => setCheckoutLoading(null)); }}
+                  onClick={() => { setCheckoutLoading('regular'); api.createCheckout('regular').then(r => r.url && (window.location.href = r.url)).catch(e => alert(e.message)).finally(() => setCheckoutLoading(null)); }}
                   disabled={!!checkoutLoading}
                   className="btn-primary text-sm py-2.5 w-full flex items-center justify-center gap-2"
                 >
-                  {checkoutLoading === 'pro' ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Upgrade to Pro — $19.99/seat/mo'}
+                  {checkoutLoading === 'regular' ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Upgrade to Regular — $29.99/user/mo · 100 docs/mo'}
                 </button>
                 <button
-                  onClick={() => { setCheckoutLoading('business'); api.createCheckout('business').then(r => r.url && (window.location.href = r.url)).catch(e => alert(e.message)).finally(() => setCheckoutLoading(null)); }}
+                  onClick={() => { setCheckoutLoading('pro'); api.createCheckout('pro').then(r => r.url && (window.location.href = r.url)).catch(e => alert(e.message)).finally(() => setCheckoutLoading(null)); }}
                   disabled={!!checkoutLoading}
                   className="btn-secondary text-sm py-2 w-full flex items-center justify-center gap-2"
                 >
-                  {checkoutLoading === 'business' ? <span className="w-4 h-4 border-2 border-bear-muted/30 border-t-bear-muted rounded-full animate-spin" /> : 'Business Plan — $49.99/seat/mo (10+ seats)'}
+                  {checkoutLoading === 'pro' ? <span className="w-4 h-4 border-2 border-bear-muted/30 border-t-bear-muted rounded-full animate-spin" /> : 'Pro Plan — $129.99/mo · 5 users included · Unlimited docs'}
                 </button>
               </div>
             )}

@@ -293,7 +293,7 @@ router.post('/company/join', requireAuth, async (req, res) => {
   if (company.plan === 'free' || !company.plan) {
     const memberCount = db.prepare('SELECT COUNT(*) as n FROM users WHERE company_id = ?').get(company.id).n;
     if (memberCount >= 1) {
-      return res.status(402).json({ error: 'upgrade_required', message: 'This company is on the Free plan which allows 1 user. The account owner must upgrade to Pro to add team members.' });
+      return res.status(402).json({ error: 'upgrade_required', message: 'This company is on the Free plan which allows 1 user. The account owner must upgrade to Regular or Pro to add team members.' });
     }
   }
 
@@ -309,10 +309,28 @@ router.post('/company/join', requireAuth, async (req, res) => {
       const Stripe = (await import('stripe')).default;
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
       const sub = await stripe.subscriptions.retrieve(company.stripe_subscription_id);
-      if (sub.items.data[0]) {
-        await stripe.subscriptions.update(company.stripe_subscription_id, {
-          items: [{ id: sub.items.data[0].id, quantity: newSeats }],
-        });
+      const companyPlan = db.prepare('SELECT plan FROM companies WHERE id = ?').get(company.id)?.plan;
+      if (companyPlan === 'pro') {
+        // Pro: update additional-seat line item (seats > 5)
+        const extraItem = sub.items.data.find(i => i.price.id === process.env.STRIPE_PRO_SEAT_PRICE_ID);
+        const extraSeats = Math.max(0, newSeats - 5);
+        if (extraItem) {
+          await stripe.subscriptions.update(company.stripe_subscription_id, {
+            items: [{ id: extraItem.id, quantity: extraSeats }],
+          });
+        } else if (extraSeats > 0) {
+          await stripe.subscriptions.update(company.stripe_subscription_id, {
+            items: [{ price: process.env.STRIPE_PRO_SEAT_PRICE_ID, quantity: extraSeats }],
+          });
+        }
+      } else {
+        // Regular: per-seat price, update quantity
+        const item = sub.items.data.find(i => i.price.id === process.env.STRIPE_REGULAR_PRICE_ID) || sub.items.data[0];
+        if (item) {
+          await stripe.subscriptions.update(company.stripe_subscription_id, {
+            items: [{ id: item.id, quantity: newSeats }],
+          });
+        }
       }
     } catch (err) {
       console.error('[stripe] seat update failed:', err.message);
@@ -347,8 +365,9 @@ router.get('/company', requireAuth, (req, res) => {
   const memberCount = db.prepare('SELECT COUNT(*) as n FROM users WHERE company_id = ?').get(req.companyId).n;
   const plan = company.plan || 'free';
   const seats = memberCount;
-  const pricePerSeat = plan === 'business' ? 49.99 : plan === 'pro' ? 19.99 : 0;
-  const totalMonthly = pricePerSeat * seats;
+  const extraSeats = Math.max(0, seats - 5);
+  const pricePerSeat = plan === 'regular' ? 29.99 : 0;
+  const totalMonthly = plan === 'regular' ? pricePerSeat * seats : plan === 'pro' ? 129.99 + extraSeats * 24.99 : 0;
 
   res.json({ ...company, member_count: memberCount, seats, plan, price_per_seat: pricePerSeat, total_monthly: totalMonthly });
 });
@@ -396,10 +415,21 @@ router.delete('/company/members/:userId', requireAuth, async (req, res) => {
       const Stripe = (await import('stripe')).default;
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
       const sub = await stripe.subscriptions.retrieve(company.stripe_subscription_id);
-      if (sub.items.data[0]) {
-        await stripe.subscriptions.update(company.stripe_subscription_id, {
-          items: [{ id: sub.items.data[0].id, quantity: Math.max(1, newSeats) }],
-        });
+      if (company.plan === 'pro') {
+        const extraItem = sub.items.data.find(i => i.price.id === process.env.STRIPE_PRO_SEAT_PRICE_ID);
+        const extraSeats = Math.max(0, newSeats - 5);
+        if (extraItem) {
+          await stripe.subscriptions.update(company.stripe_subscription_id, {
+            items: [{ id: extraItem.id, quantity: extraSeats }],
+          });
+        }
+      } else {
+        const item = sub.items.data.find(i => i.price.id === process.env.STRIPE_REGULAR_PRICE_ID) || sub.items.data[0];
+        if (item) {
+          await stripe.subscriptions.update(company.stripe_subscription_id, {
+            items: [{ id: item.id, quantity: Math.max(1, newSeats) }],
+          });
+        }
       }
     } catch (err) {
       console.error('[stripe] seat decrement failed:', err.message);

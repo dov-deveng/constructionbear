@@ -15,11 +15,7 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Stripe not configured yet' });
 
-  const { plan = 'pro' } = req.body;
-  const priceId = plan === 'business'
-    ? (process.env.STRIPE_BUSINESS_PRICE_ID || process.env.STRIPE_PRICE_ID)
-    : process.env.STRIPE_PRICE_ID;
-
+  const { plan = 'regular' } = req.body;
   const db = getDb();
   const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.userId);
   const company = db.prepare('SELECT id, name, seats, stripe_customer_id, owner_id FROM companies WHERE id = ?').get(req.companyId);
@@ -36,11 +32,24 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
       db.prepare('UPDATE companies SET stripe_customer_id = ? WHERE id = ?').run(customerId, company.id);
     }
 
+    let lineItems;
+    if (plan === 'pro') {
+      // Pro: $129.99 base (5 users included) + $24.99 per additional seat
+      const extraSeats = Math.max(0, seats - 5);
+      lineItems = [
+        { price: process.env.STRIPE_PRO_BASE_PRICE_ID, quantity: 1 },
+        ...(extraSeats > 0 ? [{ price: process.env.STRIPE_PRO_SEAT_PRICE_ID, quantity: extraSeats }] : []),
+      ];
+    } else {
+      // Regular: $29.99/seat
+      lineItems = [{ price: process.env.STRIPE_REGULAR_PRICE_ID, quantity: Math.max(1, seats) }];
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: Math.max(1, seats) }],
+      line_items: lineItems,
       metadata: { company_id: company.id, plan },
       success_url: `${process.env.CLIENT_URL}/?billing=success`,
       cancel_url: `${process.env.CLIENT_URL}/?billing=cancel`,
@@ -80,19 +89,39 @@ router.get('/status', requireAuth, (req, res) => {
   const company = db.prepare('SELECT plan, seats, stripe_subscription_id FROM companies WHERE id = ?').get(req.companyId);
   const plan = company?.plan || 'free';
   const seats = company?.seats || 1;
-  const docCount = db.prepare('SELECT COUNT(*) as n FROM documents WHERE company_id = ?').get(req.companyId).n;
-  const pricePerSeat = plan === 'business' ? 49.99 : plan === 'pro' ? 19.99 : 0;
 
-  // Free: 2 docs total (1 guest conversion + 1 more); paid: unlimited
-  const canCreate = req.isAdmin || req.isTestAccount || plan === 'pro' || plan === 'business' || docCount < 2;
+  // Monthly doc count for Regular plan limit
+  const monthStart = Math.floor(new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime() / 1000);
+  const monthlyDocCount = db.prepare('SELECT COUNT(*) as n FROM documents WHERE company_id = ? AND created_at >= ?').get(req.companyId, monthStart).n;
+  const totalDocCount = db.prepare('SELECT COUNT(*) as n FROM documents WHERE company_id = ?').get(req.companyId).n;
+
+  // Pricing
+  let pricePerSeat = 0;
+  let totalMonthly = 0;
+  if (plan === 'regular') {
+    pricePerSeat = 29.99;
+    totalMonthly = pricePerSeat * seats;
+  } else if (plan === 'pro') {
+    const extraSeats = Math.max(0, seats - 5);
+    totalMonthly = 129.99 + extraSeats * 24.99;
+    pricePerSeat = seats > 0 ? totalMonthly / seats : 0;
+  }
+
+  // Doc limits: free=2 total, regular=100/month, pro=unlimited
+  const canCreate = req.isAdmin || req.isTestAccount
+    || plan === 'pro'
+    || (plan === 'regular' && monthlyDocCount < 100)
+    || (plan === 'free' && totalDocCount < 2);
 
   res.json({
     status: plan,
     plan,
     seats,
     price_per_seat: pricePerSeat,
-    total_monthly: pricePerSeat * seats,
-    doc_count: docCount,
+    total_monthly: totalMonthly,
+    doc_count: totalDocCount,
+    monthly_doc_count: monthlyDocCount,
+    monthly_doc_limit: plan === 'regular' ? 100 : plan === 'pro' ? null : 2,
     can_create: canCreate,
   });
 });
@@ -117,9 +146,9 @@ router.post('/webhook', async (req, res) => {
     case 'checkout.session.completed': {
       const session = event.data.object;
       const companyId = session.metadata?.company_id;
-      const plan = session.metadata?.plan || 'pro';
+      const plan = session.metadata?.plan || 'regular';
       if (companyId && session.subscription) {
-        db.prepare(`UPDATE companies SET plan = ?, stripe_subscription_id = ? WHERE id = ?`)
+        db.prepare('UPDATE companies SET plan = ?, stripe_subscription_id = ? WHERE id = ?')
           .run(plan, session.subscription, companyId);
       }
       break;
@@ -128,14 +157,12 @@ router.post('/webhook', async (req, res) => {
     case 'customer.subscription.updated': {
       const subscription = event.data.object;
       const isActive = subscription.status === 'active';
-      // Update company plan status
-      db.prepare(`UPDATE companies SET stripe_subscription_id = ? WHERE stripe_customer_id = ?`)
+      db.prepare('UPDATE companies SET stripe_subscription_id = ? WHERE stripe_customer_id = ?')
         .run(subscription.id, subscription.customer);
       if (!isActive) {
-        db.prepare(`UPDATE companies SET plan = 'free' WHERE stripe_customer_id = ? AND plan != 'free'`)
+        db.prepare("UPDATE companies SET plan = 'free' WHERE stripe_customer_id = ? AND plan != 'free'")
           .run(subscription.customer);
       }
-      // Also keep legacy subscriptions table in sync
       db.prepare(`
         UPDATE subscriptions SET stripe_subscription_id = ?, status = ?, current_period_end = ?, updated_at = ?
         WHERE stripe_customer_id = ?
@@ -144,16 +171,16 @@ router.post('/webhook', async (req, res) => {
     }
     case 'customer.subscription.deleted': {
       const subscription = event.data.object;
-      db.prepare(`UPDATE companies SET plan = 'free', stripe_subscription_id = NULL WHERE stripe_customer_id = ?`)
+      db.prepare("UPDATE companies SET plan = 'free', stripe_subscription_id = NULL WHERE stripe_customer_id = ?")
         .run(subscription.customer);
-      db.prepare(`UPDATE subscriptions SET status = 'cancelled', updated_at = ? WHERE stripe_customer_id = ?`)
+      db.prepare("UPDATE subscriptions SET status = 'cancelled', updated_at = ? WHERE stripe_customer_id = ?")
         .run(Date.now() / 1000 | 0, subscription.customer);
       break;
     }
     case 'invoice.payment_failed': {
       const invoice = event.data.object;
-      db.prepare(`UPDATE companies SET plan = 'free' WHERE stripe_customer_id = ?`).run(invoice.customer);
-      db.prepare(`UPDATE subscriptions SET status = 'past_due', updated_at = ? WHERE stripe_customer_id = ?`)
+      db.prepare("UPDATE companies SET plan = 'free' WHERE stripe_customer_id = ?").run(invoice.customer);
+      db.prepare("UPDATE subscriptions SET status = 'past_due', updated_at = ? WHERE stripe_customer_id = ?")
         .run(Date.now() / 1000 | 0, invoice.customer);
       break;
     }
