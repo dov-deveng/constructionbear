@@ -286,7 +286,7 @@ export default function Sidebar() {
             onClick={() => setView('settings')}
             className="w-full text-xs font-semibold text-white bg-bear-accent hover:bg-bear-accent-hover px-3 py-1.5 rounded-lg transition-colors"
           >
-            Upgrade — $19.99/mo
+            Upgrade — $29.99/user/mo
           </button>
         </div>
       )}

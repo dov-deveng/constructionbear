@@ -76,7 +76,7 @@ export default function SubscriptionModal({ onClose, dismissable = true, plan = 
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Upgrade to Pro — $19.99/seat/mo
+                Upgrade — $29.99/user/mo
               </>
             )}
           </button>
