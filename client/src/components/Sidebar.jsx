@@ -273,22 +273,22 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* Subscription status */}
-      {subscription && subscription.status !== 'active' && (
+      {/* Subscription status — free plan only */}
+      {subscription && subscription.plan === 'free' && (
         <div className="mx-3 mb-3 p-3 rounded-xl bg-bear-accent/10 border border-bear-accent/20">
           <p className="text-xs font-semibold text-bear-accent mb-0.5">
-            {subscription.free_docs_used ? 'Free limit reached' : 'Free plan'}
+            {subscription.doc_count >= 2 ? 'Free limit reached' : 'Free plan'}
           </p>
           <p className="text-xs text-bear-muted mb-2">
-            {subscription.free_docs_used
+            {subscription.doc_count >= 2
               ? 'Subscribe to create unlimited documents.'
-              : `${1 - subscription.doc_count} free document remaining.`}
+              : `${2 - subscription.doc_count} free document${2 - subscription.doc_count !== 1 ? 's' : ''} remaining.`}
           </p>
           <button
             onClick={() => setPricingOpen(true)}
             className="w-full text-xs font-semibold text-white bg-bear-accent hover:bg-bear-accent-hover px-3 py-1.5 rounded-lg transition-colors"
           >
-            Upgrade Plan
+            Upgrade — $29.99/mo
           </button>
         </div>
       )}
