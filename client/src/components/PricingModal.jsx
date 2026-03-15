@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import api from '../api/index.js';
+import { api } from '../api/index.js';
 
 export default function PricingModal({ isOpen, onClose, currentPlan = 'free' }) {
   const [loading, setLoading] = useState(null); // 'personal' | 'business'
