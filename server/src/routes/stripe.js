@@ -15,7 +15,7 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Stripe not configured yet' });
 
-  const { plan = 'regular' } = req.body;
+  const { plan = 'personal', returnUrl } = req.body;
   const db = getDb();
   const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.userId);
   const company = db.prepare('SELECT id, name, seats, stripe_customer_id, owner_id FROM companies WHERE id = ?').get(req.companyId);
@@ -33,26 +33,27 @@ router.post('/create-checkout', requireAuth, async (req, res) => {
     }
 
     let lineItems;
-    if (plan === 'pro') {
-      // Pro: $129.99 base (5 users included) + $24.99 per additional seat
+    if (plan === 'business') {
+      // Business: $129.99 base (5 users included) + $24.99 per additional seat
       const extraSeats = Math.max(0, seats - 5);
       lineItems = [
         { price: process.env.STRIPE_PRO_BASE_PRICE_ID, quantity: 1 },
         ...(extraSeats > 0 ? [{ price: process.env.STRIPE_PRO_SEAT_PRICE_ID, quantity: extraSeats }] : []),
       ];
     } else {
-      // Regular: $29.99/seat
+      // Personal: $29.99/seat
       lineItems = [{ price: process.env.STRIPE_REGULAR_PRICE_ID, quantity: Math.max(1, seats) }];
     }
 
+    const baseUrl = returnUrl || process.env.CLIENT_URL || 'https://constructionbear.dev';
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: lineItems,
       metadata: { company_id: company.id, plan },
-      success_url: `${process.env.CLIENT_URL}/?billing=success`,
-      cancel_url: `${process.env.CLIENT_URL}/?billing=cancel`,
+      success_url: `${baseUrl}?billing=success`,
+      cancel_url: `${baseUrl}?billing=cancel`,
     });
 
     res.json({ url: session.url });
@@ -67,14 +68,16 @@ router.post('/create-portal', requireAuth, async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Stripe not configured yet' });
 
+  const { returnUrl } = req.body;
   const db = getDb();
   const company = db.prepare('SELECT stripe_customer_id FROM companies WHERE id = ?').get(req.companyId);
   if (!company?.stripe_customer_id) return res.status(400).json({ error: 'No subscription found' });
 
   try {
+    const baseUrl = returnUrl || process.env.CLIENT_URL || 'https://constructionbear.dev';
     const session = await stripe.billingPortal.sessions.create({
       customer: company.stripe_customer_id,
-      return_url: `${process.env.CLIENT_URL}/?view=settings`,
+      return_url: baseUrl,
     });
     res.json({ url: session.url });
   } catch (err) {
@@ -98,19 +101,19 @@ router.get('/status', requireAuth, (req, res) => {
   // Pricing
   let pricePerSeat = 0;
   let totalMonthly = 0;
-  if (plan === 'regular') {
+  if (plan === 'personal') {
     pricePerSeat = 29.99;
     totalMonthly = pricePerSeat * seats;
-  } else if (plan === 'pro') {
+  } else if (plan === 'business') {
     const extraSeats = Math.max(0, seats - 5);
     totalMonthly = 129.99 + extraSeats * 24.99;
     pricePerSeat = seats > 0 ? totalMonthly / seats : 0;
   }
 
-  // Doc limits: free=2 total, regular=100/month, pro=unlimited
+  // Doc limits: free=2 total, personal=100/month, business=unlimited
   const canCreate = req.isAdmin || req.isTestAccount
-    || plan === 'pro'
-    || (plan === 'regular' && monthlyDocCount < 100)
+    || plan === 'business'
+    || (plan === 'personal' && monthlyDocCount < 100)
     || (plan === 'free' && totalDocCount < 2);
 
   res.json({
@@ -121,7 +124,7 @@ router.get('/status', requireAuth, (req, res) => {
     total_monthly: totalMonthly,
     doc_count: totalDocCount,
     monthly_doc_count: monthlyDocCount,
-    monthly_doc_limit: plan === 'regular' ? 100 : plan === 'pro' ? null : 2,
+    monthly_doc_limit: plan === 'personal' ? 100 : plan === 'business' ? null : 2,
     can_create: canCreate,
   });
 });
@@ -146,7 +149,7 @@ router.post('/webhook', async (req, res) => {
     case 'checkout.session.completed': {
       const session = event.data.object;
       const companyId = session.metadata?.company_id;
-      const plan = session.metadata?.plan || 'regular';
+      const plan = session.metadata?.plan || 'personal';
       if (companyId && session.subscription) {
         db.prepare('UPDATE companies SET plan = ?, stripe_subscription_id = ? WHERE id = ?')
           .run(plan, session.subscription, companyId);

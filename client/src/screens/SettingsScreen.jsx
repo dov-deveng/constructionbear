@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore, useUIStore } from '../store/index.js';
 import { api } from '../api/index.js';
 import ComposeButton from '../components/ComposeButton.jsx';
+import PricingModal from '../components/PricingModal.jsx';
 
 export default function SettingsScreen() {
   const { user, company: storeCompany, subscription, logout, setCompany } = useAuthStore();
@@ -44,7 +45,7 @@ export default function SettingsScreen() {
   }
 
   const [portalLoading, setPortalLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(null); // 'regular' | 'pro' | null
+  const [pricingOpen, setPricingOpen] = useState(false);
 
   async function handleManage() {
     setPortalLoading(true);
@@ -178,12 +179,12 @@ export default function SettingsScreen() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-semibold text-bear-text capitalize">
-                  {billing?.plan === 'regular' ? 'Regular Plan' : billing?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                  {billing?.plan === 'personal' ? 'Personal Plan' : billing?.plan === 'business' ? 'Business Plan' : 'Free Plan'}
                 </p>
                 <p className="text-xs text-bear-muted mt-0.5">
                   {billing?.plan === 'free'
                     ? `${billing?.doc_count || 0}/2 free documents used`
-                    : billing?.plan === 'regular'
+                    : billing?.plan === 'personal'
                     ? `${billing?.monthly_doc_count || 0}/100 docs this month · ${billing?.seats || 1} seat${(billing?.seats || 1) !== 1 ? 's' : ''} · $29.99/seat/mo`
                     : `${billing?.seats || 1} seat${(billing?.seats || 1) !== 1 ? 's' : ''} · 5 included + $24.99/extra · Unlimited docs`}
                 </p>
@@ -192,32 +193,22 @@ export default function SettingsScreen() {
                 )}
               </div>
               <span className={`text-xs font-semibold px-2 py-1 rounded-full shrink-0 ${
-                billing?.plan === 'regular' || billing?.plan === 'pro'
+                billing?.plan === 'personal' || billing?.plan === 'business'
                   ? 'bg-emerald-500/15 text-emerald-400'
                   : 'bg-bear-border text-bear-muted'
               }`}>
-                {billing?.plan === 'regular' ? 'Regular' : billing?.plan === 'pro' ? 'Pro' : 'Free'}
+                {billing?.plan === 'personal' ? 'Personal' : billing?.plan === 'business' ? 'Business' : 'Free'}
               </span>
             </div>
 
-            {/* Upgrade options (owner only, free plan) */}
-            {isOwner && billing?.plan === 'free' && (
-              <div className="space-y-2">
-                <button
-                  onClick={() => { setCheckoutLoading('regular'); api.createCheckout('regular').then(r => r.url && (window.location.href = r.url)).catch(e => alert(e.message)).finally(() => setCheckoutLoading(null)); }}
-                  disabled={!!checkoutLoading}
-                  className="btn-primary text-sm py-2.5 w-full flex items-center justify-center gap-2"
-                >
-                  {checkoutLoading === 'regular' ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Upgrade to Regular — $29.99/user/mo · 100 docs/mo'}
-                </button>
-                <button
-                  onClick={() => { setCheckoutLoading('pro'); api.createCheckout('pro').then(r => r.url && (window.location.href = r.url)).catch(e => alert(e.message)).finally(() => setCheckoutLoading(null)); }}
-                  disabled={!!checkoutLoading}
-                  className="btn-secondary text-sm py-2 w-full flex items-center justify-center gap-2"
-                >
-                  {checkoutLoading === 'pro' ? <span className="w-4 h-4 border-2 border-bear-muted/30 border-t-bear-muted rounded-full animate-spin" /> : 'Pro Plan — $129.99/mo · 5 users included · Unlimited docs'}
-                </button>
-              </div>
+            {/* Upgrade options (owner only, non-business plan) */}
+            {isOwner && billing?.plan !== 'business' && (
+              <button
+                onClick={() => setPricingOpen(true)}
+                className="btn-primary text-sm py-2.5 w-full"
+              >
+                {billing?.plan === 'free' ? 'Upgrade Plan' : 'Upgrade to Business'}
+              </button>
             )}
 
             {/* Manage subscription (owner only, paid plan) */}
@@ -275,6 +266,12 @@ export default function SettingsScreen() {
           </div>
         </div>
       </div>
+
+      <PricingModal
+        isOpen={pricingOpen}
+        onClose={() => setPricingOpen(false)}
+        currentPlan={billing?.plan || 'free'}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore, useUIStore, useChatStore } from '../store/index.js';
 import clsx from 'clsx';
+import PricingModal from './PricingModal.jsx';
 
 const DOC_TYPE_SHORT = {
   rfi: 'RFI', change_order: 'CO', submittal: 'SUB', lien_waiver: 'LW',
@@ -52,6 +53,7 @@ export default function Sidebar() {
   const isAdmin = user?.is_admin;
   const [search, setSearch] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [pricingOpen, setPricingOpen] = useState(false);
 
   useEffect(() => { loadSessions(); }, []);
 
@@ -283,10 +285,10 @@ export default function Sidebar() {
               : `${1 - subscription.doc_count} free document remaining.`}
           </p>
           <button
-            onClick={() => setView('settings')}
+            onClick={() => setPricingOpen(true)}
             className="w-full text-xs font-semibold text-white bg-bear-accent hover:bg-bear-accent-hover px-3 py-1.5 rounded-lg transition-colors"
           >
-            Upgrade — $29.99/user/mo
+            Upgrade Plan
           </button>
         </div>
       )}
@@ -308,6 +310,12 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
+
+      <PricingModal
+        isOpen={pricingOpen}
+        onClose={() => setPricingOpen(false)}
+        currentPlan={subscription?.plan || 'free'}
+      />
     </div>
   );
 }

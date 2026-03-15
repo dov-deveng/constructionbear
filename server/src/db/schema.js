@@ -391,6 +391,9 @@ function initSchema(db) {
   try {
     db.exec(`UPDATE companies SET seats = (SELECT COUNT(*) FROM users WHERE users.company_id = companies.id) WHERE seats IS NULL OR seats = 0`);
   } catch { /* ignore */ }
+  // Rename plan values: regular→personal, pro→business
+  try { db.exec(`UPDATE companies SET plan = 'personal' WHERE plan = 'regular'`); } catch {}
+  try { db.exec(`UPDATE companies SET plan = 'business' WHERE plan = 'pro'`); } catch {}
 
   // Promote ADMIN_EMAIL to admin if set
   if (process.env.ADMIN_EMAIL) {

@@ -185,8 +185,8 @@ export const api = {
 
   // Stripe
   getSubStatus: () => request('GET', '/stripe/status'),
-  createCheckout: (plan = 'pro') => request('POST', '/stripe/create-checkout', { plan }),
-  createPortal: () => request('POST', '/stripe/create-portal'),
+  createCheckout: (plan = 'personal', returnUrl = window.location.href) => request('POST', '/stripe/create-checkout', { plan, returnUrl }),
+  createPortal: (returnUrl = window.location.href) => request('POST', '/stripe/create-portal', { returnUrl }),
 
   // Guest (unauthenticated)
   guestChat: (message, messages, guestSessionId) => request('POST', '/chat/guest', { message, messages, guest_session_id: guestSessionId }),
